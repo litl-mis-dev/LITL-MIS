@@ -1,0 +1,744 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum UserStatus {
+  PENDING_EMAIL_VERIFICATION
+  PENDING_OFFICER_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum EmailType {
+  CVSU
+  PERSONAL
+}
+
+enum Role {
+  PRESIDENT_ADMIN
+  VICE_PRESIDENT_ADMIN
+  SECRETARY
+  SEN_INTERNAL_AFFAIRS
+  SEN_EXTERNAL_AFFAIRS
+  SEN_FINANCE
+  SEN_AUDIT
+  SEN_BUSINESS_AFFAIRS
+  SEN_LOGISTICS_PROPERTIES
+  SEN_PUBLICITY_INFORMATION
+  SEN_ACADEMIC_AFFAIRS
+  SEN_RULES_CONSTITUTIONAL_AMENDMENTS
+  SEN_SPORTS_ARTS_CULTURE
+  SEN_STUDENT_RIGHTS_WELFARE
+  YEAR_REP_1
+  YEAR_REP_2
+  YEAR_REP_3
+  YEAR_REP_4
+  ADVISER_DEPT_CHAIR
+  MEMBER
+}
+
+// ─── RBAC MODULES ─────────────────────────────────────────────────────────────
+enum Module {
+  DASHBOARD
+  MEMBER_LIST
+  MEMBERS_APPROVAL
+  AUDIT
+  HASH_CHAIN
+  EVENT
+  DOCUMENTS
+  CERTIFICATION
+  FINANCIAL
+  ACTIVITY_LOGS
+  SETTINGS_ROLES
+  SETTINGS_DESIGN
+}
+
+enum PermissionLevel {
+  NONE
+  VIEW
+  EDIT
+}
+
+enum AuditStatus {
+  PENDING
+  REVIEW
+  FOR_CLARIFICATION
+  CLEARED
+}
+
+enum OtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  PREFER_NOT_TO_SAY
+}
+
+enum SemesterType {
+  FIRST
+  SECOND
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  ARCHIVED
+}
+
+enum OfficerAssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
+enum EventStatus {
+  COMING_SOON
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum DocumentItemType {
+  FOLDER
+  FILE
+}
+
+enum DocumentAccessGroup {
+  MEMBERS
+  ADVISER
+}
+
+enum DocumentPermission {
+  VIEW
+  EDIT
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum NotificationType {
+  REGISTRATION_APPROVED
+  REGISTRATION_REJECTED
+  EVENT_CREATED
+  EVENT_STATUS_CHANGED
+  EVENT_UPDATED
+  MEMBER_APPROVAL_REQUEST
+  ANNOUNCEMENT
+  AUDIT_STATUS_CHANGED
+}
+
+enum AnnouncementRecipient {
+  MEMBERS
+  OFFICERS
+  BOTH
+}
+
+enum AnnouncementPriority {
+  NORMAL
+  IMPORTANT
+}
+
+// ─── AUTH MODELS ──────────────────────────────────────────────────────────────
+
+model User {
+  id                  Int        @id @default(autoincrement())
+  studentNumber       String     @unique
+  email               String     @unique
+  emailType           EmailType
+  password            String
+  role                Role       @default(MEMBER)
+  status              UserStatus @default(PENDING_OFFICER_APPROVAL)
+
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  tokenVersion        Int        @default(0)
+  pendingEmailChange    PendingEmailChange?
+
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  member                Member?
+  otps                  Otp[]
+
+  // Financial relations — who created/recorded what
+  recordedPayments      Payment[]       @relation("RecordedBy")
+  createdCategories     FundCategory[]  @relation("CategoryCreatedBy")
+  createdDisbursements  Disbursement[]  @relation("DisbursementCreatedBy")
+  createdReturnFunds    ReturnFund[]    @relation("ReturnFundCreatedBy")
+
+  // Officer history — who assigned which officer roles
+  assignedOfficerRoles  OfficerAssignment[] @relation("OfficerAssignedBy")
+
+  // Audit trail — split into actor/target since one User can perform an
+  // action (approve someone) and also be the subject of one (be approved)
+  auditLogsAsActor      AuditLog[] @relation("AuditActor")
+  auditLogsAsTarget     AuditLog[] @relation("AuditTarget")
+  auditsReviewed        Audit[]    @relation("AuditReviewedBy")
+
+  createdEvents         Event[]         @relation("EventCreatedBy")
+
+  ownedDocuments        DocumentItem[]          @relation("DocumentOwner")
+  documentOfficerAccess DocumentOfficerAccess[] @relation("DocumentOfficerAccess")
+  documentAssets DocumentAsset[] @relation("DocumentAssetUploadedBy")
+
+  issuedCertificates  Certificate[] @relation("CertificateIssuedBy")
+  revokedCertificates Certificate[] @relation("CertificateRevokedBy")
+
+  issuedMembershipCertificates MembershipCertificate[] @relation("MembershipCertificateIssuedBy")
+
+  notifications      Notification[]     @relation("UserNotifications")
+  pushSubscriptions  PushSubscription[] @relation("UserPushSubscriptions")
+
+  createdAnnouncements Announcement[] @relation("AnnouncementCreatedBy")
+}
+
+model Member {
+  id         Int          @id @default(autoincrement())
+  userId     Int          @unique
+  firstName  String
+  middleName String?
+  lastName   String
+  suffix     String?
+  sex        Sex
+  yearLevel  String
+  section    String
+  avatar    String?
+  avatarPath String?
+  status     MemberStatus @default(ACTIVE)
+  qrCode     String?      @db.LongText
+
+  user               User                @relation(fields: [userId], references: [id])
+  payments           Payment[]
+  officerAssignments OfficerAssignment[]
+  membershipCertificates MembershipCertificate[]
+}
+
+model Otp {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  codeHash  String
+  purpose   OtpPurpose
+  attempts  Int        @default(0)
+  expiresAt DateTime
+  used      Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+
+  @@index([userId, purpose, used])
+}
+
+model PendingRegistration {
+  id            Int       @id @default(autoincrement())
+  token         String    @unique
+
+  firstName     String
+  middleName    String?
+  lastName      String
+  suffix        String?
+  sex           Sex
+  studentNumber String    @unique
+  yearLevel     String
+  section       String
+  email         String    @unique
+  emailType     EmailType
+  password      String
+
+  otpCodeHash   String
+  otpExpiresAt  DateTime
+  otpAttempts   Int       @default(0)
+  lastOtpSentAt DateTime  @default(now())
+
+  createdAt     DateTime  @default(now())
+}
+
+// ─── OFFICER MANAGEMENT ────────────────────────────────────────────────────────
+
+model OfficerAssignment {
+  id           Int                     @id @default(autoincrement())
+  memberId     Int
+  role         Role
+  activeRole   Role?
+  startDate    DateTime                @default(now())
+  endDate      DateTime?
+  status       OfficerAssignmentStatus @default(ACTIVE)
+  assignedById Int
+  createdAt    DateTime                @default(now())
+
+  member     Member @relation(fields: [memberId], references: [id])
+  assignedBy User   @relation("OfficerAssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([activeRole])
+  @@index([memberId])
+  @@index([role])
+  @@index([status])
+}
+
+model RolePermission {
+  id         Int             @id @default(autoincrement())
+  role       Role
+  module     Module
+  level      PermissionLevel @default(NONE)
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([role, module])
+  @@index([role])
+}
+
+// ─── AUDIT TRAIL ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  actorId      Int?
+  targetUserId Int?
+  action       String
+  details      String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  // Hash-chain ledger — only populated for FINANCIAL_LEDGER_ACTIONS.
+  // null on non-financial rows (login, approval, events, documents, etc.)
+  hash         String?  @db.Char(64)
+  previousHash String?  @db.Char(64)
+
+  actor      User? @relation("AuditActor",  fields: [actorId],      references: [id])
+  targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@index([actorId])
+  @@index([targetUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ─── FINANCIAL MODELS ─────────────────────────────────────────────────────────
+
+model Semester {
+  id               Int          @id @default(autoincrement())
+  schoolYear       String
+  semester         SemesterType
+  isActive         Boolean      @default(false)
+  hasBeenActivated Boolean      @default(false) // once true, NEVER reset — blocks reactivation forever
+  beginningBalance Decimal      @default(0) @db.Decimal(10, 2) // informational only — no longer feeds calculations
+  endingBalance    Decimal?     @db.Decimal(10, 2)
+  activeMemberIds  Json?
+  createdAt DateTime @default(now())
+
+  paymentsReceived  Payment[] @relation("ReceivedIn")
+  paymentsObligated Payment[] @relation("ObligationFor")
+  fundCategories FundCategory[]
+  disbursements  Disbursement[]
+  returnFunds    ReturnFund[]
+  membershipCertificates MembershipCertificate[] @relation("MembershipCertificateSemester")
+
+  @@unique([schoolYear, semester])
+}
+// Records each membership fee payment. Total Fund is ALWAYS computed as
+// SUM of these records — never entered manually.
+model Payment {
+  id                   Int      @id @default(autoincrement())
+  memberId             Int
+  semesterId           Int
+  obligationSemesterId Int?     // null = same as semesterId (normal Paid). Settled = past semester.
+  amount               Decimal  @default(100.00) @db.Decimal(10, 2)
+  paidAt               DateTime @default(now())
+  recordedById         Int
+  isArchived           Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  member             Member    @relation(fields: [memberId], references: [id])
+  semester           Semester  @relation("ReceivedIn", fields: [semesterId], references: [id])
+  obligationSemester Semester? @relation("ObligationFor", fields: [obligationSemesterId], references: [id])
+  recordedBy         User      @relation("RecordedBy", fields: [recordedById], references: [id])
+  membershipCertificate MembershipCertificate?
+
+  @@index([memberId, semesterId])
+  @@index([memberId, obligationSemesterId])
+  @@index([semesterId])
+}
+
+model FundCategory {
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  percentage            Decimal  @db.Decimal(5, 2)
+  semesterId            Int
+  isArchived            Boolean  @default(false)
+  isTurnoverFund        Boolean  @default(false) // system-generated, not user-creatable
+  fixedAllocationAmount Decimal? @db.Decimal(10, 2) // only set for turnover categories — bypasses percentage math
+  createdById           Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  semester      Semester       @relation(fields: [semesterId], references: [id])
+  createdBy     User           @relation("CategoryCreatedBy", fields: [createdById], references: [id])
+  disbursements Disbursement[]
+
+  @@unique([name, semesterId])
+  @@index([semesterId])
+}
+
+model Disbursement {
+  id                  Int      @id @default(autoincrement())
+  reference           String   @unique
+  name                String
+  amount              Decimal  @db.Decimal(10, 2)
+  purposeOfFund       String   @db.Text
+  titleOfActivities   String
+  fundCategoryId      Int
+  semesterId          Int
+
+  disbursedBy         String
+  disbursedByPosition String
+  approvedBy          String
+  approvedByPosition  String
+  receivedBy          String
+  receivedByPosition  String
+
+  isArchived  Boolean  @default(false)
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fundCategory FundCategory @relation(fields: [fundCategoryId], references: [id])
+  semester     Semester     @relation(fields: [semesterId], references: [id])
+  createdBy    User         @relation("DisbursementCreatedBy", fields: [createdById], references: [id])
+  returnFunds  ReturnFund[]
+
+  audit Audit?
+
+  @@index([fundCategoryId])
+  @@index([semesterId])
+}
+
+model ReturnFund {
+  id                 Int      @id @default(autoincrement())
+  reference          String   @unique
+  receivedFrom       String
+  amount             Decimal  @db.Decimal(10, 2)
+  disbursementId     Int
+
+  refundedBy         String
+  refundedByPosition String
+  receivedBy         String
+  receivedByPosition String
+  auditedBy          String
+  auditedByPosition  String
+  approvedBy         String
+  approvedByPosition String
+
+  isArchived  Boolean  @default(false)
+  semesterId  Int
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  disbursement Disbursement @relation(fields: [disbursementId], references: [id])
+  semester     Semester     @relation(fields: [semesterId], references: [id])
+  createdBy    User         @relation("ReturnFundCreatedBy", fields: [createdById], references: [id])
+
+  audit Audit?
+
+  @@index([disbursementId])
+  @@index([semesterId])
+}
+
+model Audit {
+  id             Int         @id @default(autoincrement())
+  disbursementId Int?        @unique
+  returnFundId   Int?        @unique
+  status         AuditStatus @default(PENDING)
+  remarks        String?     @db.Text
+
+  reviewedById Int?
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disbursement Disbursement? @relation(fields: [disbursementId], references: [id])
+  returnFund   ReturnFund?   @relation(fields: [returnFundId], references: [id])
+  reviewedBy   User?         @relation("AuditReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([status])
+}
+
+// Organization events. Access is stored as a JSON array string: ["Members","Officers"]
+model Event {
+  id            Int         @id @default(autoincrement())
+  title         String
+  date          String      // "YYYY-MM-DD" — stored as string to avoid TZ issues
+  time          String      // "HH:MM" 24-hour format
+  location      String
+  proponent     String
+  description   String      @db.Text
+  status        EventStatus @default(COMING_SOON)
+  access        String      @db.Text    // JSON: ["Members"] | ["Officers"] | ["Members","Officers"]
+  hasGoogleForm Boolean     @default(false)
+  googleFormUrl String?
+  createdById   Int
+  isArchived    Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  createdBy   User              @relation("EventCreatedBy", fields: [createdById], references: [id])
+  attendances EventAttendance[]
+
+  certificationFolder EventCertificationFolder?
+  certificates        Certificate[]
+
+  @@index([status])
+  @@index([date])
+  @@index([isArchived])
+}
+
+// QR-code attendance records. One row per scan per event — duplicates rejected at DB level.
+model EventAttendance {
+  id          Int      @id @default(autoincrement())
+  eventId     Int
+  qrCode      String
+  checkedInAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, qrCode])
+  @@index([eventId])
+}
+
+// Holds a pending email change until the OTP sent to the new address is
+model PendingEmailChange {
+  id            Int      @id @default(autoincrement())
+  token         String   @unique   // opaque handle returned to the frontend
+  userId        Int      @unique   // one-at-a-time per user
+  newEmail      String             // the address being claimed
+  otpCodeHash   String
+  otpExpiresAt  DateTime
+  otpAttempts   Int      @default(0)
+  lastOtpSentAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// ─── DOCUMENTS MODULE ──────────────────────────────────────────────────────────
+model DocumentItem {
+  id               Int              @id @default(autoincrement())
+  type             DocumentItemType
+  name             String
+  parentId         Int?
+  previousParentId Int?             // remembers original folder while trashed, for Restore
+  ownerId          Int
+
+  storagePath      String?          @db.Text // relative path under uploads/documents — FILE only
+  publicUrl        String?  @db.Text
+  originalFileName String?                   // original uploaded filename — FILE only
+  mimeType         String?
+  size             Int?                      // bytes — FILE only
+  fileType         String?                   // cached extension label e.g. "PDF" — FILE only
+
+  isTrashed Boolean   @default(false)
+  trashedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   DocumentItem?  @relation("DocumentChildren", fields: [parentId], references: [id])
+  children DocumentItem[] @relation("DocumentChildren")
+  owner    User           @relation("DocumentOwner", fields: [ownerId], references: [id])
+
+  groupAccess   DocumentGroupAccess[]
+  officerAccess DocumentOfficerAccess[]
+
+  @@index([parentId])
+  @@index([ownerId])
+  @@index([isTrashed])
+}
+
+// "Members" / "Adviser/Dept. Chair" checkboxes in the sharing UI — both are
+// always view-only. See the enum comment for why "Officers" isn't stored here.
+model DocumentGroupAccess {
+  id         Int                 @id @default(autoincrement())
+  documentId Int
+  group      DocumentAccessGroup
+
+  document DocumentItem @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, group])
+  @@index([documentId])
+}
+
+// Per-officer grants — the "Officers" fieldset in the sharing UI (View/Edit
+// toggle per person). Also how an Adviser/Dept. Chair gets Edit specifically,
+// since their group grant (ADVISER) is always view-only.
+model DocumentOfficerAccess {
+  id         Int                @id @default(autoincrement())
+  documentId Int
+  userId     Int
+  permission DocumentPermission @default(VIEW)
+
+  document DocumentItem @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User         @relation("DocumentOfficerAccess", fields: [userId], references: [id])
+
+  @@unique([documentId, userId])
+  @@index([documentId])
+  @@index([userId])
+}
+
+model DocumentAsset {
+  id           Int      @id @default(autoincrement())
+  assetType    String   @unique  // "headerImage" | "footerImage" | "memberCertificate"
+  fileName     String
+  storagePath  String   @db.Text
+  publicUrl    String   @db.Text
+  mimeType     String
+  fileSize     Int
+  uploadedById Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedBy User @relation("DocumentAssetUploadedBy", fields: [uploadedById], references: [id])
+}
+
+// ─── EVENT CERTIFICATION MODULE ─────────────────────────────────────────────
+
+model CertificationArchive {
+  id         Int      @id @default(autoincrement())
+  schoolYear String   @unique
+  createdAt  DateTime @default(now())
+
+  eventFolders EventCertificationFolder[]
+}
+
+model EventCertificationFolder {
+  id                     Int      @id @default(autoincrement())
+  eventId                Int      @unique
+  certificationArchiveId Int
+  createdAt              DateTime @default(now())
+
+  event                Event                @relation(fields: [eventId], references: [id])
+  certificationArchive CertificationArchive @relation(fields: [certificationArchiveId], references: [id])
+  certificates         Certificate[]
+
+  @@index([certificationArchiveId])
+}
+
+model Certificate {
+  id       Int    @id @default(autoincrement())
+
+  certificateNumber String @unique
+  publicId           String @unique
+
+  eventCertificationFolderId Int
+  eventId                    Int
+
+  status       CertificateStatus @default(ACTIVE)
+
+  originalFileName String
+  mimeType         String
+  fileSize         Int
+  storagePath      String            @db.Text
+  publicUrl        String            @db.Text
+
+  certificateHash String @db.Char(64)
+
+  issuedById   Int
+  revokedById  Int?
+  revokedAt    DateTime?
+  revokeReason String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  eventCertificationFolder EventCertificationFolder @relation(fields: [eventCertificationFolderId], references: [id])
+  event                    Event                    @relation(fields: [eventId], references: [id])
+  issuedBy                 User                     @relation("CertificateIssuedBy", fields: [issuedById], references: [id])
+  revokedBy                User?                    @relation("CertificateRevokedBy", fields: [revokedById], references: [id])
+
+  @@index([eventCertificationFolderId])
+  @@index([eventId])
+  @@index([status])
+}
+
+// ─── MEMBERSHIP CERTIFICATE — QR CODE, CERTIFICATE ID, LEDGER ───────────────
+
+model MembershipCertificate {
+  id                Int      @id @default(autoincrement())
+  certificateNumber String   @unique
+  paymentId         Int      @unique
+  memberId          Int
+  semesterId        Int // the obligation semester this certificate covers
+  certificateHash   String   @db.Char(64)
+  issuedById        Int
+  createdAt         DateTime @default(now())
+
+  payment  Payment  @relation(fields: [paymentId], references: [id])
+  member   Member   @relation(fields: [memberId], references: [id])
+  semester Semester @relation("MembershipCertificateSemester", fields: [semesterId], references: [id])
+  issuedBy User     @relation("MembershipCertificateIssuedBy", fields: [issuedById], references: [id])
+
+  @@index([memberId])
+  @@index([semesterId])
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  // Used only for grouped notifications (e.g. pending member approvals) so
+  // the same row can be updated in place instead of creating duplicates.
+  groupKey  String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation("UserNotifications", fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, groupKey])
+}
+
+model Announcement {
+  id          Int                   @id @default(autoincrement())
+  title       String
+  message     String                @db.Text
+  recipients  AnnouncementRecipient
+  priority    AnnouncementPriority  @default(NORMAL)
+  // Only meaningful for IMPORTANT announcements. Null means "never expires".
+  expiresAt   DateTime?
+  createdById Int
+  createdAt   DateTime              @default(now())
+
+  createdBy User @relation("AnnouncementCreatedBy", fields: [createdById], references: [id])
+
+  @@index([priority, expiresAt])
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @db.VarChar(500)
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation("UserPushSubscriptions", fields: [userId], references: [id])
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+}
