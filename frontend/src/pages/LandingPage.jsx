@@ -180,7 +180,7 @@ export default function LandingPage() {
           <div className="landing-shell landing-hero-grid">
             <div className="landing-hero-copy">
               <p className="landing-kicker">Cavite State University</p>
-              <h1>League of Information Technology Leaders TEST3</h1>
+              <h1>League of Information Technology Leaders</h1>
               <p className="landing-hero-text">
                 The official digital home for LITL announcements, certificate verification,
                 organization details, and ways to reach the officers.
