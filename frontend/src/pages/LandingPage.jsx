@@ -134,7 +134,7 @@ export default function LandingPage() {
       <nav className={`landing-nav ${scrolled ? "landing-nav-scrolled" : ""}`}>
         <div className="landing-nav-inner">
           <button className="landing-brand" type="button" onClick={() => scrollTo("home")} aria-label="Go to home">
-            <img src={logo} alt="League of Information Technology Leaders" />
+            <img src={logo} alt="League of Information Technology Leaders TEST" />
           </button>
 
           <div className="landing-nav-links">
