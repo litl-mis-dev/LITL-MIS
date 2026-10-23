@@ -1,6 +1,22 @@
-const { Resend } = require('resend')
+const nodemailer = require('nodemailer')
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Hostinger email over SMTP. Port 465 uses implicit TLS; 587 upgrades with STARTTLS.
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465)
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
+
+// Unlike the old Resend client, nodemailer throws on failure, so callers'
+// existing try/catch blocks now see failed sends instead of silently passing.
+const sendMail = (message) =>
+  transporter.sendMail({ from: process.env.EMAIL_FROM, ...message })
 
 const PURPOSES = {
   EMAIL_VERIFICATION: {
@@ -40,8 +56,7 @@ const sendOtpEmail = async (toEmail, otp, purpose) => {
     </div>
   `
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await sendMail({
     to: toEmail,
     subject,
     html,
@@ -74,8 +89,7 @@ const sendPaymentReminderEmail = async (toEmail, memberName, semesterLabel) => {
     </div>
   `
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await sendMail({
     to: toEmail,
     subject: `Membership Payment Reminder — ${semesterLabel}`,
     html,
@@ -121,8 +135,7 @@ const sendContactFormEmail = async ({ name, email, affiliation, organization, su
     </div>
   `
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await sendMail({
     to: process.env.ORGANIZATION_EMAIL || process.env.EMAIL_FROM,
     replyTo: email,
     subject: `[Contact Form] ${subject}`,
@@ -162,8 +175,7 @@ const sendRegistrationStatusEmail = async (toEmail, memberName, approved) => {
     </div>
   `
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await sendMail({
     to: toEmail,
     subject: approved ? 'Your LITL registration was approved' : 'Update on your LITL registration',
     html,

@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 
 import DashboardLayout from './pages/officers/DashboardLayout'
-import MembersLayout from './pages/Members/MembersLayout'
+import MembersLayout from './pages/members/MembersLayout'
 
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
