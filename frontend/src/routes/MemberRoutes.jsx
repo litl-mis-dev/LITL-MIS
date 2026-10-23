@@ -1,12 +1,12 @@
 import { lazy } from "react";
 import LazyPage from "./LazyPage";
-const Members = lazy(() => import("../pages/Members/Members"));
-const QRCode = lazy(() => import("../pages/Members/QRCode"));
-const Documents = lazy(() => import("../pages/Members/Documents"));
-const Events = lazy(() => import("../pages/Members/Events"));
-const Membership = lazy(() => import("../pages/Members/Membership"));
-const Profile = lazy(() => import("../pages/Members/Profile"));
-const Settings = lazy(() => import("../pages/Members/Settings"));
+const Members = lazy(() => import("../pages/members/Members"));
+const QRCode = lazy(() => import("../pages/members/QRCode"));
+const Documents = lazy(() => import("../pages/members/Documents"));
+const Events = lazy(() => import("../pages/members/Events"));
+const Membership = lazy(() => import("../pages/members/Membership"));
+const Profile = lazy(() => import("../pages/members/Profile"));
+const Settings = lazy(() => import("../pages/members/Settings"));
 
 export const memberRoutes = [
   { index: true, element: <LazyPage><Members /></LazyPage> },
