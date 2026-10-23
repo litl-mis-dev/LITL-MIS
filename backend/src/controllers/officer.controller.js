@@ -7,6 +7,13 @@ const { notifyRegistrationApproved, notifyRegistrationRejected, syncMemberApprov
 const { emitToOfficers } = require('../realtime/socket')
 const { sendRegistrationStatusEmail } = require('../utils/email')
 
+// The President and VP seats can only be granted, changed or removed by the
+// President. Without this, a VP (also an OFFICER_MANAGER) could assign
+// PRESIDENT_ADMIN to themselves, which silently demotes the real President.
+const TOP_OFFICER_ROLES = ['PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN']
+const requiresPresident = (actorRole, ...targetRoles) =>
+  actorRole !== 'PRESIDENT_ADMIN' && targetRoles.some((role) => TOP_OFFICER_ROLES.includes(role))
+
 // List all users pending officer approval
 const getPendingUsers = async (req, res) => {
   try {
@@ -375,6 +382,9 @@ const assignOfficerRole = async (req, res) => {
     if (NON_MEMBER_ROLES.includes(member.user.role)) {
       return res.status(400).json({ message: 'Advisers are not members and cannot be assigned a member officer role.' })
     }
+    if (requiresPresident(req.user.role, role, member.user.role)) {
+      return res.status(403).json({ message: 'Only the President can assign or change the President and Vice President positions.' })
+    }
     if (member.user.status !== 'APPROVED') {
       return res.status(400).json({ message: 'Only approved users can be assigned an officer role.' })
     }
@@ -518,6 +528,9 @@ const removeOfficerRole = async (req, res) => {
     if (NON_MEMBER_ROLES.includes(user.role)) {
       return res.status(400).json({ message: 'Advisers are not members and cannot be reverted to a Member.' })
     }
+    if (requiresPresident(req.user.role, user.role)) {
+      return res.status(403).json({ message: 'Only the President can remove the President or Vice President.' })
+    }
 
     const previousRole = user.role
 
@@ -595,6 +608,9 @@ const updateMemberStatus = async (req, res) => {
     if (!member) return res.status(404).json({ message: 'Member not found.' })
     if (NON_MEMBER_ROLES.includes(member.user.role)) {
       return res.status(400).json({ message: 'Advisers are not members and have no membership status.' })
+    }
+    if (requiresPresident(req.user.role, member.user.role)) {
+      return res.status(403).json({ message: 'Only the President can change the President or Vice President\'s membership status.' })
     }
 
     const previousStatus = member.status

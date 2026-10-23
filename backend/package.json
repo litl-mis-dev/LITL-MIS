@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "seed:permissions": "node prisma/seed.permissions.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/audit-fixes.test.js"
   },
   "engines": {
     "node": ">=20"

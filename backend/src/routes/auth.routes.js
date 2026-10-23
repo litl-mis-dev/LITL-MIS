@@ -39,7 +39,6 @@ router.post('/register', registerLimiter, register)
 router.post('/verify-email-otp', verifyOtpLimiter, verifyEmailOtp)
 router.post('/resend-otp', otpResendLimiter, resendOtp)
 
-router.post('/resend-otp', otpResendLimiter, resendOtp)
 router.get('/pending-registration', getPendingRegistration)
 
 router.post('/login', loginLimiter, login)
