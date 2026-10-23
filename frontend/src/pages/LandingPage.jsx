@@ -134,7 +134,7 @@ export default function LandingPage() {
       <nav className={`landing-nav ${scrolled ? "landing-nav-scrolled" : ""}`}>
         <div className="landing-nav-inner">
           <button className="landing-brand" type="button" onClick={() => scrollTo("home")} aria-label="Go to home">
-            <img src={logo} alt="League of Information Technology Leaders TEST" />
+            <img src={logo} alt="League of Information Technology Leaders" />
           </button>
 
           <div className="landing-nav-links">
@@ -180,7 +180,7 @@ export default function LandingPage() {
           <div className="landing-shell landing-hero-grid">
             <div className="landing-hero-copy">
               <p className="landing-kicker">Cavite State University</p>
-              <h1>League of Information Technology Leaders</h1>
+              <h1>League of Information Technology Leaders TEST</h1>
               <p className="landing-hero-text">
                 The official digital home for LITL announcements, certificate verification,
                 organization details, and ways to reach the officers.
