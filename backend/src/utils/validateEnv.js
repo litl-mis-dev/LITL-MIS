@@ -29,9 +29,9 @@ const validateEnv = () => {
     if (!/^https:\/\//i.test(process.env.FRONTEND_URL)) {
       problems.push('FRONTEND_URL must be an https:// URL (auth cookie is Secure + SameSite=None)')
     }
-    if (/localhost|127\.0\.0\.1/i.test(process.env.DATABASE_URL)) {
-      problems.push('DATABASE_URL points at a local database')
-    }
+    // No localhost check on DATABASE_URL: on Hostinger, MySQL runs on the same
+    // server as the app and must be reached at 127.0.0.1. The FRONTEND_URL
+    // checks above still catch a dev .env deployed by mistake.
     if (process.env.JWT_SECRET.length < 32) {
       problems.push('JWT_SECRET must be at least 32 characters')
     }
