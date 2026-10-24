@@ -594,7 +594,7 @@ const login = async (req, res) => {
   try {
     const { identifier, password } = req.body
 
-    if (!identifier || !password) {
+    if (typeof identifier !== 'string' || typeof password !== 'string' || !identifier.trim() || !password) {
       return res.status(400).json({ message: 'Please enter your credentials' })
     }
 
