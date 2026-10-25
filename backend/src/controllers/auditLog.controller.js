@@ -7,7 +7,7 @@ const {
   DEDUCT_ACTIONS,
   ADD_ACTIONS
 } = require('../utils/auditActions')
-const { ROLE_POSITION_LABELS } = require('../utils/roles')
+const { ROLE_POSITION_LABELS, DEVELOPER_ROLE } = require('../utils/roles')
 
 const STATUS_LABELS = {
   PENDING: 'Pending',
@@ -121,7 +121,9 @@ const listAuditLogs = async (req, res) => {
     // ── Shape each row for the frontend ────────────────────────────────────
     const logs = rawLogs
       .map(log => {
-        const actorName  = buildFullName(log.actor?.member) ?? 'System'
+        const actorName  = log.actor?.role === DEVELOPER_ROLE
+          ? 'Developer'
+          : buildFullName(log.actor?.member) ?? 'System'
         const actorRole  = log.actor?.role ?? null
         const details    = safeParseDetails(log.details)
         const amount = details?.amount ?? details?.snapshot?.amount ?? details?.carriedBalance ?? null
@@ -131,7 +133,7 @@ const listAuditLogs = async (req, res) => {
           date:        formatDate(log.createdAt),
           time:        formatTime(log.createdAt),
           account:     actorName,
-          role:        actorRole ? (ROLE_POSITION_LABELS[actorRole] ?? actorRole) : '—',
+          role:        actorRole === DEVELOPER_ROLE ? 'Developer' : actorRole ? (ROLE_POSITION_LABELS[actorRole] ?? actorRole) : '—',
           action:      AUDIT_ACTION_LABELS[log.action] ?? log.action,
           actionKey:   log.action,
           module:      AUDIT_ACTION_MODULE[log.action] ?? 'System',

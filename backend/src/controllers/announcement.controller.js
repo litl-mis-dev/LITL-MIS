@@ -86,6 +86,9 @@ const createAnnouncement = async (req, res) => {
 // simply stops being returned here, it is not deleted.
 const listImportantAnnouncements = async (req, res) => {
   try {
+    // The Developer is neither a member nor an officer — no audience applies.
+    if (req.user.role === 'DEVELOPER') return res.json({ announcements: [] })
+
     const isMember = req.user.effectiveRole === 'MEMBER'
     const audienceValues = isMember ? ['MEMBERS', 'BOTH'] : ['OFFICERS', 'BOTH']
 

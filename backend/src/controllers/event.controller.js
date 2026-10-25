@@ -2,7 +2,7 @@ const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
-const { OFFICER_ROLES: OFFICER_ROLE_LIST, NON_MEMBER_ROLES } = require('../utils/roles')
+const { OFFICER_ROLES: OFFICER_ROLE_LIST, NON_MEMBER_ROLES, DEVELOPER_ROLE } = require('../utils/roles')
 const { ensureEventCertificationFolder } = require('./certification.controller')
 const {
   notifyEventCreated, notifyEventStatusChanged,
@@ -302,6 +302,9 @@ const recordAttendance = async (req, res) => {
       })
       if (scannedUser && NON_MEMBER_ROLES.includes(scannedUser.role)) {
         return res.status(400).json({ message: 'Advisers are not members and cannot be checked in as attendees.' })
+      }
+      if (scannedUser?.role === DEVELOPER_ROLE) {
+        return res.status(400).json({ message: 'The Developer account is not a member and cannot be checked in.' })
       }
     }
 

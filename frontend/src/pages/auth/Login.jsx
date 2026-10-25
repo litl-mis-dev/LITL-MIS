@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthHeader from '../../components/AuthHeader'
+import { ROLE_HOME } from '../../utils/roles'
 import '../../assets/styles/auth/LoginOTP.css'
 
 function IconInput({ icon, error, ...props }) {
@@ -37,7 +38,7 @@ function Login() {
 
     try {
       const user = await login(identifier.trim(), password)
-      navigate(user.role === 'MEMBER' ? '/members' : '/officers/dashboard')
+      navigate(ROLE_HOME[user.role] ?? '/')
     } catch (err) {
       const backendMessage = err.response?.data?.message || 'Something went wrong. Please try again.'
       setError(backendMessage)

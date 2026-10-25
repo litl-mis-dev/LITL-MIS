@@ -7,7 +7,7 @@ const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')  
 const { generateMemberQrCode } = require('../utils/memberQr')
-const { isNonMemberRole } = require('../utils/roles')
+const { isNonMemberRole, DEVELOPER_ROLE } = require('../utils/roles')
 const storageService = require('../services/storage.service')
 const {
   PENDING_REG_COOKIE,
@@ -192,6 +192,7 @@ function buildAuthUser(user) {
     failedLoginAttempts,
     lockedUntil,
     tokenVersion,
+    developerName,
     ...publicUser
   } = user
 
@@ -202,7 +203,7 @@ function buildAuthUser(user) {
   const m = user.member && (isAdviser ? adviserSafeMember : user.member)
   const name = m
     ? [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ')
-    : null
+    : developerName ?? null
 
   return {
     ...publicUser,
@@ -423,6 +424,49 @@ const register = async (req, res) => {
   }
 }
 
+// The very first account on an empty system becomes the Developer: approved
+// straight away (there is no President yet to approve it) and given no Member
+// row, so it never shows up in member or officer lists and counts. Returns
+// null when this isn't the first account — including when a simultaneous
+// registration already claimed the single DeveloperAccount row (id = 1).
+async function createDeveloperIfFirstUser(pending) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      if (await tx.user.count() > 0) return null
+
+      const user = await tx.user.create({
+        data: {
+          studentNumber: pending.studentNumber,
+          email: pending.email,
+          emailType: pending.emailType,
+          password: pending.password,
+          role: DEVELOPER_ROLE,
+          status: 'APPROVED'
+        }
+      })
+      const displayName = [pending.firstName, pending.middleName, pending.lastName, pending.suffix]
+        .filter(Boolean).join(' ')
+      await tx.developerAccount.create({ data: { id: 1, userId: user.id, displayName } })
+      await tx.pendingRegistration.delete({ where: { id: pending.id } })
+      return user
+    })
+  } catch (err) {
+    if (err.code === 'P2002') return null // lost the race — register as a normal applicant
+    throw err
+  }
+}
+
+// Display name for the Developer, who has no Member row to take it from.
+async function attachDeveloperName(user) {
+  if (user?.role !== DEVELOPER_ROLE) return user
+  const account = await prisma.developerAccount.findUnique({
+    where: { userId: user.id },
+    select: { displayName: true }
+  })
+  user.developerName = account?.displayName ?? null
+  return user
+}
+
 // ---------------------------------------------
 // VERIFY EMAIL OTP
 // Looked up by random `verificationToken`, never by sequential id.
@@ -482,6 +526,21 @@ const verifyEmailOtp = async (req, res) => {
 
     // If the student was rejected before, re-use that account instead of creating a new one.
     const rejectedUserId = rejectedIds[0] ?? null
+
+    if (!rejectedUserId) {
+      const developer = await createDeveloperIfFirstUser(pending)
+      if (developer) {
+        clearPendingRegCookie(res)
+        await writeAuditLog({
+          action: AUDIT_ACTIONS.EMAIL_VERIFIED,
+          targetUserId: developer.id,
+          details: { developerAccount: true }
+        })
+        return res.json({
+          message: 'Email verified. As the first account, you are the system Developer. Sign in to approve registrations and assign the President.'
+        })
+      }
+    }
 
     const memberQrCode = await generateMemberQrCode({
       firstName: pending.firstName,
@@ -775,6 +834,7 @@ const login = async (req, res) => {
     }
 
     await ensureAuthUserQrCode(user)
+    await attachDeveloperName(user)
 
     return res.json({
       message: 'Logged in successfully',
@@ -815,6 +875,7 @@ const getMe = async (req, res) => {
   })
 
   await ensureAuthUserQrCode(user)
+  await attachDeveloperName(user)
 
   return res.json({ user: buildAuthUser(user) })
 }

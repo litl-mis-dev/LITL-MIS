@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma')
-const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES } = require('../utils/roles')
+const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE } = require('../utils/roles')
 const { VALID_MEMBER_STATUSES } = require('../utils/validators')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
@@ -380,7 +380,13 @@ const assignOfficerRole = async (req, res) => {
     if (NON_MEMBER_ROLES.includes(member.user.role)) {
       return res.status(400).json({ message: 'Advisers are not members and cannot be assigned a member officer role.' })
     }
-    if (requiresPresident(req.user.role, role, member.user.role)) {
+    // The Developer can only ever fill the empty President seat — its route
+    // (routes/developer.routes.js) already refuses once a President exists.
+    const developerAssigningPresident = req.user.role === DEVELOPER_ROLE && role === 'PRESIDENT_ADMIN'
+    if (req.user.role === DEVELOPER_ROLE && !developerAssigningPresident) {
+      return res.status(403).json({ message: 'The Developer account can only assign the President.' })
+    }
+    if (!developerAssigningPresident && requiresPresident(req.user.role, role, member.user.role)) {
       return res.status(403).json({ message: 'Only the President can assign or change the President and Vice President positions.' })
     }
     if (member.user.status !== 'APPROVED') {
