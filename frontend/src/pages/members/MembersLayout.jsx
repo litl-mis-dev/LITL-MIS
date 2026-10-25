@@ -131,7 +131,6 @@ export default function MembersLayout() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={handleToggleCollapse}
       />
 
       <MemberTopbar

@@ -59,7 +59,6 @@ export default function Membership() {
     return () => socket.off('payment:self-changed', handler);
   }, [user]);
 
-  //const canDownload        = r => r.rawStatus !== "UNPAID"
   const canDownload        = r => r.rawStatus !== "UNPAID" && Boolean(r.certificate)
   const latestDownloadable = records.find(canDownload)
   const downloadableCount  = records.filter(canDownload).length

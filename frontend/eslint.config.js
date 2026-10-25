@@ -18,4 +18,14 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // The service worker runs in its own global scope (self, clients).
+  {
+    files: ['public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  // Build config runs in Node.
+  {
+    files: ['vite.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

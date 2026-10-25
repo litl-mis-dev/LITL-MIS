@@ -13,8 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-// Unlike the old Resend client, nodemailer throws on failure, so callers'
-// existing try/catch blocks now see failed sends instead of silently passing.
+// nodemailer throws on failure, so a failed send reaches the caller's try/catch.
 const sendMail = (message) =>
   transporter.sendMail({ from: process.env.EMAIL_FROM, ...message })
 

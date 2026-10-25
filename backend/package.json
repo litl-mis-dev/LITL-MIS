@@ -7,7 +7,6 @@
     "start": "node index.js",
     "postinstall": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
-    "seed:permissions": "node prisma/seed.permissions.js",
     "test": "node tests/audit-fixes.test.js && node --test tests/immediate-fixes.test.js tests/push-delivery.test.js src/controllers/audit.controller.test.js"
   },
   "engines": {

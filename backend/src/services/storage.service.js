@@ -70,7 +70,7 @@ const deleteFiles = async (storagePaths) => {
 }
 
 // options.download: when set, the browser saves the file under that name
-// instead of opening it (same option the Supabase client accepted).
+// instead of opening it.
 const getSignedUrl = async (storagePath, expiresIn = 300, options = {}) => {
   const params = { Bucket: BUCKET, Key: storagePath }
   if (options.download) {

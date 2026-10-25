@@ -9,7 +9,6 @@ const helmet = require('helmet')
 const morgan = require('morgan')
 const fs = require('fs')
 const path = require('path')
-//require('dotenv').config()
 
 const authRoutes = require('./src/routes/auth.routes')
 const officerRoutes = require('./src/routes/officer.routes')
@@ -37,10 +36,6 @@ if (trustProxy !== '0' && trustProxy !== 'false') {
   app.set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy)
 }
 
-//app.use(helmet())
-/*app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'same-site' },
-}))*/
 const FRONTEND_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 app.use(helmet({

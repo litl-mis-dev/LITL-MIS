@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect,useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { getCurrentUser, loginUser, logoutUser } from '../services/auth.service'
 import { getMyPermissions } from '../services/rolePermission.service.js'
 import { unsubscribePush } from '../services/notification.service'
@@ -11,40 +11,9 @@ const EMPTY_PERMISSIONS = Object.fromEntries(MODULES.map((m) => [m, 'NONE']))
 
 const AuthContext = createContext(null)
 const MIN_AUTH_LOADING_MS = 700
-const PROFILE_STORAGE_PREFIX = 'litl-officer-profile:'
-const LOCAL_PROFILE_FIELDS = []
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-function getProfileStorageKey(userId) {
-  return `${PROFILE_STORAGE_PREFIX}${userId}`
-}
-
-function readStoredProfile(userId) {
-  if (!userId) return null
-
-  try {
-    return JSON.parse(localStorage.getItem(getProfileStorageKey(userId))) || null
-  } catch {
-    return null
-  }
-}
-
-function mergeStoredProfile(user) {
-  if (!user?.id) return user
-
-  const storedProfile = readStoredProfile(user.id)
-  if (!storedProfile) return user
-
-  const localProfile = Object.fromEntries(
-    LOCAL_PROFILE_FIELDS
-      .filter((key) => storedProfile[key])
-      .map((key) => [key, storedProfile[key]])
-  )
-
-  return { ...user, ...localProfile }
 }
 
 export const AuthProvider = ({ children }) => {
@@ -74,7 +43,7 @@ useEffect(() => {
 
     try {
       const data = await getCurrentUser()
-      setUser(mergeStoredProfile(data.user))
+      setUser(data.user)
 
       if (data.user?.role && data.user.role !== 'MEMBER') {
         await loadMyPermissions()
@@ -103,7 +72,7 @@ useEffect(() => {
       authUser = data.user
     }
 
-    const nextUser = mergeStoredProfile(authUser)
+    const nextUser = authUser
     setUser(nextUser)
     if (nextUser?.role && nextUser.role !== 'MEMBER') {
       await loadMyPermissions()
@@ -132,22 +101,13 @@ useEffect(() => {
     return nextUser
   }
 
- /* const refreshUser = async () => {
-    try {
-      const data = await getCurrentUser()
-      const nextUser = mergeStoredProfile(data.user)
-      setUser(nextUser)
-      return nextUser
-    } catch {
-      return user
-    }
-  }*/
-
     const refreshUser = async () => {
       try {
         const data = await getCurrentUser()
-        setUser(mergeStoredProfile(data.user))
-      } catch { }
+        setUser(data.user)
+      } catch {
+        // keep the current user if the refresh fails
+      }
     }
 
   return (

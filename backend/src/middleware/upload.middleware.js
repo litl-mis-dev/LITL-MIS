@@ -2,7 +2,7 @@ const multer = require('multer')
 const path   = require('path')
 
 // All uploads use memoryStorage — files are kept as Buffers (req.file.buffer)
-// and streamed straight to Supabase. Nothing is written to the local filesystem.
+// and streamed straight to R2. Nothing is written to the local filesystem.
 
 const ALLOWED_DOCUMENT_EXTENSIONS = new Set([
   'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',

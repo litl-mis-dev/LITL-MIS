@@ -26,8 +26,6 @@ export const advanceSemester = (confirmText) => api.post('/financial/semesters/a
 export const initFirstSemester = (schoolYear, semester, confirmText) => api.post('/financial/semesters/init', { schoolYear, semester, confirmText }).then(r => r.data)
 
 // Payments
-export const listPayments = () => api.get('/financial/payments').then(r => r.data)
-
 export const previewPayment = (memberId, amount) => api.post('/financial/payments/preview', { memberId, amount }).then(r => r.data)
 
 export const recordPayment = (memberId, amount, expectedSemesterIds) => api.post('/financial/payments', { memberId, amount, expectedSemesterIds }).then(r => r.data)
@@ -49,22 +47,12 @@ export const archiveCategory = (id) => api.delete(`/financial/categories/${id}`)
 // Disbursements
 export const listDisbursements = () => api.get('/financial/disbursements').then(r => r.data)
 
-export const getDisbursement = (id) => api.get(`/financial/disbursements/${id}`).then(r => r.data)
-
 export const createDisbursement = (data) => api.post('/financial/disbursements', data).then(r => r.data)
-
-export const updateDisbursement = (id, data) => api.put(`/financial/disbursements/${id}`, data).then(r => r.data)
-
-export const archiveDisbursement = (id) => api.delete(`/financial/disbursements/${id}`).then(r => r.data)
 
 // Return Funds
 export const listReturnFunds = () => api.get('/financial/return-funds').then(r => r.data)
 
 export const createReturnFund = (data) => api.post('/financial/return-funds', data).then(r => r.data)
-
-export const updateReturnFund = (id, data) => api.put(`/financial/return-funds/${id}`, data).then(r => r.data)
-
-export const archiveReturnFund = (id) => api.delete(`/financial/return-funds/${id}`).then(r => r.data)
 
 export const getMyPaymentHistory = () => api.get('/auth/my-payment-history').then(r => r.data)
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
-import { connectSocket, disconnectSocket, getSocket } from '../services/socket'
+import { connectSocket, disconnectSocket } from '../services/socket'
 import {
   getNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead,
   getVapidPublicKey, subscribePush, deleteNotification, clearAllNotifications,

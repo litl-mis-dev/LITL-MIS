@@ -98,10 +98,6 @@ function computeStampLayout(qrSize, unitsPerInch, textWidth) {
   return { cardPadding, fontSize, labelGap, labelHeight, cornerRadius, borderWidth, cardWidth, cardHeight, innerWidth }
 }
 
-function isSupportedCertificateMime(mimeType) {
-  return SUPPORTED_IMAGE_MIME_TYPES.has(mimeType) || mimeType === SUPPORTED_PDF_MIME_TYPE
-}
-
 // Builds an SVG path string for a rounded rectangle of the given size,
 // anchored at (0,0) in its own local coordinate space. Used by BOTH the
 // raster SVG card and the PDF SVG path so the two corner radii are drawn
@@ -308,7 +304,6 @@ function escapeXml(value) {
 
 module.exports = {
   stampCertificate,
-  isSupportedCertificateMime,
   SUPPORTED_IMAGE_MIME_TYPES,
   SUPPORTED_PDF_MIME_TYPE,
 }

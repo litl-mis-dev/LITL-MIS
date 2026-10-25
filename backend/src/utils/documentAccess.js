@@ -67,7 +67,6 @@ const canEdit = (doc, user) => getEffectivePermission(doc, user) === 'EDIT'
 // Sharing changes and permanent deletion are kept centrally controlled —
 // only the document's owner or a top admin may perform them, even if other
 // officers have been granted EDIT.
-//const canManage = (doc, user) => isTopAdmin(user.role) || doc.ownerId === user.id
 const canManage = (doc, user) => {
   const role = user.effectiveRole ?? user.role
   // The Adviser never manages documents (sharing/permanent-delete) — their

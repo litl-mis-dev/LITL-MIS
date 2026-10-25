@@ -15,7 +15,6 @@ const FALLBACK_ORG = {
     website: "facebook.com/LITLcvsu13",
     terms: "If found, please return it to the organization office.",
 };
-const PROFILE_STORAGE_PREFIX = "litl-officer-profile:";
 
 const imageCache = new Map();
 
@@ -68,21 +67,8 @@ function getAvatar(member) {
         member?.avatar ||
         member?.profilePicture ||
         member?.member?.avatar ||
-        readStoredProfileAvatar(member?.id) ||
-        readStoredProfileAvatar(member?.userId) ||
         ""
     );
-}
-
-function readStoredProfileAvatar(userId) {
-    if (!userId) return "";
-
-    try {
-        const profile = JSON.parse(localStorage.getItem(`${PROFILE_STORAGE_PREFIX}${userId}`) || "{}");
-        return profile.avatar || "";
-    } catch {
-        return "";
-    }
 }
 
 function getQrText(member) {
@@ -99,7 +85,7 @@ function getIssueDate(member) {
 }
 
 // The combined front+back template is cached per-download-batch so
-// "Download All" only fetches the active Supabase template once instead of
+// "Download All" only fetches the active R2 template once instead of
 // once per member.
 let combinedTemplateRequest = null;
 
@@ -119,7 +105,7 @@ function loadImage(src, crossOrigin = false) {
     return promise;
 }
 
-// Fetches the officer-uploaded Membership Card template from Supabase (via
+// Fetches the officer-uploaded Membership Card template from R2 (via
 // the same /document-assets backend used by Disbursement, Return Fund, and
 // Membership Certificate). Returns null when no custom template has been
 // uploaded, so callers fall back to the built-in default design.

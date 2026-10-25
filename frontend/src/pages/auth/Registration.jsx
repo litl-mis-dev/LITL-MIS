@@ -606,7 +606,6 @@ export default function Registration() {
 
   const [personal, setPersonal] = useState({ firstName: "", lastName: "", middleName: "", suffix: "", sex: "" });
   const [additional, setAdditional] = useState({ studentNo: "", yearLevel: "", section: "" });
-  //const [account, setAccount] = useState({ email: "", hasCvsuEmail: false, cvsuEmail: "", password: "", confirmPassword: "", consent: false });
   const [account, setAccount] = useState({email: "", hasCvsuEmail: true, cvsuEmail: "", password: "", confirmPassword: "", consent: false});
 
   const reset = () => {
@@ -619,38 +618,6 @@ export default function Registration() {
     setAccount({email: "", hasCvsuEmail: true, cvsuEmail: "", password: "", confirmPassword: "", consent: false});
   };
 
-  /*const handleRegistrationSubmit = async () => {
-    setIsSubmitting(true);
-    setServerError("");
-
-    // The backend expects ONE `email` field plus a `hasCvsuEmail` boolean —
-    // this form keeps two separate inputs (email / cvsuEmail) for UX clarity,
-    // so we merge them here into the shape the API actually expects.
-    const payload = {
-      firstName: personal.firstName,
-      middleName: personal.middleName,
-      lastName: personal.lastName,
-      suffix: personal.suffix,
-      sex: personal.sex,
-      studentNumber: additional.studentNo,
-      yearLevel: additional.yearLevel,
-      section: additional.section,
-      hasCvsuEmail: account.hasCvsuEmail,
-      email: account.hasCvsuEmail ? account.cvsuEmail.trim() : account.email.trim(),
-      password: account.password,
-      confirmPassword: account.confirmPassword,
-    };
-
-    try {
-      const data = await registerUser(payload);
-      setSubmitted(true);
-      navigate('/otp', { state: { verificationToken: data.verificationToken } });
-    } catch (error) {
-      setServerError(error.response?.data?.message || 'Something went wrong. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };*/
   const handleRegistrationSubmit = async () => {
     setIsSubmitting(true);
     setServerError("");

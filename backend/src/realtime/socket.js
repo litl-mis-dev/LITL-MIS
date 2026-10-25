@@ -88,10 +88,6 @@ function emitToUser(userId, event, payload) {
   }
 }
 
-function emitToUsers(userIds, event, payload) {
-  userIds.forEach((id) => emitToUser(id, event, payload))
-}
-
 function emitToAll(event, payload) {
   if (ioInstance) ioInstance.to('all').emit(event, payload)
 }
@@ -105,5 +101,5 @@ function emitToHashChain(event, payload) {
 }
 
 module.exports = {
-  initSocket, emitToUser, emitToUsers, emitToAll, emitToOfficers, emitToHashChain,
+  initSocket, emitToUser, emitToAll, emitToOfficers, emitToHashChain,
 }

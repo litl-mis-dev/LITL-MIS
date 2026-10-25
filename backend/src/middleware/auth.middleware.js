@@ -1,7 +1,5 @@
 const { verifyAuthToken } = require('../utils/jwt')
-//const { PrismaClient } = require('@prisma/client')
 
-//const prisma = new PrismaClient()
 const prisma = require('../lib/prisma')
 const { MEMBER_SIDE_ROLES } = require('../utils/roles')
 

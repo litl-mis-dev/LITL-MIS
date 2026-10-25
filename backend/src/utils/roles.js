@@ -33,11 +33,6 @@ const MEMBER_SIDE_ROLES = OFFICER_ROLES.filter((role) => !NON_MEMBER_ROLES.inclu
 // Roles assignable to a member through Manage Roles.
 const ASSIGNABLE_OFFICER_ROLES = OFFICER_ROLES.filter((role) => !NON_MEMBER_ROLES.includes(role))
 
-const REGISTRATION_APPROVERS = [
-  'PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN',
-  'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4',
-]
-
 // Assigning/removing an officer's role, and changing a member's lifecycle
 const OFFICER_MANAGERS = ['PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN']
 
@@ -49,29 +44,6 @@ const YEAR_REP_TO_YEAR_LEVEL = {
 }
 
 const ANNOUNCEMENT_MANAGERS = ['PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SEN_PUBLICITY_INFORMATION']
-
-const ROLE_HOME = {
-  PRESIDENT_ADMIN:                      '/officers/dashboard',
-  VICE_PRESIDENT_ADMIN:                 '/officers/dashboard',
-  SECRETARY:                            '/officers/dashboard',
-  SEN_INTERNAL_AFFAIRS:                 '/officers/dashboard',
-  SEN_EXTERNAL_AFFAIRS:                 '/officers/dashboard',
-  SEN_FINANCE:                          '/officers/dashboard',
-  SEN_AUDIT:                            '/officers/dashboard',
-  SEN_BUSINESS_AFFAIRS:                 '/officers/dashboard',
-  SEN_LOGISTICS_PROPERTIES:             '/officers/dashboard',
-  SEN_PUBLICITY_INFORMATION:            '/officers/dashboard',
-  SEN_ACADEMIC_AFFAIRS:                 '/officers/dashboard',
-  SEN_RULES_CONSTITUTIONAL_AMENDMENTS:  '/officers/dashboard',
-  SEN_SPORTS_ARTS_CULTURE:              '/officers/dashboard',
-  SEN_STUDENT_RIGHTS_WELFARE:           '/officers/dashboard',
-  YEAR_REP_1:                           '/officers/dashboard',
-  YEAR_REP_2:                           '/officers/dashboard',
-  YEAR_REP_3:                           '/officers/dashboard',
-  YEAR_REP_4:                           '/officers/dashboard',
-  ADVISER_DEPT_CHAIR:                   '/officers/dashboard',
-  MEMBER:                               '/members',
-}
 
 // ── Human-readable position labels for each role ──────────────────────────────
 const ROLE_POSITION_LABELS = {
@@ -116,8 +88,8 @@ const LEADERSHIP_ROLES = [
 ]
 
 module.exports = {
-  ALL_ROLES, OFFICER_ROLES, HASH_CHAIN_ROLES, REGISTRATION_APPROVERS,
+  ALL_ROLES, OFFICER_ROLES, HASH_CHAIN_ROLES,
   NON_MEMBER_ROLES, isNonMemberRole, MEMBERSHIP_USER_FILTER, MEMBER_SIDE_ROLES, ASSIGNABLE_OFFICER_ROLES,
-  ROLE_HOME, ROLE_POSITION_LABELS, SIGNATORY_ROLES, OFFICER_MANAGERS,
+  ROLE_POSITION_LABELS, SIGNATORY_ROLES, OFFICER_MANAGERS,
   ANNOUNCEMENT_MANAGERS, YEAR_REP_TO_YEAR_LEVEL, LEADERSHIP_ROLES,
 }

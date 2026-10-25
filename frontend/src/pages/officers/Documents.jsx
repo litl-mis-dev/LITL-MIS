@@ -54,7 +54,6 @@ export default function Documents() {
     const [selectedItemId, setSelectedItemId] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-    //const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
     const [accessModal, setAccessModal] = useState(null);
     const [previewItem, setPreviewItem] = useState(null);
     const [openMenuId, setOpenMenuId] = useState(null);
