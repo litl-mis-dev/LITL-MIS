@@ -5,17 +5,27 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
 }
 
+export function isPushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+}
+
+// 'unsupported' | 'default' (never asked) | 'granted' | 'denied'
+export function getPushPermission() {
+  return isPushSupported() ? Notification.permission : 'unsupported'
+}
+
 // Registers the service worker (idempotent) and subscribes the browser to
 // push notifications using the server's VAPID public key. Returns null if
-// the browser doesn't support push or the user denies permission.
-export async function enablePushNotifications(vapidPublicKey) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !vapidPublicKey) {
-    return null
-  }
+// the browser doesn't support push or permission isn't granted.
+//
+// Only pass { prompt: true } from a click handler: Firefox and Safari refuse
+// permission requests that aren't triggered by the user, and Chrome hides them.
+export async function enablePushNotifications(vapidPublicKey, { prompt = false } = {}) {
+  if (!isPushSupported() || !vapidPublicKey) return null
 
   const registration = await navigator.serviceWorker.register('/sw.js')
 
-  const permission = await Notification.requestPermission()
+  const permission = prompt ? await Notification.requestPermission() : Notification.permission
   if (permission !== 'granted') return null
 
   let subscription = await registration.pushManager.getSubscription()
@@ -27,4 +37,17 @@ export async function enablePushNotifications(vapidPublicKey) {
   }
 
   return subscription.toJSON()
+}
+
+// Removes this browser's push subscription, returning its endpoint so the
+// caller can also delete it on the server. Used on logout so the next person
+// to sign in on a shared computer doesn't receive the previous user's pushes.
+export async function disablePushNotifications() {
+  if (!isPushSupported()) return null
+  const registration = await navigator.serviceWorker.getRegistration()
+  const subscription = await registration?.pushManager.getSubscription()
+  if (!subscription) return null
+  const { endpoint } = subscription
+  await subscription.unsubscribe()
+  return endpoint
 }

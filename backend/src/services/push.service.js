@@ -1,6 +1,7 @@
 const webpush = require('web-push')
 const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
+const { isAllowedPushEndpoint } = require('../utils/pushEndpoint')
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -20,6 +21,12 @@ async function sendPushToUser(userId, payload) {
 
   await Promise.all(
     subscriptions.map(async (sub) => {
+      // Subscriptions saved before the endpoint allow-list existed may point
+      // anywhere — never send to those.
+      if (!isAllowedPushEndpoint(sub.endpoint)) {
+        logError('Send push notification', new Error('Skipped non-push-service endpoint'), { subscriptionId: sub.id })
+        return
+      }
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

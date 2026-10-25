@@ -20,18 +20,17 @@ const STATUS_LABELS = {
 // Supports: search (q), action, module, dateFrom, dateTo, page, limit
 const listAuditLogs = async (req, res) => {
   try {
-    const {
-      q = '',
-      action = '',
-      module: moduleFilter = '',
-      dateFrom = '',
-      dateTo = '',
-      page = '1',
-      limit = '50'
-    } = req.query
+    // Repeated query params arrive as arrays — treat anything that isn't a
+    // plain string as absent instead of letting it reach Prisma.
+    const str = (value) => (typeof value === 'string' ? value : '')
+    const q            = str(req.query.q).trim()
+    const action       = str(req.query.action)
+    const moduleFilter = str(req.query.module)
+    const dateFrom     = str(req.query.dateFrom)
+    const dateTo       = str(req.query.dateTo)
 
-    const pageNum  = Math.max(1, parseInt(page,  10) || 1)
-    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
+    const pageNum  = Math.max(1, parseInt(str(req.query.page),  10) || 1)
+    const pageSize = Math.min(100, Math.max(1, parseInt(str(req.query.limit), 10) || 50))
     const skip     = (pageNum - 1) * pageSize
 
     // ── Build the Prisma where clause ──────────────────────────────────────
@@ -45,14 +44,44 @@ const listAuditLogs = async (req, res) => {
       where.createdAt = {}
       if (dateFrom) {
         const from = new Date(dateFrom)
+        if (Number.isNaN(from.getTime())) return res.status(400).json({ message: 'Invalid start date.' })
         from.setHours(0, 0, 0, 0)
         where.createdAt.gte = from
       }
       if (dateTo) {
         const to = new Date(dateTo)
+        if (Number.isNaN(to.getTime())) return res.status(400).json({ message: 'Invalid end date.' })
         to.setHours(23, 59, 59, 999)
         where.createdAt.lte = to
       }
+    }
+
+    // Text search runs in the database so it covers every page, not just the
+    // rows already fetched. Matches the same things the old in-memory filter
+    // did: actor name, actor position, action label, module, and details.
+    if (q) {
+      const query = q.toLowerCase()
+      const includesQuery = (text) => String(text).toLowerCase().includes(query)
+
+      const matchingActions = Object.keys(AUDIT_ACTION_LABELS).filter((key) =>
+        includesQuery(AUDIT_ACTION_LABELS[key]) || includesQuery(AUDIT_ACTION_MODULE[key] ?? '') || includesQuery(key)
+      )
+      const matchingRoles = Object.keys(ROLE_POSITION_LABELS).filter((role) =>
+        includesQuery(ROLE_POSITION_LABELS[role]) || includesQuery(role)
+      )
+      // Every word must appear in some part of the actor's name, so
+      // "juan cruz" finds "Juan Dela Cruz".
+      const nameWords = q.split(/\s+/).filter(Boolean)
+      const nameField = (word) => ({
+        OR: ['firstName', 'middleName', 'lastName', 'suffix'].map((field) => ({ [field]: { contains: word } }))
+      })
+
+      where.OR = [
+        { details: { contains: q } },
+        { actor: { member: { AND: nameWords.map(nameField) } } },
+        ...(matchingActions.length ? [{ action: { in: matchingActions } }] : []),
+        ...(matchingRoles.length ? [{ actor: { role: { in: matchingRoles } } }] : []),
+      ]
     }
 
     // Module filter maps to a set of action keys
@@ -91,21 +120,6 @@ const listAuditLogs = async (req, res) => {
 
     // ── Shape each row for the frontend ────────────────────────────────────
     const logs = rawLogs
-      .filter(log => {
-        // Text search applied in-memory after fetch — covers actor name, action label,
-        // and details. Doing it in SQL would require full-text index; this is fine
-        // at capstone scale (~100 members, moderate log volume).
-        if (!q.trim()) return true
-        const query = q.trim().toLowerCase()
-        const actorName  = buildFullName(log.actor?.member) ?? log.actor?.id ?? ''
-        const actionLabel = AUDIT_ACTION_LABELS[log.action] ?? log.action
-        const module = AUDIT_ACTION_MODULE[log.action] ?? ''
-        const role = ROLE_POSITION_LABELS[log.actor?.role] ?? log.actor?.role ?? ''
-        return [
-          String(actorName), actionLabel, module, role,
-          log.details ?? '', log.createdAt.toISOString()
-        ].some(v => v.toLowerCase().includes(query))
-      })
       .map(log => {
         const actorName  = buildFullName(log.actor?.member) ?? 'System'
         const actorRole  = log.actor?.role ?? null

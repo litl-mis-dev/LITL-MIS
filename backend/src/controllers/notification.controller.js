@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
+const { isAllowedPushEndpoint, isValidPushKey } = require('../utils/pushEndpoint')
 
 const listNotifications = async (req, res) => {
   try {
@@ -62,15 +63,22 @@ const getPublicVapidKey = (req, res) => {
 const subscribePush = async (req, res) => {
   try {
     const { endpoint, keys } = req.body
-    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    if (!isAllowedPushEndpoint(endpoint) || !isValidPushKey(keys?.p256dh) || !isValidPushKey(keys?.auth)) {
       return res.status(400).json({ message: 'Invalid push subscription.' })
     }
 
-    await prisma.pushSubscription.upsert({
-      where: { userId_endpoint: { userId: req.user.id, endpoint } },
-      update: { p256dh: keys.p256dh, auth: keys.auth },
-      create: { userId: req.user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth },
-    })
+    // An endpoint belongs to one browser, and a browser has one signed-in
+    // user at a time. Drop it from anyone else so a shared computer stops
+    // showing the previous user's notifications even if their logout
+    // couldn't unsubscribe.
+    await prisma.$transaction([
+      prisma.pushSubscription.deleteMany({ where: { endpoint, userId: { not: req.user.id } } }),
+      prisma.pushSubscription.upsert({
+        where: { userId_endpoint: { userId: req.user.id, endpoint } },
+        update: { p256dh: keys.p256dh, auth: keys.auth },
+        create: { userId: req.user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+      }),
+    ])
 
     return res.status(201).json({ message: 'Subscribed to push notifications.' })
   } catch (err) {

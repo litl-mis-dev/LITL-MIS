@@ -46,6 +46,20 @@ const validateEnv = () => {
       console.error('FATAL: Unsafe production configuration:\n - ' + problems.join('\n - '))
       process.exit(1)
     }
+
+    // Push is optional, so missing keys only warn — but say so loudly,
+    // because without them push silently does nothing.
+    const hasPublic = Boolean(process.env.VAPID_PUBLIC_KEY)
+    const hasPrivate = Boolean(process.env.VAPID_PRIVATE_KEY)
+    if (!hasPublic || !hasPrivate) {
+      console.warn(
+        hasPublic || hasPrivate
+          ? 'WARNING: Only one of VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY is set — push notifications are OFF.'
+          : 'WARNING: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are not set — push notifications are OFF (in-app notifications still work).'
+      )
+    } else if (!/^(mailto:\S+@\S+|https:\/\/\S+)$/.test(process.env.VAPID_CONTACT_EMAIL || '')) {
+      console.warn('WARNING: VAPID_CONTACT_EMAIL should be "mailto:you@yourdomain" — some push services (Apple) reject placeholder contacts.')
+    }
   }
 }
 
