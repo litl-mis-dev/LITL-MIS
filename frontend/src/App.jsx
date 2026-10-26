@@ -3,6 +3,7 @@ import './App.css'
 
 import DashboardLayout from './pages/officers/DashboardLayout'
 import MembersLayout from './pages/members/MembersLayout'
+import DeveloperPanel from './pages/developer/DeveloperPanel'
 
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
@@ -10,7 +11,7 @@ import PublicRoute from './routes/PublicRoute'
 import { authRoutes } from './routes/AuthRoutes'
 import { officersRoutes } from './routes/OfficersRoutes'
 import { memberRoutes } from './routes/MemberRoutes'
-import { OFFICER_ROLES, MEMBER_SIDE_ROLES } from './utils/roles'
+import { OFFICER_ROLES, MEMBER_SIDE_ROLES, DEVELOPER_ROLE } from './utils/roles'
 
 function App() {
   return (
@@ -69,6 +70,16 @@ function App() {
           />
         ))}
       </Route>
+
+      {/* Developer account — first account on an empty system */}
+      <Route
+        path="/developer"
+        element={
+          <ProtectedRoute allowedRoles={[DEVELOPER_ROLE]}>
+            <DeveloperPanel />
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

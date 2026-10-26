@@ -24,8 +24,15 @@ const HASH_CHAIN_ROLES = OFFICER_ROLES.filter((role) => role !== 'ADVISER_DEPT_C
 const NON_MEMBER_ROLES = ['ADVISER_DEPT_CHAIR']
 const isNonMemberRole = (role) => NON_MEMBER_ROLES.includes(role)
 
-// Prisma `where` fragment for a User: real members only, never an Adviser.
-const MEMBERSHIP_USER_FILTER = { role: { notIn: NON_MEMBER_ROLES } }
+// The first account on an empty system (see controllers/developer.controller.js).
+// Deliberately NOT in ALL_ROLES: it is neither a member nor an officer, can
+// never be assigned through Manage Roles, and has no permission-matrix rows.
+const DEVELOPER_ROLE = 'DEVELOPER'
+
+// Prisma `where` fragment for a User: real members only, never an Adviser or
+// the Developer. (The Developer also has no Member row, so member queries skip
+// it anyway — this is the second line of defence.)
+const MEMBERSHIP_USER_FILTER = { role: { notIn: [...NON_MEMBER_ROLES, DEVELOPER_ROLE] } }
 
 // Officer roles that also have a Member-side dashboard.
 const MEMBER_SIDE_ROLES = OFFICER_ROLES.filter((role) => !NON_MEMBER_ROLES.includes(role))
@@ -88,7 +95,7 @@ const LEADERSHIP_ROLES = [
 ]
 
 module.exports = {
-  ALL_ROLES, OFFICER_ROLES, HASH_CHAIN_ROLES,
+  ALL_ROLES, OFFICER_ROLES, HASH_CHAIN_ROLES, DEVELOPER_ROLE,
   NON_MEMBER_ROLES, isNonMemberRole, MEMBERSHIP_USER_FILTER, MEMBER_SIDE_ROLES, ASSIGNABLE_OFFICER_ROLES,
   ROLE_POSITION_LABELS, SIGNATORY_ROLES, OFFICER_MANAGERS,
   ANNOUNCEMENT_MANAGERS, YEAR_REP_TO_YEAR_LEVEL, LEADERSHIP_ROLES,

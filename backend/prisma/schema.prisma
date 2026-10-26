@@ -42,6 +42,9 @@ enum Role {
   YEAR_REP_4
   ADVISER_DEPT_CHAIR
   MEMBER
+  // The first account on an empty system. Not a member or officer: it can
+  // only approve registrations and assign the first President.
+  DEVELOPER
 }
 
 // ─── RBAC MODULES ─────────────────────────────────────────────────────────────
@@ -202,6 +205,8 @@ model User {
   pushSubscriptions  PushSubscription[] @relation("UserPushSubscriptions")
 
   createdAnnouncements Announcement[] @relation("AnnouncementCreatedBy")
+
+  developerAccount     DeveloperAccount?
 }
 
 model Member {
@@ -741,4 +746,16 @@ model PushSubscription {
 
   @@unique([userId, endpoint])
   @@index([userId])
+}
+
+// The single Developer account (see Role.DEVELOPER). Every row is inserted
+// with id = 1, so the primary key makes a second Developer impossible, even
+// when two first registrations finish at the same moment.
+model DeveloperAccount {
+  id          Int      @id @default(1)
+  userId      Int      @unique
+  displayName String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

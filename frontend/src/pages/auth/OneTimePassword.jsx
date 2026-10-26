@@ -126,9 +126,9 @@ function OneTimePassword() {
     try {
       if (purpose === 'EMAIL_VERIFICATION') {
         // Registration flow: verify the OTP tied to the pending registration
-        await verifyEmailOtp(verificationToken, otp)
+        const data = await verifyEmailOtp(verificationToken, otp)
         navigate('/login', {
-          state: { message: 'Email verified. Your account is now awaiting officer approval.' },
+          state: { message: data?.message || 'Email verified. Your account is now awaiting officer approval.' },
           replace: true
         })
       } else {

@@ -35,9 +35,16 @@ export const OFFICER_MANAGERS = ['PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN']
 
 export const ANNOUNCEMENT_MANAGERS = ['PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SEN_PUBLICITY_INFORMATION']
 
-export const ROLE_HOME = Object.fromEntries(
-  ALL_ROLES.map((role) => [role, role === 'MEMBER' ? '/members' : '/officers/dashboard'])
-)
+// The first account on an empty system. Not a member or officer (so not in
+// ALL_ROLES): it only approves registrations and assigns the first President.
+export const DEVELOPER_ROLE = 'DEVELOPER'
+
+export const ROLE_HOME = {
+  ...Object.fromEntries(
+    ALL_ROLES.map((role) => [role, role === 'MEMBER' ? '/members' : '/officers/dashboard'])
+  ),
+  [DEVELOPER_ROLE]: '/developer',
+}
 
 export const ROLE_LABELS = {
   PRESIDENT_ADMIN:                     'President',
@@ -60,4 +67,5 @@ export const ROLE_LABELS = {
   YEAR_REP_4:                          '4th Year Representative',
   ADVISER_DEPT_CHAIR:                  'Adviser / Dept. Chair',
   MEMBER:                              'Member',
+  DEVELOPER:                           'Developer',
 }
