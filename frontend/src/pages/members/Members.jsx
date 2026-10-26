@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { listEvents } from "../../services/event.service.js";
-//import { getActiveSemester, getMyPaymentHistory } from "../../services/financial.service.js";
 import { getMemberFundSummary, getMyPaymentHistory } from "../../services/financial.service.js";
 import { getSocket } from "../../services/socket.js";
 import "../../assets/styles/members/MemberDashboard.css";

@@ -149,47 +149,6 @@ function drawHeader(context, assets = {}) {
 
 // ── Document content ──────────────────────────────────────────────────────────
 
-function drawMeta(context, record) {
-    drawDocumentMeta(context, { date: record.dateIssued, id: record.issueNo });
-}
-
-function drawReceiptSentence(context, record) {
-    const bodyText =
-        `This is to certify that ${getValue(record.name)} has received the total amount of ` +
-        `${getValue(record.amountWords)} (${getValue(record.amount)}) as ${getValue(record.fund)} ` +
-        `for/in ${getValue(record.activity)}, sourced from ${getValue(record.sourceOfFund)}.`;
-    drawCertificateBody(context, bodyText, 548);
-}
-
-function drawSignatures(context, record) {
-    drawSignatureBlock(context, "DISBURSED BY", getValue(record.disbursedBy), getValue(record.disbursedPosition), 150,  850, 390);
-    drawSignatureBlock(context, "APPROVED BY",  getValue(record.approvedBy),  getValue(record.approvedPosition),  700,  850, 390);
-    drawSignatureBlock(context, "RECEIVED BY",  getValue(record.receivedBy),  getValue(record.receivedPosition),  425, 1100, 390);
-}
-
-export function wrapText(context, text, x, y, maxWidth, lineHeight) {
-    const words = String(text ?? "").split(/\s+/).filter(Boolean);
-    const lines = [];
-    let line    = "";
-
-    words.forEach((word) => {
-        const testLine = line ? `${line} ${word}` : word;
-        if (context.measureText(testLine).width > maxWidth && line) {
-            lines.push(line);
-            line = word;
-            return;
-        }
-        line = testLine;
-    });
-    if (line) lines.push(line);
-
-    lines.forEach((lineText, index) => {
-        context.fillText(lineText, x, y + index * lineHeight);
-    });
-
-    return y + lines.length * lineHeight;
-}
-
 function drawJustifiedText(context, text, x, y, maxWidth, lineHeight) {
     const words = String(text ?? "").split(/\s+/).filter(Boolean);
     const lines = [];
@@ -252,7 +211,7 @@ export function drawDocumentMeta(context, record = {}) {
 
 // Same look as drawDocumentMeta (bold label, regular value, underline) but the
 // label/value positions follow the text width, so longer labels and values fit.
-export function drawDocumentMetaFields(context, { leftLabel, leftValue, rightLabel, rightValue, y = 455, left, right, rightLabelWidth = 0 } = {}) {
+export function drawDocumentMetaFields(context, { leftLabel, leftValue, rightLabel, rightValue, y = 455, left, right } = {}) {
     const layout = getLayout(context);
     // Custom edges are only used when a caller passes left/right (Attendance report).
     // Disbursement / Return Fund don't pass them, so they keep the default margins.
@@ -345,23 +304,6 @@ export function createCertificateCanvas(assets = {}, options = {}) {
     if (title) drawCenteredText(context, title, 0, 350, CANVAS_WIDTH)
 
     return { canvas, context }
-}
-
-export function createCommitteeFinanceReceiptCanvas(record = {}, assets = {}) {
-    const { canvas, context } = createCertificateCanvas(assets, {
-        documentLabel: "Cash Acknowledgement Receipt",
-        issueNo: record.issueNo,
-    });
-
-    context.fillStyle = TEXT;
-    context.font      = `700 ${FORM_FONT}`;
-    drawCenteredText(context, "CASH ACKNOWLEDGEMENT RECEIPT FORM", 0, 395, CANVAS_WIDTH);
-
-    drawMeta(context, record);
-    drawReceiptSentence(context, record);
-    drawSignatures(context, record);
-
-    return { canvas, context };
 }
 
 // ── Asset loading ─────────────────────────────────────────────────────────────

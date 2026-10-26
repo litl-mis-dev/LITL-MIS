@@ -78,7 +78,6 @@ export default function DashboardLayout() {
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
                 isCollapsed={isSidebarCollapsed}
-                onToggleCollapse={handleToggleCollapse}
             />
             <Topbar
                 onMenuToggle={handleMenuToggle}

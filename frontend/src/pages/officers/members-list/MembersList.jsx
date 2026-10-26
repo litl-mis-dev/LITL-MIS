@@ -19,14 +19,6 @@ const memberStatusOpts = ["ACTIVE", "INACTIVE", "GRADUATED", "ARCHIVED"].map(v =
 const paymentFilterOpts = [{ value: "Paid", label: "Paid" }, { value: "Unpaid", label: "Unpaid" }]
 const digitsOnly = v => v.replace(/\D/g, "")
 
-//const SEMESTER_LABELS = { FIRST: '1st Semester', SECOND: '2nd Semester' }
-const PROFILE_STORAGE_PREFIX = "litl-officer-profile:";
-
-/*const STATUS_COLOR = {
-    PAID: { bg: "#dcfce7", color: "#15803d", label: "Paid" },
-    SETTLED: { bg: "#fef9c3", color: "#a16207", label: "Settled" },
-    UNPAID: { bg: "#fee2e2", color: "#b91c1c", label: "Unpaid" },
-}*/
 
 // ─── MembersList ──────────────────────────────────────────────────────────────
 
@@ -128,23 +120,12 @@ export default function MembersList({ compact = false }) {
                 getApprovedMembers(),
                 canViewMemberApproval ? getPendingUsers().catch(() => null) : Promise.resolve(null),
             ]);
-            setMembers((membersData.members ?? []).map(withStoredProfileImage));
+            setMembers((membersData.members ?? []));
             setPendingUsers(pendingData?.users ?? []);
         } catch {
             setError('Failed to load members. Please refresh.');
         } finally {
             setLoading(false);
-        }
-    }
-
-    function withStoredProfileImage(member) {
-        if (member?.avatar) return member
-
-        try {
-            const profile = JSON.parse(localStorage.getItem(`${PROFILE_STORAGE_PREFIX}${member.id}`) || "{}")
-            return { ...member, avatar: profile.avatar || "" }
-        } catch {
-            return member
         }
     }
 
@@ -266,7 +247,7 @@ export default function MembersList({ compact = false }) {
         setPaymentHistory(data.history ?? [])
         // Refresh member list (isPaid / member status may have changed)
         const md = await getApprovedMembers()
-        setMembers((md.members ?? []).map(withStoredProfileImage))
+        setMembers((md.members ?? []))
     }
 
     async function handleDownloadMemberCard(member) {
@@ -380,7 +361,7 @@ export default function MembersList({ compact = false }) {
             await approveUser(userId)
             setPendingUsers(p => p.filter(u => u.id !== userId))
             const md = await getApprovedMembers()
-            setMembers((md.members ?? []).map(withStoredProfileImage))
+            setMembers((md.members ?? []))
         } catch (err) {
             setApprovalError(err.response?.data?.message ?? 'Failed to approve.')
         } finally { setApprovalLoading(false) }

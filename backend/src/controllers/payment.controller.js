@@ -57,7 +57,7 @@ async function generateUniqueMembershipCertificateId() {
 // automatically the moment a payment is recorded, and lazily backfilled the
 // first time an already-paid member's history is read (covers payments that
 // existed before this feature shipped). The certificate file itself is never
-// stored here or in Supabase — only the Certificate ID and a hash of its
+// stored here or in R2 — only the Certificate ID and a hash of its
 // canonical, verifiable data, anchored into the same centralized hash-linked
 // ledger used by Event Certification and financial records.
 async function ensureMembershipCertificate(payment, member) {

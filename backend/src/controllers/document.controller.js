@@ -249,7 +249,7 @@ const uploadFiles = async (req, res) => {
         return res.status(403).json({ message: 'You do not have permission to add items to this folder.' })
     }
 
-    // Upload each file to Supabase Storage first
+    // Upload each file to R2 first
     const uploadResults = []
     for (const file of files) {
       const ext         = path.extname(file.originalname).toLowerCase()
@@ -299,7 +299,7 @@ const uploadFiles = async (req, res) => {
       items: fullDocs.map(doc => formatDocument(doc, { currentOfficerIds, viewerUser: req.user })),
     })
   } catch (err) {
-    // Clean up any files already uploaded to Supabase before the error
+    // Clean up any files already uploaded to R2 before the error
     await storageService.deleteFiles(uploadedPaths)
     if (err.status) return res.status(err.status).json({ message: err.message })
     logError('Upload documents', err)
@@ -514,7 +514,7 @@ const permanentlyDeleteItem = async (req, res) => {
     const descendantIds = await collectTrashedDescendantIds(id)
     const allIds = [id, ...descendantIds]
 
-    // Collect Supabase paths BEFORE deleting the DB rows
+    // Collect R2 paths BEFORE deleting the DB rows
     const filesToRemove = await prisma.documentItem.findMany({
       where:  { id: { in: allIds }, type: 'FILE', storagePath: { not: null } },
       select: { storagePath: true },
@@ -522,7 +522,7 @@ const permanentlyDeleteItem = async (req, res) => {
 
     await prisma.documentItem.deleteMany({ where: { id: { in: allIds } } })
 
-    // Best-effort deletion from Supabase — DB rows are already gone
+    // Best-effort deletion from R2 — DB rows are already gone
     await storageService.deleteFiles(filesToRemove.map(f => f.storagePath))
 
     await writeAuditLog({

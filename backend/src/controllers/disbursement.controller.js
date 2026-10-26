@@ -105,9 +105,6 @@ const createDisbursement = async (req, res) => {
       errors.titleOfActivities = 'Title must not exceed 50 characters.'
     } 
     
-    //else if (!TEXT_ONLY.test(titleOfActivities.trim())) {
-      //errors.titleOfActivities = 'Title must contain letters only — no numbers or special characters.'
-    //}
 
     if (!fundCategoryId) errors.fundCategoryId = 'Source of fund is required.'
     if (!disbursedBy?.trim()) errors.disbursedBy = 'Disbursed By is required.'

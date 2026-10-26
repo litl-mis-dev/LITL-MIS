@@ -55,12 +55,6 @@ export const downloadEventCertificatesZipFile = async (eventId, fallbackFileName
   saveBlob(response.data, fallbackFileName);
 };
 
-export const getCertificateDownloadUrl = (certificateId) =>
-  `${api.defaults.baseURL}/certification/certificates/${certificateId}/download`
-
-export const getEventCertificatesZipUrl = (eventId) =>
-  `${api.defaults.baseURL}/certification/events/${eventId}/certificates/download`
-
 // Public — no auth required.
 export const verifyCertificate = (publicId) =>
   api.get(`/certification/verify/${encodeURIComponent(publicId)}`).then(r => r.data)

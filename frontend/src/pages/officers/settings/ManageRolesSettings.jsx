@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { assignOfficerRole, getApprovedMembers, getAdvisers, removeOfficerRole } from "../../../services/officer.service.js";
 import { getRolePermissions, updateRolePermissions as savePermissions } from "../../../services/rolePermission.service.js";
-import { ALL_ROLES, ROLE_LABELS, OFFICER_ROLES, ASSIGNABLE_OFFICER_ROLES } from "../../../utils/roles.js";
+import { ROLE_LABELS, OFFICER_ROLES, ASSIGNABLE_OFFICER_ROLES } from "../../../utils/roles.js";
 import { MODULES, MODULE_LABELS } from "../../../utils/permissionModules.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { useRole } from "../../../utils/useRole.js";

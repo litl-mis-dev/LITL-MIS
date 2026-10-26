@@ -1,8 +1,8 @@
 self.addEventListener('push', function (event) {
-  let data = { title: 'LITL-MIS', message: '' }
+  let data
   try {
     data = event.data.json()
-  } catch (e) {
+  } catch {
     data = { title: 'LITL-MIS', message: event.data ? event.data.text() : '' }
   }
 

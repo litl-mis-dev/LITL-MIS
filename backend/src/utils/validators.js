@@ -11,7 +11,6 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-
 
 const NAME_REGEX = /^[A-Za-z\s'-]+$/
 
-//const SECTION_REGEX = /^\d{2}$/
 const SECTION_REGEX = /^(?:[1-9]|[1-9]\d)$/
 
 const VALID_YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year']

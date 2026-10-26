@@ -131,11 +131,6 @@ function ResetPassword() {
 
   const validate = () => {
     if (!newPassword) return 'Please enter a new password.'
-    //if (newPassword.length < 8) return 'Password must be at least 8 characters.'
-    //if (!/[a-z]/.test(newPassword)) return 'Password must contain at least one lowercase letter.'
-    //if (!/[A-Z]/.test(newPassword)) return 'Password must contain at least one uppercase letter.'
-    //if (!/\d/.test(newPassword)) return 'Password must contain at least one number.'
-    //if (!/[@$!%*?&.#_-]/.test(newPassword)) return 'Password must contain at least one special character.'
     if (!PASSWORD_REGEX.test(newPassword)) {
       return 'Password must be at least 8 characters and contain an uppercase letter, lowercase letter, number, and special character.'
     }

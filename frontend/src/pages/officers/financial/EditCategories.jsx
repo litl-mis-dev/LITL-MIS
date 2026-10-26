@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import ConfirmActionButton from '../../../components/officers/ConfirmActionButton'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
-import { listCategories, createCategoriesBatch } from '../../../services/financial.service'
+import { listCategories, createCategoriesBatch, archiveCategory } from '../../../services/financial.service'
 const initialFormData = { categories: '', percentage: '' }
 const CATEGORY_REGEX = /^[A-Za-z\s]+$/
 

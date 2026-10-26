@@ -229,7 +229,7 @@ const issueCertificate = async (req, res) => {
         // 2. Hash the FINAL (stamped) file — this is what gets anchored in the ledger.
         const certificateHash = sha256(stampedBuffer)
 
-        // 3. Store the final file in Supabase, organized by academic year → event.
+        // 3. Store the final file in R2, organized by academic year → event.
         const ext = stampedMimeType === 'application/pdf' ? '.pdf' : path.extname(file.originalname) || '.png'
         const storagePath = `${STORAGE_FOLDER}/${archive.schoolYear}/${slugify(event.title, 40)}-${event.id}/${publicId}${ext}`
         const { path: uploadedPath, publicUrl } = await storageService.uploadFile(storagePath, stampedBuffer, stampedMimeType)
@@ -379,7 +379,7 @@ const downloadCertificate = async (req, res) => {
 //
 // The zip is built fully in memory before anything is sent to the client.
 // Streaming straight to the response (archive.pipe(res)) meant that any
-// hiccup mid-stream — a slow Supabase download, a network blip — left the
+// hiccup mid-stream — a slow R2 download, a network blip — left the
 // connection cut with no valid Content-Length, which browsers report as an
 // invalid/unreachable response. Buffering first means we either send one
 // complete, correctly-sized zip, or a clean JSON error — never a broken one.
@@ -545,7 +545,7 @@ const verifyCertificate = async (req, res) => {
   }
 }
 
-// Membership certificates aren't stored as files (no Supabase upload), so
+// Membership certificates aren't stored as files (no R2 upload), so
 // there's no "re-hash the stored file" step here — only the ledger snapshot
 // cross-check, same principle as Event Certification's non-file checks.
 async function verifyMembershipCertificate(rawInput, res) {

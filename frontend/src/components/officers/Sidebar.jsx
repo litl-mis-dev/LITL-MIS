@@ -79,7 +79,6 @@ export default function Sidebar({
   navItems = defaultNavItems,
   title = "LITL MIS",
   isCollapsed = false,
-  onToggleCollapse,
 }) {
   const { can, role } = useRole();
 

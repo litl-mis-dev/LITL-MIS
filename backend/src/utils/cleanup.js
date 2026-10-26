@@ -1,7 +1,5 @@
-//const { PrismaClient } = require('@prisma/client')
 const { logInfo, logError } = require('./logger')
 
-//const prisma = new PrismaClient()
 const prisma = require('../lib/prisma')
 
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000 // every 15 minutes

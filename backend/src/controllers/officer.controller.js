@@ -52,7 +52,6 @@ const approveUser = async (req, res) => {
   try {
     const { userId } = req.params
 
-    //const user = await prisma.user.findUnique({ where: { id: Number(userId) } })
     const user = await prisma.user.findUnique({
       where: { id: Number(userId) },
       include: { member: { select: { firstName: true, lastName: true } } }
@@ -97,7 +96,6 @@ const rejectUser = async (req, res) => {
   try {
     const { userId } = req.params
 
-    //const user = await prisma.user.findUnique({ where: { id: Number(userId) } })
     const user = await prisma.user.findUnique({
       where: { id: Number(userId) },
       include: { member: { select: { firstName: true, lastName: true } } }
@@ -437,7 +435,7 @@ const assignOfficerRole = async (req, res) => {
         // activeRole = role here, and the unique index on activeRole is what
         // makes this call fail (P2002) instead of silently creating a
         // duplicate holder if two assignment requests for the same role race
-        // each other — this is what makes the guarantee hold on Aiven too.
+        // each other — this is what makes the guarantee hold on MySQL too.
         const assignment = await tx.officerAssignment.create({
           data: {
             memberId: member.id,

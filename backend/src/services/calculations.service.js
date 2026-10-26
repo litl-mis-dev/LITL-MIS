@@ -225,54 +225,6 @@ const getSemesterFlows = async (semesterId) => {
   }
 }
 
-// Audited (CLEARED) totals — mirrors getTotalDisbursed/getTotalReturnedByCategory
-// but only counts Disbursements/Return Funds whose Audit record has been
-// CLEARED. Pending/Review/For-Clarification records haven't been certified
-// yet, so they shouldn't be reported as "Audited Disbursed" or "Audited
-// Return Fund" on the Audit page or dashboard.
-const getAuditedTotalDisbursed = async (semesterId) => {
-  const result = await prisma.disbursement.aggregate({
-    where: { semesterId, isArchived: false, audit: { status: 'CLEARED' } },
-    _sum: { amount: true }
-  })
-  return new Decimal(result._sum.amount || 0)
-}
-
-const getAuditedTotalReturned = async (semesterId) => {
-  const result = await prisma.returnFund.aggregate({
-    where: { semesterId, isArchived: false, audit: { status: 'CLEARED' } },
-    _sum: { amount: true }
-  })
-  return new Decimal(result._sum.amount || 0)
-}
-
-// "Remaining Fund" shown on the officer Dashboard. Uses the same Total Fund +
-// Turnover baseline as getSemesterEndingBalance, but nets out only the
-// AUDITED (CLEARED) Disbursed and Return Fund amounts — so the headline
-// figure always agrees with the "Audited Disbursed" / "Audited Return Fund"
-// totals shown on the Audit page, instead of silently including
-// still-pending/under-review transactions.
-// NOTE: this is a reporting figure only. getSemesterEndingBalance (real,
-// all-non-archived-transactions balance) remains the source of truth used for
-// turnover carry-forward on semester advancement — that must reflect actual
-// cash movement regardless of audit status.
-const getAuditedRemainingFund = async (semesterId) => {
-  const totalFund = await getTotalFund(semesterId)
-
-  const turnoverCategory = await prisma.fundCategory.findFirst({
-    where: { semesterId, isTurnoverFund: true, isArchived: false }
-  })
-  const turnoverAmount = new Decimal(turnoverCategory?.fixedAllocationAmount || 0)
-
-  const auditedDisbursed = await getAuditedTotalDisbursed(semesterId)
-  const auditedReturned = await getAuditedTotalReturned(semesterId)
-
-  return Decimal.max(
-    totalFund.plus(turnoverAmount).minus(auditedDisbursed).plus(auditedReturned),
-    0
-  )
-}
-
 const parseAmount = (value) => {
   if (value === null || value === undefined || value === '') throw new Error('Amount is required')
   const cleaned = String(value).replace(/[₱,\s]/g, '')
@@ -280,14 +232,6 @@ const parseAmount = (value) => {
   if (parsed.isNaN() || !parsed.isFinite()) throw new Error('Invalid amount format')
   return parsed
 }
-
-/*const generateReference = async (type) => {
-  const prefix = type === 'disbursement' ? 'DIS' : 'RET'
-  const count = type === 'disbursement'
-    ? await prisma.disbursement.count()
-    : await prisma.returnFund.count()
-  return `${prefix}-${String(count + 1).padStart(3, '0')}`
-}*/
 
 const generateReference = async (type) => {
   const prefix = type === 'disbursement' ? 'DIS' : 'RET'
@@ -315,7 +259,6 @@ module.exports = {
   getTotalFund, getTurnoverAmount, getTotalDisbursed, getTotalReturnedByCategory,
   getCategoryFinancials, getDisbursementRemainingAmount,
   getTotalCategoryPercentage, getSemesterEndingBalance, getSemesterFlows, getFundReport,
-  getAuditedTotalDisbursed, getAuditedTotalReturned, getAuditedRemainingFund,
   parseAmount, generateReference,
   MEMBERSHIP_FEE
 }

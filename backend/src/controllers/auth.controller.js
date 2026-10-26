@@ -1,5 +1,4 @@
 const bcrypt = require('bcrypt')
-//const { PrismaClient } = require('@prisma/client')
 const { generateOtp, hashOtp, compareOtp } = require('../utils/otp')
 const { generateVerificationToken } = require('../utils/token')
 const { sendOtpEmail } = require('../utils/email')
@@ -30,7 +29,6 @@ const {
   isValidYearLevel
 } = require('../utils/validators')
 
-//const prisma = new PrismaClient()
 const prisma = require('../lib/prisma')
 
 const OTP_EXPIRY_MINUTES = 10
@@ -549,7 +547,6 @@ const verifyEmailOtp = async (req, res) => {
     // Verification finished — the "resume OTP" cookie is no longer needed.
     clearPendingRegCookie(res)
 
-    //await writeAuditLog({ action: AUDIT_ACTIONS.EMAIL_VERIFIED, targetUserId: Number(userId) })
     await writeAuditLog({
       action: AUDIT_ACTIONS.EMAIL_VERIFIED,
       targetUserId: newUser.id,
@@ -811,13 +808,6 @@ const logout = async (req, res) => {
 // ---------------------------------------------
 // GET CURRENT USER
 // ---------------------------------------------
-/*const getMe = async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.id },
-    select: { id: true, email: true, role: true, status: true }
-  })
-  return res.json({ user })
-}*/
 const getMe = async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
@@ -1317,7 +1307,7 @@ const uploadAvatar = async (req, res) => {
     })
     if (!member) return res.status(404).json({ message: 'Member profile not found.' })
 
-    // Delete old avatar from Supabase before replacing
+    // Delete old avatar from R2 before replacing
     if (member.avatarPath) {
       await storageService.deleteFile(member.avatarPath).catch(() => {})
     }

@@ -211,7 +211,7 @@ export default function UserProfile({ variant = "member" }) {
         setAvatarLoading(true); setAvatarError(""); setAvatarSuccess("");
         try {
             const data = await uploadAvatar(avatarPreview); // sends base64 to backend
-            // Backend uploads to Supabase and returns the public URL — use THAT, not the base64
+            // Backend uploads to R2 and returns the public URL — use THAT, not the base64
             updateUserProfile({ avatar: data.avatar });
             await refreshUser(); // re-fetch to get the latest member.avatar from DB
             setAvatarPreview(null);

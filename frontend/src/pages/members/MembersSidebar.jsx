@@ -57,7 +57,6 @@ export default function MembersSidebar({
   navItems = defaultNavItems,
   title = "LITL MIS",
   isCollapsed = false,
-  onToggleCollapse,
 }) {
   return (
     <>

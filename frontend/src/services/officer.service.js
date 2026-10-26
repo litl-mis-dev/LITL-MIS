@@ -39,10 +39,6 @@ export const removeOfficerRole = (userId) => {
   return api.put(`/officer/remove-role/${userId}`).then(res => res.data)
 }
 
-export const getOfficerAssignments = () => {
-  return api.get('/officer/assignments').then(res => res.data)
-}
-
 // ─── Member lifecycle status ─────────────────────────────────────────────────
 
 export const updateMemberStatus = (memberId, status) => {
