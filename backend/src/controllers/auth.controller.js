@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt')
 const { generateOtp, hashOtp, compareOtp } = require('../utils/otp')
 const { generateVerificationToken } = require('../utils/token')
 const { sendOtpEmail } = require('../utils/email')
-const { signAuthToken, signResetToken, verifyResetToken } = require('../utils/jwt')
+const { signAuthToken, verifyAuthToken, signResetToken, verifyResetToken } = require('../utils/jwt')
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')  
@@ -36,8 +36,121 @@ const prisma = require('../lib/prisma')
 const OTP_EXPIRY_MINUTES = 10
 const MAX_OTP_ATTEMPTS = 5
 const OTP_RESEND_COOLDOWN_SECONDS = 60
-const LOGIN_LOCKOUT_THRESHOLD = 5
 const LOGIN_LOCKOUT_MINUTES = 15
+
+// Password-reset codes are capped per ACCOUNT, not just per IP (the route
+// limiters). Without this, requests spread over many IPs could flood a
+// victim's inbox and get 5 fresh guesses with every new code.
+const RESET_OTP_WINDOW_MS = 60 * 60 * 1000
+const RESET_OTP_MAX_PER_WINDOW = 5
+const RESET_OTP_MAX_FAILED_PER_WINDOW = 10
+
+// Failed logins pause sign-in for one (account, IP) pair after
+// LOGIN_PAIR_LOCK_THRESHOLD attempts, so a stranger guessing at someone's
+// account cannot lock the real owner out from their own device. The whole
+// account is only locked after LOGIN_ACCOUNT_LOCK_THRESHOLD failures in a row
+// (from any IP), which still stops distributed password guessing.
+const LOGIN_PAIR_LOCK_THRESHOLD = 5
+const LOGIN_ACCOUNT_LOCK_THRESHOLD = 20
+const INVALID_LOGIN_MESSAGE = `Invalid credentials. After ${LOGIN_PAIR_LOCK_THRESHOLD} failed attempts, sign-in is paused for ${LOGIN_LOCKOUT_MINUTES} minutes.`
+
+// In-memory, like the route rate limiters: resets on restart and is per
+// process. The account-wide lock in the database is the durable backstop.
+const failedLoginsByPair = new Map() // `${userId}:${ip}` -> { count, firstAt, lockedUntil }
+const MAX_TRACKED_LOGIN_PAIRS = 5000
+
+function getLoginPair(key, now) {
+  const entry = failedLoginsByPair.get(key)
+  if (!entry) return null
+  const windowOver = now - entry.firstAt > LOGIN_LOCKOUT_MINUTES * 60 * 1000
+  if (windowOver && entry.lockedUntil <= now) {
+    failedLoginsByPair.delete(key)
+    return null
+  }
+  return entry
+}
+
+function recordFailedLoginPair(key, now) {
+  if (failedLoginsByPair.size >= MAX_TRACKED_LOGIN_PAIRS) {
+    for (const k of failedLoginsByPair.keys()) getLoginPair(k, now) // drops expired entries
+  }
+  const entry = getLoginPair(key, now) ?? { count: 0, firstAt: now, lockedUntil: 0 }
+  entry.count += 1
+  if (entry.count >= LOGIN_PAIR_LOCK_THRESHOLD) {
+    entry.lockedUntil = now + LOGIN_LOCKOUT_MINUTES * 60 * 1000
+  }
+  failedLoginsByPair.set(key, entry)
+  return entry
+}
+
+async function getResetOtpUsage(userId) {
+  const recent = await prisma.otp.findMany({
+    where: {
+      userId,
+      purpose: 'PASSWORD_RESET',
+      createdAt: { gte: new Date(Date.now() - RESET_OTP_WINDOW_MS) }
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true, attempts: true }
+  })
+  return {
+    sentInWindow: recent.length,
+    failedInWindow: recent.reduce((sum, otp) => sum + otp.attempts, 0),
+    secondsSinceLastSend: recent[0]
+      ? (Date.now() - recent[0].createdAt.getTime()) / 1000
+      : Infinity
+  }
+}
+
+// Issues and emails a new password-reset code unless this account is in its
+// cooldown or over its hourly caps. Returns false (and sends nothing) when
+// refused — callers answer with the same generic message either way.
+async function issueResetOtp(user) {
+  const usage = await getResetOtpUsage(user.id)
+  if (
+    usage.secondsSinceLastSend < OTP_RESEND_COOLDOWN_SECONDS ||
+    usage.sentInWindow >= RESET_OTP_MAX_PER_WINDOW ||
+    usage.failedInWindow >= RESET_OTP_MAX_FAILED_PER_WINDOW
+  ) {
+    return false
+  }
+
+  // Only the newest code may ever be used.
+  await prisma.otp.updateMany({
+    where: { userId: user.id, purpose: 'PASSWORD_RESET', used: false },
+    data: { used: true }
+  })
+
+  const otp = generateOtp()
+  await prisma.otp.create({
+    data: {
+      userId: user.id,
+      codeHash: await hashOtp(otp),
+      purpose: 'PASSWORD_RESET',
+      expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
+    }
+  })
+
+  await sendOtpEmail(user.email, otp, 'PASSWORD_RESET')
+  return true
+}
+
+// Identifies the caller from the auth cookie without failing — used where
+// authMiddleware can't run (logout must clear even a stale cookie).
+async function getUserFromAuthCookie(req) {
+  const token = req.cookies?.['LITL-MIS']
+  if (!token) return null
+  try {
+    const decoded = verifyAuthToken(token)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, tokenVersion: true }
+    })
+    return user && user.tokenVersion === decoded.tokenVersion ? user : null
+  } catch {
+    return null
+  }
+}
 
 const AUTH_USER_PROFILE_SELECT = {
   id: true,
@@ -285,7 +398,14 @@ const register = async (req, res) => {
       }
     })
 
-    await sendOtpEmail(normalizedEmail, otp, 'EMAIL_VERIFICATION')
+    // If the code can't be sent, remove the pending row so the same email and
+    // student number aren't blocked as "already in progress" until it expires.
+    try {
+      await sendOtpEmail(normalizedEmail, otp, 'EMAIL_VERIFICATION')
+    } catch (mailErr) {
+      await prisma.pendingRegistration.delete({ where: { id: createdPending.id } }).catch(() => {})
+      throw mailErr
+    }
 
     // Remember this verification so the user can resume it after a refresh / reopen.
     setPendingRegCookie(res, verificationToken, createdPending.otpExpiresAt)
@@ -503,7 +623,7 @@ const resendOtp = async (req, res) => {
     if (purpose === 'PASSWORD_RESET') {
       const { email } = req.body
 
-      if (!email) {
+      if (typeof email !== 'string' || !email.trim()) {
         return res.status(400).json({ message: 'Email is required' })
       }
 
@@ -516,31 +636,7 @@ const resendOtp = async (req, res) => {
         return res.json(genericResponse)
       }
 
-      const lastOtp = await prisma.otp.findFirst({
-        where: { userId: user.id, purpose: 'PASSWORD_RESET' },
-        orderBy: { createdAt: 'desc' }
-      })
-
-      if (lastOtp) {
-        const secondsSinceLastSend = (Date.now() - lastOtp.createdAt.getTime()) / 1000
-        if (secondsSinceLastSend < OTP_RESEND_COOLDOWN_SECONDS) {
-          return res.json(genericResponse)
-        }
-      }
-
-      const otp = generateOtp()
-      const otpHash = await hashOtp(otp)
-
-      await prisma.otp.create({
-        data: {
-          userId: user.id,
-          codeHash: otpHash,
-          purpose: 'PASSWORD_RESET',
-          expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
-        }
-      })
-
-      await sendOtpEmail(user.email, otp, 'PASSWORD_RESET')
+      await issueResetOtp(user)
 
       return res.json(genericResponse)
     }
@@ -610,39 +706,48 @@ const login = async (req, res) => {
           select: AUTH_USER_LOGIN_SELECT
         })
 
+    // Unknown account, wrong password and paused sign-in all get the same
+    // answer, so the response never reveals whether an account exists.
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' })
+      return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      return res.status(423).json({ message: 'Account temporarily locked due to multiple failed attempts. Please try again later.' })
+    const now = Date.now()
+    const pairKey = `${user.id}:${req.ip}`
+    const accountLocked = user.lockedUntil && user.lockedUntil.getTime() > now
+    const pairLocked = (getLoginPair(pairKey, now)?.lockedUntil ?? 0) > now
+
+    if (accountLocked || pairLocked) {
+      return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
     const isMatch = await bcrypt.compare(password, user.password)
 
     if (!isMatch) {
       const newFailedAttempts = user.failedLoginAttempts + 1
-      const shouldLock = newFailedAttempts >= LOGIN_LOCKOUT_THRESHOLD
+      const shouldLockAccount = newFailedAttempts >= LOGIN_ACCOUNT_LOCK_THRESHOLD
+      const pair = recordFailedLoginPair(pairKey, now)
 
       await prisma.user.update({
         where: { id: user.id },
         data: {
           failedLoginAttempts: newFailedAttempts,
-          lockedUntil: shouldLock ? new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000) : null
+          lockedUntil: shouldLockAccount ? new Date(now + LOGIN_LOCKOUT_MINUTES * 60 * 1000) : null
         }
       })
 
       await writeAuditLog({
         actorId: user.id,
-        action: newFailedAttempts >= LOGIN_LOCKOUT_THRESHOLD
+        action: shouldLockAccount
           ? AUDIT_ACTIONS.ACCOUNT_LOCKED
           : AUDIT_ACTIONS.LOGIN_FAILED,
-        details: { attempt: newFailedAttempts }
+        details: { attempt: newFailedAttempts, signInPaused: pair.lockedUntil > now }
       })
 
-      return res.status(401).json({ message: 'Invalid credentials' })
+      return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
+    failedLoginsByPair.delete(pairKey)
     await prisma.user.update({
       where: { id: user.id },
       data: { failedLoginAttempts: 0, lockedUntil: null }
@@ -689,8 +794,11 @@ const login = async (req, res) => {
 // ---------------------------------------------
 const logout = async (req, res) => {
   const isProduction = process.env.NODE_ENV === 'production'
-  if (req.user?.role && req.user.role !== 'MEMBER') {
-    await writeAuditLog({ actorId: req.user.id, action: AUDIT_ACTIONS.LOGOUT })
+  // The route has no authMiddleware (a stale cookie must still be cleared),
+  // so identify the caller from the cookie for the audit trail.
+  const actor = await getUserFromAuthCookie(req)
+  if (actor && actor.role !== 'MEMBER') {
+    await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
   }
   res.clearCookie('LITL-MIS', {
     httpOnly: true,
@@ -728,7 +836,7 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body
 
-    if (!email) {
+    if (typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({ message: 'Email is required' })
     }
 
@@ -741,19 +849,7 @@ const forgotPassword = async (req, res) => {
       return res.json(genericResponse)
     }
 
-    const otp = generateOtp()
-    const otpHash = await hashOtp(otp)
-
-    await prisma.otp.create({
-      data: {
-        userId: user.id,
-        codeHash: otpHash,
-        purpose: 'PASSWORD_RESET',
-        expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
-      }
-    })
-
-    await sendOtpEmail(user.email, otp, 'PASSWORD_RESET')
+    await issueResetOtp(user)
 
     return res.json(genericResponse)
   } catch (err) {
@@ -769,7 +865,7 @@ const verifyResetOtp = async (req, res) => {
   try {
     const { email, otp } = req.body
 
-    if (!email || !otp) {
+    if (typeof email !== 'string' || typeof otp !== 'string' || !email.trim() || !otp) {
       return res.status(400).json({ message: 'Email and code are required' })
     }
 
@@ -778,6 +874,11 @@ const verifyResetOtp = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid code or email' })
+    }
+
+    const usage = await getResetOtpUsage(user.id)
+    if (usage.failedInWindow >= RESET_OTP_MAX_FAILED_PER_WINDOW) {
+      return res.status(400).json({ message: 'Too many incorrect attempts. Please try again in an hour.' })
     }
 
     const otpRecord = await prisma.otp.findFirst({
@@ -951,7 +1052,14 @@ const requestEmailChange = async (req, res) => {
       }
     })
 
-    await sendOtpEmail(normalizedEmail, otp, 'EMAIL_CHANGE')
+    // Same as registration: a failed send must not leave a pending change
+    // that blocks the user from trying again for 10 minutes.
+    try {
+      await sendOtpEmail(normalizedEmail, otp, 'EMAIL_CHANGE')
+    } catch (mailErr) {
+      await prisma.pendingEmailChange.delete({ where: { token: changeToken } }).catch(() => {})
+      throw mailErr
+    }
 
     await writeAuditLog({
       actorId: userId,

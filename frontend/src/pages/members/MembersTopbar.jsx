@@ -5,6 +5,7 @@ import { isNonMemberRole } from "../../utils/roles";
 import { useNotifications } from "../../context/NotificationContext";
 import { timeAgo } from "../../utils/timeAgo";
 import ImportantAnnouncements from "../../components/notifications/ImportantAnnouncements.jsx";
+import PushPrompt from "../../components/notifications/PushPrompt.jsx";
 import "../../assets/styles/officers/Topbar.css";
 import { useAutoCloseModal } from "../../utils/useAutoCloseModal.js";
 
@@ -111,6 +112,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
               </div>
 
               <div className="topbar__notif-list">
+                <PushPrompt />
                 <ImportantAnnouncements announcements={importantAnnouncements} />
                 {notifications.length === 0 && (
                   <p className="topbar__notif-empty">No notifications yet.</p>
@@ -180,7 +182,8 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                 </div>
 
                 <div className="topbar__notif-list topbar__notif-list--expanded">
-                  <ImportantAnnouncements announcements={importantAnnouncements} />
+                  <PushPrompt />
+                <ImportantAnnouncements announcements={importantAnnouncements} />
                   {notifications.length === 0 && (
                     <p className="topbar__notif-empty">No notifications yet.</p>
                   )}

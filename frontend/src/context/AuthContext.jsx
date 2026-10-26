@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect,useRef } from 'react'
 import { getCurrentUser, loginUser, logoutUser } from '../services/auth.service'
 import { getMyPermissions } from '../services/rolePermission.service.js'
+import { unsubscribePush } from '../services/notification.service'
+import { disablePushNotifications } from '../utils/push'
 import { MODULES } from '../utils/permissionModules.js'
 
 // Everything hidden until the real matrix loads — MEMBER (no officer
@@ -110,6 +112,14 @@ useEffect(() => {
   }
 
   const logout = async () => {
+    // Stop this browser receiving the signed-out user's push notifications
+    // (shared lab computers). Best-effort: never block signing out.
+    try {
+      const endpoint = await disablePushNotifications()
+      if (endpoint) await unsubscribePush(endpoint)
+    } catch {
+      // ignore — the server also drops stale endpoints on the next subscribe
+    }
     await logoutUser()
     setUser(null)
     setPermissions(EMPTY_PERMISSIONS)
