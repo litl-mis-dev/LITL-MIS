@@ -183,4 +183,38 @@ const sendRegistrationStatusEmail = async (toEmail, memberName, approved) => {
   })
 }
 
-module.exports = { sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail }
+// Invitation from the President to become an Adviser or Department Chair.
+// The link carries the one-time token in the URL fragment (#token=…), which
+// browsers never send to the server, so it stays out of hosting access logs.
+const sendAdviserInviteEmail = async ({ toEmail, firstName, titleLabel, link, expiresAt }) => {
+  const name = escapeHtml(firstName || 'there')
+  const title = escapeHtml(titleLabel)
+  const expires = escapeHtml(new Date(expiresAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }))
+  const href = escapeHtml(link)
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #1a1a1a;">You're invited to LITL-MIS</h2>
+      <p style="color: #444; font-size: 14px;">Hello ${name},</p>
+      <p style="color: #444; font-size: 14px;">
+        The LITL President has invited you to join LITL-MIS as <strong>${title}</strong>.
+        Open the link below to set your password and activate your account.
+      </p>
+      <p style="margin: 24px 0;">
+        <a href="${href}" style="background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Accept invitation</a>
+      </p>
+      <p style="color: #888; font-size: 12px;">
+        This link works once and expires on ${expires} (Philippine time). If you weren't expecting
+        this invitation, you can ignore this email.
+      </p>
+    </div>
+  `
+
+  await sendMail({
+    to: toEmail,
+    subject: `Invitation: ${titleLabel} — LITL-MIS`,
+    html,
+  })
+}
+
+module.exports = { sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail, sendAdviserInviteEmail }

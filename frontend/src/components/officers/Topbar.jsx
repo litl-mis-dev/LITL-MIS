@@ -41,7 +41,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   });
 
   const displayName = getDisplayName(user, "Officer");
-  const displayRole = formatRole(user?.role ?? "Officer");
+  const displayRole = user?.position || formatRole(user?.role ?? "Officer");
   const displayAvatar = getAvatar(user);
 
   useEffect(() => {

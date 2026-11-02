@@ -76,6 +76,20 @@ const ROLE_POSITION_LABELS = {
   MEMBER:                              'Member',
 }
 
+// ── Adviser titles ─────────────────────────────────────────────────────────────
+// ADVISER_DEPT_CHAIR accounts carry a title. Both titles have exactly the same
+// access; the title only sets the label and how many seats exist.
+const ADVISER_ROLE = 'ADVISER_DEPT_CHAIR'
+const ADVISER_TITLE_LABELS = { ADVISER: 'Adviser', DEPT_CHAIR: 'Department Chair' }
+const ADVISER_SEAT_LIMITS = { ADVISER: 2, DEPT_CHAIR: 1 }
+
+// Position label for any user: the adviser title when there is one,
+// otherwise the role label.
+const positionLabel = (user) =>
+  user?.role === ADVISER_ROLE && ADVISER_TITLE_LABELS[user.adviserTitle]
+    ? ADVISER_TITLE_LABELS[user.adviserTitle]
+    : ROLE_POSITION_LABELS[user?.role] ?? user?.role
+
 // ── Roles that serve as auto-filled signatories on financial documents ─────────
 const SIGNATORY_ROLES = {
   president:  'PRESIDENT_ADMIN',
@@ -99,4 +113,5 @@ module.exports = {
   NON_MEMBER_ROLES, isNonMemberRole, MEMBERSHIP_USER_FILTER, MEMBER_SIDE_ROLES, ASSIGNABLE_OFFICER_ROLES,
   ROLE_POSITION_LABELS, SIGNATORY_ROLES, OFFICER_MANAGERS,
   ANNOUNCEMENT_MANAGERS, YEAR_REP_TO_YEAR_LEVEL, LEADERSHIP_ROLES,
+  ADVISER_ROLE, ADVISER_TITLE_LABELS, ADVISER_SEAT_LIMITS, positionLabel,
 }

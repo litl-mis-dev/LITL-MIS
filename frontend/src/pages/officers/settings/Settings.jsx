@@ -5,16 +5,21 @@ import DocumentSettings from "./DocumentSettings.jsx";
 import MembershipCardSettings from "./MembershipCardSettings.jsx";
 import MembershipCertificateSettings from "./MembershipCertificateSettings.jsx";
 import ManageRolesSettings from "./ManageRolesSettings.jsx";
+import AdviserSettings from "./AdviserSettings.jsx";
 import { useRole } from "../../../utils/useRole.js";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function Settings() {
     const { can } = useRole();
     const canSeeArchive = can("FINANCIAL", "EDIT");
     const canSeeRoles    = can("SETTINGS_ROLES", "VIEW");
     const canSeeDesign   = can("SETTINGS_DESIGN", "VIEW");
+    // Inviting and managing advisers is the President's alone (enforced by the server too).
+    const { user } = useAuth();
+    const canSeeAdvisers = user?.role === "PRESIDENT_ADMIN";
 
     const [activeSection, setActiveSection] = useState(
-        canSeeArchive ? "archive" : canSeeRoles ? "roles" : canSeeDesign ? "disbursement" : ""
+        canSeeArchive ? "archive" : canSeeRoles ? "roles" : canSeeAdvisers ? "advisers" : canSeeDesign ? "disbursement" : ""
     );
     const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
     const documentsRef = useRef(null);
@@ -56,6 +61,16 @@ export default function Settings() {
                             onClick={() => setActiveSection("roles")}
                         >
                             <span className="settings-nav__label">Manage Roles</span>
+                        </button>
+                    )}
+
+                    {canSeeAdvisers && (
+                        <button
+                            type="button"
+                            className={`settings-nav__item ${activeSection === "advisers" ? "settings-nav__item--active" : ""}`}
+                            onClick={() => setActiveSection("advisers")}
+                        >
+                            <span className="settings-nav__label">Advisers</span>
                         </button>
                     )}
 
@@ -119,6 +134,7 @@ export default function Settings() {
 
                     {activeSection === "archive" && canSeeArchive && <ArchiveSettings />}
                     {activeSection === "roles" && canSeeRoles && <ManageRolesSettings />}
+                    {activeSection === "advisers" && canSeeAdvisers && <AdviserSettings />}
                     {activeSection === "membershipCertificate" && canSeeDesign && <MembershipCertificateSettings />}
                     {activeSection === "membershipCard" && canSeeDesign && <MembershipCardSettings />}
                     {activeSection === "disbursement" && canSeeDesign && <DocumentSettings />}
@@ -132,6 +148,9 @@ export default function Settings() {
 function getPanelMeta(activeSection) {
     if (activeSection === "archive") {
         return { title: "Archive", description: "Financial records by academic year." };
+    }
+    if (activeSection === "advisers") {
+        return { title: "Advisers", description: "Invite and manage the Advisers and the Department Chair." };
     }
     if (activeSection === "roles") {
         return { title: "Manage Roles", description: "Assign officer roles to approved active members." };

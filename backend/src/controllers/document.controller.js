@@ -3,7 +3,7 @@ const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
-const { OFFICER_ROLES, ROLE_POSITION_LABELS } = require('../utils/roles')
+const { OFFICER_ROLES, positionLabel } = require('../utils/roles')
 const crypto = require('crypto')
 const storageService = require('../services/storage.service')
 const {
@@ -158,7 +158,7 @@ const getOfficersForSharing = async (req, res) => {
     const officers = await prisma.user.findMany({
       where: { role: { in: OFFICER_ROLES }, status: 'APPROVED' },
       select: {
-        id: true, email: true, role: true,
+        id: true, email: true, role: true, adviserTitle: true,
         member: { select: { firstName: true, middleName: true, lastName: true, suffix: true, avatar: true } },
       },
       orderBy: { id: 'asc' },
@@ -168,7 +168,7 @@ const getOfficersForSharing = async (req, res) => {
       id: user.id,
       name: formatMemberName(user),
       email: user.email,
-      role: ROLE_POSITION_LABELS[user.role] ?? user.role,
+      role: positionLabel(user),
       avatar: user.member?.avatar ?? null,
     }))
 

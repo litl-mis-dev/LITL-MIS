@@ -11,7 +11,8 @@ const PUBLIC_ROUTE_LABELS = {
   '/register': 'Register',
   '/otp': 'Verification',
   '/forgot-password': 'Forgot Password',
-  '/reset-password': 'Reset Password'
+  '/reset-password': 'Reset Password',
+  '/adviser-invite': 'Invitation'
 }
 
 export default function PublicRoute({ children }) {

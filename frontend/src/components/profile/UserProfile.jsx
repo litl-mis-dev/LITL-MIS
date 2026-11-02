@@ -516,7 +516,7 @@ export default function UserProfile({ variant = "member" }) {
                                 )*/}
                             </div>
 
-                            <ReadOnlyField label="Student Number" value={form.studentNumber} />
+                            {!isAdviser && <ReadOnlyField label="Student Number" value={form.studentNumber} />}
                             <ReadOnlyField label="Sex"            value={SEX_LABELS[form.sex] ?? form.sex} />
                             {!isAdviser && <ReadOnlyField label="Year Level"     value={form.yearLevel} />}
                             {!isAdviser && <ReadOnlyField label="Section"        value={form.section} />}

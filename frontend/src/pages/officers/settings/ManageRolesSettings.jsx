@@ -218,7 +218,7 @@ export default function ManageRolesSettings() {
                                     <td>{member.studentNumber}</td>
                                     <td>
                                         <span className="manage-roles-badge">
-                                            {ROLE_LABELS[currentRole] ?? currentRole}
+                                            {member.position ?? ROLE_LABELS[currentRole] ?? currentRole}
                                         </span>
                                     </td>
                                     <td>
