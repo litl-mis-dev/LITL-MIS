@@ -56,10 +56,6 @@ const isValidYearLevel = (value) => {
 
 const VALID_MEMBER_STATUSES = ['ACTIVE', 'INACTIVE', 'GRADUATED', 'ARCHIVED']
 
-function isValidMemberStatus(status) {
-  return VALID_MEMBER_STATUSES.includes(status)
-}
-
 module.exports = {
   isValidStudentNumber,
   isValidEmail,
