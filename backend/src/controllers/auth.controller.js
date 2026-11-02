@@ -280,6 +280,14 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' })
     }
 
+    // Every field is .trim()-ed below — anything that isn't a string (a number,
+    // array or object sent straight to the API) must be a 400, not a crash.
+    const requiredText = [firstName, lastName, sex, studentNumber, yearLevel, section, email, password, confirmPassword]
+    const optionalText = [middleName, suffix].filter((v) => v !== undefined && v !== null && v !== '')
+    if ([...requiredText, ...optionalText].some((v) => typeof v !== 'string')) {
+      return res.status(400).json({ message: 'All fields are required' })
+    }
+
     if (!isValidName(firstName)) {
       return res.status(400).json({ message: 'Invalid first name' })
     }

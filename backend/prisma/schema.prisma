@@ -674,6 +674,8 @@ model Certificate {
   @@index([eventCertificationFolderId])
   @@index([eventId])
   @@index([status])
+  // Public verification looks certificates up by hash.
+  @@index([certificateHash])
 }
 
 // ─── MEMBERSHIP CERTIFICATE — QR CODE, CERTIFICATE ID, LEDGER ───────────────

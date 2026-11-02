@@ -65,20 +65,22 @@ const sendOtpEmail = async (toEmail, otp, purpose) => {
 // Membership fee payment reminder — sent to members who are unpaid/have an
 // unsettled obligation for the current active semester.
 const sendPaymentReminderEmail = async (toEmail, memberName, semesterLabel) => {
+  const name = escapeHtml(memberName || 'Member')
+  const semester = escapeHtml(semesterLabel)
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #1a1a1a;">Membership Payment Reminder</h2>
       <p style="color: #444; font-size: 14px;">
-        Hello ${memberName || 'Member'},
+        Hello ${name},
       </p>
       <p style="color: #444; font-size: 14px;">
         Our records show that you have an <strong>unpaid / unsettled membership fee</strong>
-        for <strong>${semesterLabel}</strong>. Kindly settle your payment at your earliest
+        for <strong>${semester}</strong>. Kindly settle your payment at your earliest
         convenience to keep your membership active and in good standing.
       </p>
       <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 14px 16px; border-radius: 8px; margin: 20px 0;">
         <span style="font-size: 14px; color: #b91c1c; font-weight: 600;">
-          Status: Unpaid for ${semesterLabel}
+          Status: Unpaid for ${semester}
         </span>
       </div>
       <p style="color: #888; font-size: 12px;">
