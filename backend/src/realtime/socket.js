@@ -88,6 +88,11 @@ function emitToUser(userId, event, payload) {
   }
 }
 
+// Drops every live connection of a user (e.g. a deactivated adviser).
+function disconnectUser(userId) {
+  if (ioInstance) ioInstance.in(`user:${userId}`).disconnectSockets(true)
+}
+
 function emitToAll(event, payload) {
   if (ioInstance) ioInstance.to('all').emit(event, payload)
 }
@@ -101,5 +106,5 @@ function emitToHashChain(event, payload) {
 }
 
 module.exports = {
-  initSocket, emitToUser, emitToAll, emitToOfficers, emitToHashChain,
+  initSocket, emitToUser, emitToAll, emitToOfficers, emitToHashChain, disconnectUser,
 }

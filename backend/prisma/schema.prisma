@@ -14,6 +14,15 @@ enum UserStatus {
   PENDING_OFFICER_APPROVAL
   APPROVED
   REJECTED
+  // Turned off by the President (advisers). Cannot log in; history is kept.
+  DEACTIVATED
+}
+
+// Display title for ADVISER_DEPT_CHAIR accounts. Both titles have exactly the
+// same access — the title only decides the label and the seat limits.
+enum AdviserTitle {
+  ADVISER
+  DEPT_CHAIR
 }
 
 enum EmailType {
@@ -157,12 +166,13 @@ enum AnnouncementPriority {
 
 model User {
   id                  Int        @id @default(autoincrement())
-  studentNumber       String     @unique
+  studentNumber       String?    @unique // students only — advisers have none
   email               String     @unique
   emailType           EmailType
   password            String
   role                Role       @default(MEMBER)
   status              UserStatus @default(PENDING_OFFICER_APPROVAL)
+  adviserTitle        AdviserTitle? // only for role ADVISER_DEPT_CHAIR
 
   failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
@@ -207,6 +217,9 @@ model User {
   createdAnnouncements Announcement[] @relation("AnnouncementCreatedBy")
 
   developerAccount     DeveloperAccount?
+
+  sentAdviserInvites     AdviserInvite[] @relation("AdviserInviteSentBy")
+  acceptedAdviserInvite  AdviserInvite?  @relation("AdviserInviteAcceptedBy")
 }
 
 model Member {
@@ -217,8 +230,8 @@ model Member {
   lastName   String
   suffix     String?
   sex        Sex
-  yearLevel  String
-  section    String
+  yearLevel  String? // students only — advisers have none
+  section    String? // students only — advisers have none
   avatar    String?
   avatarPath String?
   status     MemberStatus @default(ACTIVE)
@@ -674,6 +687,8 @@ model Certificate {
   @@index([eventCertificationFolderId])
   @@index([eventId])
   @@index([status])
+  // Public verification looks certificates up by hash.
+  @@index([certificateHash])
 }
 
 // ─── MEMBERSHIP CERTIFICATE — QR CODE, CERTIFICATE ID, LEDGER ───────────────
@@ -758,4 +773,30 @@ model DeveloperAccount {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+// An email invitation from the President to become an Adviser or Department
+// Chair. Only a SHA-256 fingerprint of the link token is stored. A pending
+// invite (not accepted, not revoked, not expired) holds a seat.
+model AdviserInvite {
+  id             Int          @id @default(autoincrement())
+  email          String
+  firstName      String
+  lastName       String
+  suffix         String?
+  title          AdviserTitle
+  tokenHash      String       @unique @db.Char(64)
+  expiresAt      DateTime
+  invitedById    Int
+  acceptedAt     DateTime?
+  acceptedUserId Int?         @unique
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  invitedBy    User  @relation("AdviserInviteSentBy", fields: [invitedById], references: [id])
+  acceptedUser User? @relation("AdviserInviteAcceptedBy", fields: [acceptedUserId], references: [id])
+
+  @@index([email])
+  @@index([title])
 }

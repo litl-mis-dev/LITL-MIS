@@ -24,6 +24,12 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Session expired, please log in again' })
     }
 
+    // Only approved accounts may act. Deactivation also bumps tokenVersion,
+    // so this is a second line of defence.
+    if (user.status !== 'APPROVED') {
+      return res.status(401).json({ message: 'Not authenticated' })
+    }
+
     req.user = { id: user.id, role: user.role }
 
     const viewAs = req.headers['x-view-as']

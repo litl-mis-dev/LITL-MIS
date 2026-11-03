@@ -7,7 +7,7 @@ const {
   DEDUCT_ACTIONS,
   ADD_ACTIONS
 } = require('../utils/auditActions')
-const { ROLE_POSITION_LABELS, DEVELOPER_ROLE } = require('../utils/roles')
+const { ROLE_POSITION_LABELS, DEVELOPER_ROLE, ADVISER_ROLE, ADVISER_TITLE_LABELS, positionLabel } = require('../utils/roles')
 
 const STATUS_LABELS = {
   PENDING: 'Pending',
@@ -67,7 +67,8 @@ const listAuditLogs = async (req, res) => {
         includesQuery(AUDIT_ACTION_LABELS[key]) || includesQuery(AUDIT_ACTION_MODULE[key] ?? '') || includesQuery(key)
       )
       const matchingRoles = Object.keys(ROLE_POSITION_LABELS).filter((role) =>
-        includesQuery(ROLE_POSITION_LABELS[role]) || includesQuery(role)
+        includesQuery(ROLE_POSITION_LABELS[role]) || includesQuery(role) ||
+        (role === ADVISER_ROLE && Object.values(ADVISER_TITLE_LABELS).some(includesQuery))
       )
       // Every word must appear in some part of the actor's name, so
       // "juan cruz" finds "Juan Dela Cruz".
@@ -100,6 +101,7 @@ const listAuditLogs = async (req, res) => {
             select: {
               id: true,
               role: true,
+              adviserTitle: true,
               member: { select: { firstName: true, middleName: true, lastName: true, suffix: true } }
             }
           },
@@ -133,7 +135,7 @@ const listAuditLogs = async (req, res) => {
           date:        formatDate(log.createdAt),
           time:        formatTime(log.createdAt),
           account:     actorName,
-          role:        actorRole === DEVELOPER_ROLE ? 'Developer' : actorRole ? (ROLE_POSITION_LABELS[actorRole] ?? actorRole) : '—',
+          role:        actorRole === DEVELOPER_ROLE ? 'Developer' : actorRole ? positionLabel(log.actor) : '—',
           action:      AUDIT_ACTION_LABELS[log.action] ?? log.action,
           actionKey:   log.action,
           module:      AUDIT_ACTION_MODULE[log.action] ?? 'System',
@@ -333,6 +335,21 @@ function buildDescription(action, details, targetName) {
       if (balance && parseFloat(d.carriedBalance) > 0) parts.push(`Carried over ${balance} as beginning balance.`)
       return parts.join(' ')
     }
+
+    case 'ADVISER_INVITED':
+      return `Invited ${d.name ?? d.email ?? 'someone'} to join as ${d.title ?? 'Adviser'}.`
+    case 'ADVISER_INVITE_RESENT':
+      return `Resent the ${d.title ?? 'Adviser'} invitation to ${d.email ?? 'the invitee'}.`
+    case 'ADVISER_INVITE_REVOKED':
+      return `Revoked the ${d.title ?? 'Adviser'} invitation for ${d.email ?? 'the invitee'}.`
+    case 'ADVISER_JOINED':
+      return `${d.name ?? 'An adviser'} accepted the invitation and joined as ${d.title ?? 'Adviser'}.`
+    case 'ADVISER_DEACTIVATED':
+      return `Deactivated ${d.title ?? 'Adviser'} ${d.name ?? targetName ?? ''}.`.replace(/s+./, '.')
+    case 'ADVISER_REACTIVATED':
+      return `Reactivated ${d.title ?? 'Adviser'} ${d.name ?? targetName ?? ''}.`.replace(/s+./, '.')
+    case 'ADVISER_TITLE_CHANGED':
+      return `Changed ${d.name ?? targetName ?? 'an adviser'} from ${d.from ?? '?'} to ${d.to ?? '?'}.`
 
     case 'LOGIN_SUCCESS':  return 'Logged in successfully.'
     case 'LOGOUT':         return 'Logged out.'

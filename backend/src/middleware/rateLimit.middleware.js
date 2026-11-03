@@ -115,7 +115,27 @@ const publicVerifyLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+// ADVISER INVITES — public link lookup/accept (token guessing), and the
+// President sending invite emails.
+const adviserInviteLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const adviserInviteSendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: 'Too many invitation emails. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 module.exports = {
+  adviserInviteLinkLimiter,
+  adviserInviteSendLimiter,
   publicVerifyLimiter,
   authLimiter,
   registerLimiter,

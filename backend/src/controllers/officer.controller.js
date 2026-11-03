@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma')
-const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE } = require('../utils/roles')
+const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
 const { VALID_MEMBER_STATUSES } = require('../utils/validators')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
@@ -316,6 +316,7 @@ const getAdvisers = async (req, res) => {
         studentNumber: true,
         email: true,
         role: true,
+        adviserTitle: true,
         status: true,
         member: { select: { id: true, firstName: true, middleName: true, lastName: true, suffix: true } }
       },
@@ -328,6 +329,8 @@ const getAdvisers = async (req, res) => {
       studentNumber: u.studentNumber,
       email: u.email,
       role: u.role,
+      adviserTitle: u.adviserTitle,
+      position: positionLabel(u),
       status: u.status,
       memberStatus: null,
       isAdviser: true,

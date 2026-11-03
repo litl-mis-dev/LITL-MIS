@@ -65,20 +65,22 @@ const sendOtpEmail = async (toEmail, otp, purpose) => {
 // Membership fee payment reminder — sent to members who are unpaid/have an
 // unsettled obligation for the current active semester.
 const sendPaymentReminderEmail = async (toEmail, memberName, semesterLabel) => {
+  const name = escapeHtml(memberName || 'Member')
+  const semester = escapeHtml(semesterLabel)
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #1a1a1a;">Membership Payment Reminder</h2>
       <p style="color: #444; font-size: 14px;">
-        Hello ${memberName || 'Member'},
+        Hello ${name},
       </p>
       <p style="color: #444; font-size: 14px;">
         Our records show that you have an <strong>unpaid / unsettled membership fee</strong>
-        for <strong>${semesterLabel}</strong>. Kindly settle your payment at your earliest
+        for <strong>${semester}</strong>. Kindly settle your payment at your earliest
         convenience to keep your membership active and in good standing.
       </p>
       <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 14px 16px; border-radius: 8px; margin: 20px 0;">
         <span style="font-size: 14px; color: #b91c1c; font-weight: 600;">
-          Status: Unpaid for ${semesterLabel}
+          Status: Unpaid for ${semester}
         </span>
       </div>
       <p style="color: #888; font-size: 12px;">
@@ -181,4 +183,38 @@ const sendRegistrationStatusEmail = async (toEmail, memberName, approved) => {
   })
 }
 
-module.exports = { sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail }
+// Invitation from the President to become an Adviser or Department Chair.
+// The link carries the one-time token in the URL fragment (#token=…), which
+// browsers never send to the server, so it stays out of hosting access logs.
+const sendAdviserInviteEmail = async ({ toEmail, firstName, titleLabel, link, expiresAt }) => {
+  const name = escapeHtml(firstName || 'there')
+  const title = escapeHtml(titleLabel)
+  const expires = escapeHtml(new Date(expiresAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }))
+  const href = escapeHtml(link)
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #1a1a1a;">You're invited to LITL-MIS</h2>
+      <p style="color: #444; font-size: 14px;">Hello ${name},</p>
+      <p style="color: #444; font-size: 14px;">
+        The LITL President has invited you to join LITL-MIS as <strong>${title}</strong>.
+        Open the link below to set your password and activate your account.
+      </p>
+      <p style="margin: 24px 0;">
+        <a href="${href}" style="background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Accept invitation</a>
+      </p>
+      <p style="color: #888; font-size: 12px;">
+        This link works once and expires on ${expires} (Philippine time). If you weren't expecting
+        this invitation, you can ignore this email.
+      </p>
+    </div>
+  `
+
+  await sendMail({
+    to: toEmail,
+    subject: `Invitation: ${titleLabel} — LITL-MIS`,
+    html,
+  })
+}
+
+module.exports = { sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail, sendAdviserInviteEmail }

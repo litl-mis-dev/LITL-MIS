@@ -5,6 +5,7 @@ import OneTimePassword from "../pages/auth/OneTimePassword";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import CertificateVerificationPage from "../pages/CertificateVerificationPage";
+import AcceptAdviserInvite from "../pages/auth/AcceptAdviserInvite";
 
 export const authRoutes = [
     {
@@ -38,5 +39,10 @@ export const authRoutes = [
     {
         path: "/reset-password",
         element: <ResetPassword />,
+    },
+    {
+        // Opened from the President's invitation email (token in the #fragment).
+        path: "/adviser-invite",
+        element: <AcceptAdviserInvite />,
     },
 ];

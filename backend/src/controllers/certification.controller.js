@@ -298,8 +298,6 @@ const issueCertificate = async (req, res) => {
         ? `Issued ${issued.length} of ${req.files.length} certificates.`
         : `Issued ${issued.length} certificate${issued.length === 1 ? '' : 's'}.`,
       certificates: issued,
-      // Kept for backwards compatibility with callers expecting a single certificate.
-      certificate: issued[0],
       failed,
     })
   } catch (err) {

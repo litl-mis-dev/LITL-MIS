@@ -410,3 +410,19 @@ test('BE-03: array or invalid query params return 400 or are ignored, never 500'
   const badDate = await call(listAuditLogs, officerReq({ dateFrom: 'not-a-date' }))
   assert.equal(badDate.status, 400)
 })
+
+// ── Round 2: BE-02 · registration with non-string fields ─────────────────────
+test('BE-02: non-string registration fields return 400 instead of crashing', async () => {
+  const base = {
+    firstName: 'Juan', lastName: 'Cruz', sex: 'MALE', studentNumber: '2024-100-88',
+    yearLevel: '1st Year', section: '1', hasCvsuEmail: true, email: 'juan88@cvsu.edu.ph',
+    password: 'Strong#Pass1', confirmPassword: 'Strong#Pass1',
+  }
+  for (const [field, value] of [['studentNumber', 2024100], ['email', ['a@cvsu.edu.ph']], ['section', 1], ['suffix', 5], ['password', { x: 1 }]]) {
+    const r = await call(auth.register, { body: { ...base, [field]: value } })
+    assert.equal(r.status, 400, field)
+  }
+  assert.equal(db.pending.length, 0)
+  const ok = await call(auth.register, { body: base })
+  assert.equal(ok.status, 201, 'a normal registration still works')
+})

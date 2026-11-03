@@ -40,7 +40,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   });
   const canSwitchDashboard = user?.role && user.role !== "MEMBER" && !isNonMemberRole(user.role);
   const displayName = getDisplayName(user, canSwitchDashboard ? "Officer" : "Member");
-  const displayRole = formatRole(user?.role ?? "Member");
+  const displayRole = user?.position || formatRole(user?.role ?? "Member");
   const displayAvatar = getAvatar(user);
 
   useEffect(() => {

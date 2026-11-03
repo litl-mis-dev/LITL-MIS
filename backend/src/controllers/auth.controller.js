@@ -7,7 +7,7 @@ const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')  
 const { generateMemberQrCode } = require('../utils/memberQr')
-const { isNonMemberRole, DEVELOPER_ROLE } = require('../utils/roles')
+const { isNonMemberRole, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
 const storageService = require('../services/storage.service')
 const {
   PENDING_REG_COOKIE,
@@ -104,6 +104,9 @@ async function getResetOtpUsage(userId) {
 // cooldown or over its hourly caps. Returns false (and sends nothing) when
 // refused — callers answer with the same generic message either way.
 async function issueResetOtp(user) {
+  // A deactivated account can't sign in, so it gets no reset codes either.
+  if (user.status === 'DEACTIVATED') return false
+
   const usage = await getResetOtpUsage(user.id)
   if (
     usage.secondsSinceLastSend < OTP_RESEND_COOLDOWN_SECONDS ||
@@ -156,6 +159,7 @@ const AUTH_USER_PROFILE_SELECT = {
   email: true,
   emailType: true,
   role: true,
+  adviserTitle: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -225,6 +229,8 @@ function buildAuthUser(user) {
     yearLevel: m?.yearLevel ?? null,
     section: m?.section ?? null,
     avatar: m?.avatar ?? null,
+    // Display label: "Adviser" / "Department Chair" for advisers, else the role.
+    position: positionLabel(user),
     memberStatus: isAdviser ? null : (m?.status ?? null),
     qrCode: isAdviser ? null : (m?.qrCode ?? null)
   }
@@ -277,6 +283,14 @@ const register = async (req, res) => {
     // --- Validation ---
     // middleName and suffix are intentionally excluded — not every student has one
     if (!firstName || !lastName || !sex || !studentNumber || !yearLevel || !section || !email || !password || !confirmPassword) {
+      return res.status(400).json({ message: 'All fields are required' })
+    }
+
+    // Every field is .trim()-ed below — anything that isn't a string (a number,
+    // array or object sent straight to the API) must be a 400, not a crash.
+    const requiredText = [firstName, lastName, sex, studentNumber, yearLevel, section, email, password, confirmPassword]
+    const optionalText = [middleName, suffix].filter((v) => v !== undefined && v !== null && v !== '')
+    if ([...requiredText, ...optionalText].some((v) => typeof v !== 'string')) {
       return res.status(400).json({ message: 'All fields are required' })
     }
 
@@ -814,6 +828,13 @@ const login = async (req, res) => {
     }
     if (user.status === 'REJECTED') {
       return res.status(403).json({ message: 'Your registration was not approved. Please contact an officer.' })
+    }
+    if (user.status === 'DEACTIVATED') {
+      return res.status(403).json({ message: 'This account has been deactivated. Please contact the President.' })
+    }
+    // Anything else that isn't APPROVED must never get a session.
+    if (user.status !== 'APPROVED') {
+      return res.status(403).json({ message: 'This account cannot sign in yet.' })
     }
 
     const token = signAuthToken(user)
