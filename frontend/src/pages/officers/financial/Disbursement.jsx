@@ -6,6 +6,7 @@ import { downloadDisbursementCertificate } from '../../../utils/downloadDisburse
 import { listDisbursements, listCategories } from '../../../services/financial.service'
 import { useRole } from '../../../utils/useRole'
 import { getSocket } from '../../../services/socket'
+import LoadingState from '../../../components/ui/LoadingState.jsx'
 
 function formatCurrency(value) {
   const n = parseFloat(value) || 0
@@ -161,7 +162,7 @@ export default function Disbursement({ showHeader = true }) {
           </p>
         )}
 
-        {loading && <p className="px-4 py-8 text-center text-sm text-gray-500">Loading disbursements...</p>}
+        {loading && <LoadingState label="Loading disbursements…" />}
         {error && <p className="px-4 py-8 text-center text-sm text-red-600">{error}</p>}
         {!loading && !error && (
           <FinancialRecordsTable

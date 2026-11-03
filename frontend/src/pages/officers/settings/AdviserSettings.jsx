@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ConfirmationDialog from "../../../components/officers/ConfirmationDialog.jsx";
+import LoadingState from "../../../components/ui/LoadingState.jsx";
 import {
     getAdvisers, inviteAdviser, resendAdviserInvite, revokeAdviserInvite,
     deactivateAdviser, reactivateAdviser, changeAdviserTitle,
@@ -28,6 +29,9 @@ export default function AdviserSettings() {
     const [titleDrafts, setTitleDrafts] = useState({});
     const [confirm, setConfirm] = useState(null); // { title, message, label, run }
     const [busy, setBusy] = useState(false);
+    const [sending, setSending] = useState(false);
+    // Blocks a second submit even if it arrives before React re-renders.
+    const sendingRef = useRef(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
 
@@ -59,14 +63,22 @@ export default function AdviserSettings() {
 
     async function handleInvite(event) {
         event.preventDefault();
-        const sent = await run(() => inviteAdviser({
-            firstName: form.firstName,
-            lastName: form.lastName,
-            suffix: form.suffix,
-            email: form.email,
-            title: form.title,
-        }));
-        if (sent) setForm(EMPTY_FORM);
+        if (sendingRef.current) return;
+        sendingRef.current = true;
+        setSending(true);
+        try {
+            const sent = await run(() => inviteAdviser({
+                firstName: form.firstName,
+                lastName: form.lastName,
+                suffix: form.suffix,
+                email: form.email,
+                title: form.title,
+            }));
+            if (sent) setForm(EMPTY_FORM);
+        } finally {
+            sendingRef.current = false;
+            setSending(false);
+        }
     }
 
     const ask = (title, message, label, action) => setConfirm({ title, message, label, run: () => run(action) });
@@ -74,7 +86,7 @@ export default function AdviserSettings() {
     if (!data) {
         return error
             ? <p className="text-sm text-red-700" role="alert">{error}</p>
-            : <p className="card__sub">Loading advisers…</p>;
+            : <LoadingState label="Loading advisers…" />;
     }
 
     const seatFull = (title) => data.seats[title].used >= data.seats[title].limit;
@@ -99,9 +111,10 @@ export default function AdviserSettings() {
                 are accepted, revoked, or expire after 48 hours.
             </p>
 
-            <form onSubmit={handleInvite} className="rounded-lg border border-gray-200 p-4">
+            <form onSubmit={handleInvite} className="rounded-lg border border-gray-200 p-4" aria-busy={sending}>
                 <h3 className="font-semibold text-gray-900">Invite an adviser</h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {/* Fields lock while the invitation is being sent. */}
+                <fieldset disabled={sending} className="mt-3 grid gap-3 sm:grid-cols-2 disabled:opacity-60">
                     <label>
                         <span className="mb-1 block text-sm font-medium text-gray-700">First name</span>
                         <input className={inputClass} value={form.firstName} required maxLength={30}
@@ -133,10 +146,13 @@ export default function AdviserSettings() {
                             ))}
                         </select>
                     </label>
-                </div>
-                <button type="submit" className={`${primaryButton} mt-4`} disabled={busy || seatFull(form.title)}>
-                    Send invitation
+                </fieldset>
+                <button type="submit" className={`${primaryButton} mt-4`} disabled={busy || sending || seatFull(form.title)} aria-busy={sending}>
+                    {sending ? "Sending invitation…" : "Send invitation"}
                 </button>
+                {sending && (
+                    <p className="mt-2 text-sm text-gray-500" role="status">Sending the email — this can take a few seconds.</p>
+                )}
             </form>
 
             <section>
@@ -243,6 +259,7 @@ export default function AdviserSettings() {
                 title={confirm?.title}
                 message={confirm?.message}
                 confirmLabel={busy ? "Working…" : confirm?.label}
+                busy={busy}
                 onConfirm={() => !busy && confirm?.run()}
                 onCancel={() => !busy && setConfirm(null)}
             />

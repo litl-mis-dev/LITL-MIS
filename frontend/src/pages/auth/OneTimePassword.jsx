@@ -273,7 +273,7 @@ const descriptionText =
             </p>
           )}
 
-          <button type="submit" className="primary-button" disabled={isSubmitting}>
+          <button aria-busy={isSubmitting} type="submit" className="primary-button" disabled={isSubmitting}>
             {isSubmitting ? 'Verifying...' : 'Verify code'}
           </button>
 

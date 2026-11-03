@@ -8,6 +8,7 @@ import { CloseIcon as ActionCloseIcon, DeleteIcon, EditIcon } from "../../../com
 import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, getEventAttendance as getAttendance } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
+import LoadingState from "../../../components/ui/LoadingState.jsx";
 
 const accessOptions        = ["Members", "Officers"];
 const maxDescriptionLength = 2000;
@@ -379,7 +380,7 @@ export default function Events() {
                     </div>
                 </div>
 
-                {loading && <p className="px-4 py-8 text-center text-sm text-gray-500">Loading events...</p>}
+                {loading && <LoadingState label="Loading events…" />}
                 {error   && <p className="px-4 py-8 text-center text-sm text-red-600">{error}</p>}
 
                 {!loading && !error && (
@@ -483,7 +484,7 @@ export default function Events() {
                             </fieldset>
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={() => setIsAddModalOpen(false)} disabled={isSaving}>Cancel</button>
-                                <button type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Creating..." : "Create"}</button>
+                                <button aria-busy={isSaving} type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Creating..." : "Create"}</button>
                             </div>
                         </form>
                     </div>
@@ -624,7 +625,7 @@ export default function Events() {
                             </fieldset>
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={closeEditEventModal} disabled={isSaving}>Cancel</button>
-                                <button type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</button>
+                                <button aria-busy={isSaving} type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</button>
                             </div>
                         </form>
                     </div>

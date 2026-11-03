@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ConfirmActionButton from '../../../components/officers/ConfirmActionButton'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
 import { listCategories, createCategoriesBatch, archiveCategory } from '../../../services/financial.service'
+import LoadingState from '../../../components/ui/LoadingState.jsx'
 const initialFormData = { categories: '', percentage: '' }
 const CATEGORY_REGEX = /^[A-Za-z\s]+$/
 
@@ -262,7 +263,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
             <form onSubmit={handleSubmit} className="space-y-4 px-4 py-5 sm:px-6">
               {serverError && <p className="text-sm text-red-600">{serverError}</p>}
               {formLevelError && <p className="text-sm text-red-600">{formLevelError}</p>}
-              {isLoadingExisting && <p className="text-sm text-gray-500">Loading existing categories...</p>}
+              {isLoadingExisting && <LoadingState inline label="Loading existing categories…" />}
 
               {/* Add new row */}
               <div className="grid gap-4 md:grid-cols-2">
@@ -360,6 +361,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                   title="Save category changes?"
                   message="Are you sure you want to save these fund category changes?"
                   confirmLabel={isSubmitting ? 'Saving...' : 'Save'}
+                  busy={isSubmitting}
                   cancelLabel="Cancel"
                   onOpenChange={setIsConfirmOpen}
                   onCancel={handleCancelSubmit}

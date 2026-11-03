@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getActiveSemesterStats, listSemesters, advanceSemester, initFirstSemester } from '../../../services/financial.service'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
+import LoadingState from '../../../components/ui/LoadingState.jsx'
 
 function formatCurrency(value) {
   const n = parseFloat(value) || 0
@@ -179,7 +180,7 @@ export default function SemesterManager({ onSemesterChanged }) {
             <div className="space-y-5 px-6 py-5">
               {statsError && <p className="text-sm text-red-600">{statsError}</p>}
 
-              {loadingStats && <p className="text-sm text-gray-500">Loading...</p>}
+              {loadingStats && <LoadingState inline label="Loading semester…" />}
 
               {/* ── VIEW step ──────────────────────────────────────────────── */}
               {!loadingStats && step === 'view' && (
@@ -249,7 +250,7 @@ export default function SemesterManager({ onSemesterChanged }) {
                           className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" />
                       </div>
 
-                      <button type="button" onClick={handleInitFirstSemester}
+                      <button aria-busy={isIniting} type="button" onClick={handleInitFirstSemester}
                         disabled={isIniting || initConfirm.trim() !== 'ACTIVATE' || !initSchoolYear.trim()}
                         className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
                         {isIniting ? 'Initializing...' : 'Initialize First Semester'}
@@ -348,7 +349,7 @@ export default function SemesterManager({ onSemesterChanged }) {
                       className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
                       Cancel
                     </button>
-                    <button type="button" onClick={handleConfirmAdvance}
+                    <button aria-busy={isAdvancing} type="button" onClick={handleConfirmAdvance}
                       disabled={!confirmEnabled}
                       className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
                       {isAdvancing ? 'Processing...' : 'Confirm Activation'}

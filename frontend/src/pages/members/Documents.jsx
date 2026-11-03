@@ -5,6 +5,7 @@ import {
     getDocumentPreviewUrl,
 } from "../../services/documents.service.js";
 import { getSocket } from "../../services/socket.js";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 const PREVIEWABLE_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg"]);
 
@@ -97,7 +98,7 @@ export default function Documents() {
 
             {isLoading ? (
                 <section className="card documents-main">
-                    <p className="card__sub">Loading documents…</p>
+                    <LoadingState label="Loading documents…" />
                 </section>
             ) : loadError ? (
                 <section className="card documents-main">

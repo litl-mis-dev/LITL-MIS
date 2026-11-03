@@ -111,7 +111,7 @@ function Login() {
               </div>
             </label>
 
-            <button type="submit" className="primary-button" disabled={isSubmitting}>
+            <button aria-busy={isSubmitting} type="submit" className="primary-button" disabled={isSubmitting}>
               {isSubmitting ? 'Logging in...' : 'Log in'}
             </button>
 

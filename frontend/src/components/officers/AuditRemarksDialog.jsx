@@ -24,7 +24,7 @@ export default function AuditRemarksDialog({ item, busy, error, onCancel, onSave
         </label>
         <div className="audit-remarks-actions">
           <button type="button" className="btn btn--outline" disabled={busy} onClick={onCancel}>Cancel</button>
-          <button type="submit" className="btn btn--primary" disabled={busy || !remarks.trim()}>{busy ? "Saving..." : "Save Review"}</button>
+          <button aria-busy={busy} type="submit" className="btn btn--primary" disabled={busy || !remarks.trim()}>{busy ? "Saving..." : "Save Review"}</button>
         </div>
       </form>
     </dialog>

@@ -79,7 +79,7 @@ function ForgotPassword() {
 
           {error && <p className="form-message form-message-error">{error}</p>}
 
-          <button type="submit" className="primary-button" disabled={isSubmitting}>
+          <button aria-busy={isSubmitting} type="submit" className="primary-button" disabled={isSubmitting}>
             {isSubmitting ? 'Sending code...' : 'Send verification code'}
           </button>
         </form>

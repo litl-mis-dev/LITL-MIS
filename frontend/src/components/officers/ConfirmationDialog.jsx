@@ -6,6 +6,9 @@ export default function ConfirmationDialog({
     cancelLabel = "Cancel",
     onConfirm,
     onCancel,
+    // While the confirmed action runs: spinner on Confirm, both buttons locked
+    // so it can't be submitted twice or cancelled halfway.
+    busy = false,
 }) {
     if (!isOpen) {
         return null;
@@ -28,14 +31,17 @@ export default function ConfirmationDialog({
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        disabled={busy}
+                        className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
                         {cancelLabel}
                     </button>
                     <button
                         type="button"
                         onClick={onConfirm}
-                        className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)"
+                        disabled={busy}
+                        aria-busy={busy}
+                        className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:opacity-70"
                     >
                         {confirmLabel}
                     </button>

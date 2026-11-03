@@ -113,7 +113,7 @@ export default function AcceptAdviserInvite() {
                 At least 8 characters, with an uppercase letter, a lowercase letter, a number and a special character.
               </p>
 
-              <button type="submit" className="primary-button" disabled={isSubmitting}>
+              <button aria-busy={isSubmitting} type="submit" className="primary-button" disabled={isSubmitting}>
                 {isSubmitting ? 'Creating account...' : 'Create my account'}
               </button>
               {error && <p className="form-message form-message-error">{error}</p>}

@@ -242,7 +242,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                 </button>
               )}
               <hr className="topbar__dd-divider" />
-              <button
+              <button aria-busy={isSigningOut}
                 className="topbar__dd-item topbar__dd-item--danger"
                 onClick={handleSignOut}
                 disabled={isSigningOut}

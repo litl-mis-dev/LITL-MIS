@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "../../assets/styles/members/MemberDashboard.css";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 const TEMP_MEMBER = {
   name: "Juan dela Cruz",
@@ -23,7 +24,7 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 3000);
   }
 
-  if (loading) return <p style={{ color: "#64748b", fontSize: 14 }}>Loading settings...</p>;
+  if (loading) return <LoadingState label="Loading settings…" />;
   if (!member)  return <p style={{ color: "#64748b", fontSize: 14 }}>Could not load settings.</p>;
 
   return (

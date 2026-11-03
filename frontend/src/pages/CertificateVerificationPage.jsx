@@ -5,6 +5,7 @@ import logo from "../assets/images/LogoAndText.png";
 import "../assets/styles/LandingPage.css";
 import { verifyCertificate } from "../services/certification.service.js";
 import { renderVerifiedMembershipCertificateImage } from "../utils/downloadMembershipCertificate.js";
+import LoadingState from "../components/ui/LoadingState.jsx";
 
 export default function CertificateVerificationPage() {
   const { token = "" } = useParams();
@@ -128,7 +129,7 @@ export default function CertificateVerificationPage() {
                 <label htmlFor="certificate-id">Certificate ID</label>
                 <div>
                   <input id="certificate-id" value={certificateId} onChange={(event) => { setCertificateId(event.target.value); setResult(null); }} placeholder="e.g. a1b2c3d4-..." autoComplete="off" autoFocus />
-                  <button type="submit" className="landing-primary-action" disabled={isVerifying}>{isVerifying ? "Verifying…" : "Verify"}</button>
+                  <button aria-busy={isVerifying} type="submit" className="landing-primary-action" disabled={isVerifying}>{isVerifying ? "Verifying…" : "Verify"}</button>
                 </div>
               </form>
             </>
@@ -159,7 +160,7 @@ export default function CertificateVerificationPage() {
                   </dl>
                   {result.record.certificateType === "MEMBERSHIP" ? (
                     <>
-                      {isRenderingPreview && <p className="verification-preview-loading">Loading certificate preview…</p>}
+                      {isRenderingPreview && <LoadingState label="Loading certificate preview…" />}
                       {membershipPreviewUrl && (
                         <img src={membershipPreviewUrl} alt={`Membership certificate for ${result.record.memberName}`} />
                       )}

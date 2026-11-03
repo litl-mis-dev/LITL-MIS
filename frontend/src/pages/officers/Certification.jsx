@@ -10,6 +10,7 @@ import {
   downloadEventCertificatesZipFile,
 } from "../../services/certification.service.js";
 import { getSocket } from "../../services/socket.js";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 const LEVEL = { ROOT: "root", ARCHIVE: "archive", EVENT: "event" };
 
@@ -345,7 +346,7 @@ export default function Certification() {
             {level === LEVEL.ROOT && (
               <>
                 {isLoadingTree && (
-                  <div className="documents-empty"><h2 className="card__title">Loading certification archive…</h2></div>
+                  <LoadingState label="Loading certification archive…" />
                 )}
                 {treeError && (
                   <div className="documents-empty"><h2 className="card__title">Unable to load archive</h2><p>{treeError}</p></div>
@@ -399,7 +400,7 @@ export default function Certification() {
             {level === LEVEL.EVENT && (
               <>
                 {isLoadingFolder && (
-                  <div className="documents-empty"><h2 className="card__title">Loading certificates…</h2></div>
+                  <LoadingState label="Loading certificates…" />
                 )}
                 {folderError && (
                   <div className="documents-empty"><h2 className="card__title">Unable to load certificates</h2><p>{folderError}</p></div>
@@ -608,7 +609,7 @@ function RevokeModal({ certificate, reason, onReasonChange, error, isSubmitting,
             <button type="button" className="btn btn--outline" onClick={onCancel} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn btn--danger" disabled={isSubmitting}>
+            <button aria-busy={isSubmitting} type="submit" className="btn btn--danger" disabled={isSubmitting}>
               {isSubmitting ? "Revoking…" : "Revoke certificate"}
             </button>
           </div>

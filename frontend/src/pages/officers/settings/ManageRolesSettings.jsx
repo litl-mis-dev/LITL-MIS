@@ -7,6 +7,7 @@ import { MODULES, MODULE_LABELS } from "../../../utils/permissionModules.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { useRole } from "../../../utils/useRole.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
+import LoadingState from "../../../components/ui/LoadingState.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ export default function ManageRolesSettings() {
                     <tbody>
                         {loading && (
                             <tr>
-                                <td colSpan="4" className="data-table__empty">Loading members...</td>
+                                <td colSpan="4" className="data-table__empty"><LoadingState inline label="Loading members…" /></td>
                             </tr>
                         )}
 
@@ -421,7 +422,7 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
                         {permSuccess && <p className="settings-message">{permSuccess}</p>}
 
                         {isLoadingPerms ? (
-                            <p style={{ fontSize: 12, color: "#6b7280" }}>Loading permissions…</p>
+                            <LoadingState inline label="Loading permissions…" />
                         ) : (
                             <div className="manage-roles-access__list">
                                 {MODULES.map((module) => {
@@ -456,7 +457,7 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
 
                         {isPresident && !isLockedRole && (
                             <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-                                <button
+                                <button aria-busy={isSavingPerms}
                                     type="button"
                                     className="btn btn--outline btn--sm"
                                     onClick={handleSavePermissions}
@@ -477,6 +478,7 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
                             className="btn btn--outline"
                             onConfirm={onRemove}
                             disabled={!canManageOfficers || isSaving || currentRole === "MEMBER"}
+                            busy={isSaving}
                             title="Remove officer role?"
                             message={`${member.name} will lose their ${ROLE_LABELS[currentRole] ?? currentRole} role and revert to a regular member. This can be undone later by reassigning a role.`}
                             confirmLabel="Remove"
@@ -486,7 +488,7 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
                         </ConfirmActionButton>
                         )}
                         {!isAdviser && (
-                        <button
+                        <button aria-busy={isSaving}
                             type="button"
                             className="btn btn--primary"
                             onClick={onSave}

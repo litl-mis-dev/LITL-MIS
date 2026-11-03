@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import ConfirmationDialog from "../../components/officers/ConfirmationDialog.jsx";
+import Spinner from "../../components/ui/Spinner.jsx";
 import AuditRemarksDialog from "../../components/officers/AuditRemarksDialog.jsx";
 import { listAudits, reviewAudit } from "../../services/financial.service.js";
 import { useRole } from "../../utils/useRole.js";
@@ -315,7 +316,7 @@ export default function Audit() {
                             {item.status === "CLEARED" ? (
                               <span className="audit-status" title="Cleared records cannot be changed">Locked</span>
                             ) : (
-                            <label className="audit-status-select">
+                            <label className="audit-status-select" aria-busy={actioningId === item.id}>
                               <span className="sr-only">Update status for {item.displayId}</span>
                               <select
                                 value={item.status}
@@ -328,6 +329,7 @@ export default function Audit() {
                                   </option>
                                 ))}
                               </select>
+                              {actioningId === item.id && <Spinner className="ml-2 text-(--primary)" />}
                             </label>
                             )}
                             {item.status === "FOR_CLARIFICATION" && <button

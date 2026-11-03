@@ -434,7 +434,7 @@ export default function UserProfile({ variant = "member" }) {
                                     onClick={cancelAvatarChange} disabled={avatarLoading}>
                                     Cancel
                                 </button>
-                                <button type="button" className="btn btn--primary btn--sm"
+                                <button aria-busy={avatarLoading} type="button" className="btn btn--primary btn--sm"
                                     onClick={saveAvatar} disabled={avatarLoading}>
                                     {avatarLoading ? "Saving…" : "Save Photo"}
                                 </button>
@@ -597,7 +597,7 @@ export default function UserProfile({ variant = "member" }) {
                                     onClick={resetPwForm} disabled={pwLoading}>
                                     Clear
                                 </button>
-                                <button type="submit" className="btn btn--primary" disabled={pwLoading}>
+                                <button aria-busy={pwLoading} type="submit" className="btn btn--primary" disabled={pwLoading}>
                                     {pwLoading ? "Saving…" : "Save Password"}
                                 </button>
                             </div>
@@ -664,7 +664,7 @@ export default function UserProfile({ variant = "member" }) {
 
                                     {emailErr && <p className="form-message form-message-error">{emailErr}</p>}
 
-                                    <button type="submit" className="primary-button" disabled={emailLoading}>
+                                    <button aria-busy={emailLoading} type="submit" className="primary-button" disabled={emailLoading}>
                                         {emailLoading ? "Sending code..." : "Send verification code"}
                                     </button>
                                 </form>
@@ -741,7 +741,7 @@ export default function UserProfile({ variant = "member" }) {
                                         </p>
                                     )}
 
-                                    <button type="submit" className="primary-button" disabled={emailLoading}>
+                                    <button aria-busy={emailLoading} type="submit" className="primary-button" disabled={emailLoading}>
                                         {emailLoading ? "Verifying..." : "Verify code"}
                                     </button>
 

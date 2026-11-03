@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import LogoLoader from "../../components/LogoLoader.jsx";
 import MemberSidebar from "./MembersSidebar";
 import MemberTopbar from "./MembersTopbar";
 import "../../assets/styles/officers/Dashboard.css";
@@ -63,7 +62,6 @@ export default function MembersLayout() {
       return false;
     }
   });
-  const [isPageLoading, setIsPageLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -88,12 +86,6 @@ export default function MembersLayout() {
 
   const currentPage = pathPages[location.pathname] ?? "dashboard";
 
-  useEffect(() => {
-    setIsPageLoading(true);
-    const loadingTimer = window.setTimeout(() => setIsPageLoading(false), 700);
-
-    return () => window.clearTimeout(loadingTimer);
-  }, [location.pathname]);
 
   const handleNavigate = (page) => {
     const target = pagePaths[page];
@@ -140,21 +132,11 @@ export default function MembersLayout() {
       />
 
       <main className={`dash member-dashboard ${isSidebarCollapsed ? "dash--collapsed" : ""}`}>
-        {isPageLoading ? (
-          <LogoLoader label={`Loading ${formatPageLabel(currentPage)}...`} />
-        ) : (
-          <Outlet />
-        )}
+        {/* Pages show immediately (with a short fade-in, see App.css);
+            each page shows its own loading state while its data loads. */}
+        <Outlet />
       </main>
     </>
   );
 }
 
-function formatPageLabel(page) {
-  if (page === "qr") return "Digital ID";
-
-  return page
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}

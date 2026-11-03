@@ -10,7 +10,8 @@ import { MODULES } from '../utils/permissionModules.js'
 const EMPTY_PERMISSIONS = Object.fromEntries(MODULES.map((m) => [m, 'NONE']))
 
 const AuthContext = createContext(null)
-const MIN_AUTH_LOADING_MS = 700
+// Keeps the start-up loader on screen long enough not to flash.
+const MIN_AUTH_LOADING_MS = 300
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
