@@ -5,6 +5,7 @@ import {
     uploadDocumentAsset,
 } from '../../../services/documentAsset.service.js'
 import { useRole } from '../../../utils/useRole.js'
+import LoadingState from '../../../components/ui/LoadingState.jsx'
 
 const MAX_SIZE_MB    = 10
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
@@ -43,7 +44,7 @@ export default function MembershipCardSettings() {
     }
 
     if (loading) {
-        return <p className='settings-upload__empty'>Loading template…</p>
+        return <LoadingState inline label="Loading template…" />
     }
 
     return (
@@ -169,7 +170,7 @@ function AssetSection({ assetType, title, description, inputId, asset, onUploade
                             <div className='settings-upload__preview-actions'>
                                 <span className='settings-upload__active-badge'>Active</span>
                                 {canEdit && (
-                                    <button type='button' className='btn btn--outline btn--sm' onClick={handleRemove} disabled={isBusy}>
+                                    <button aria-busy={removing} type='button' className='btn btn--outline btn--sm' onClick={handleRemove} disabled={isBusy}>
                                         {removing ? 'Removing…' : 'Remove'}
                                     </button>
                                 )}

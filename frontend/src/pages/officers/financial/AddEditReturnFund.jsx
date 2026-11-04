@@ -398,7 +398,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
                     className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
                     Go Back
                   </button>
-                  <button type="button" onClick={handleConfirmSubmit} disabled={!confirmEnabled}
+                  <button aria-busy={isSubmitting} type="button" onClick={handleConfirmSubmit} disabled={!confirmEnabled}
                     className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
                     {isSubmitting ? 'Saving...' : 'Confirm Return Fund'}
                   </button>

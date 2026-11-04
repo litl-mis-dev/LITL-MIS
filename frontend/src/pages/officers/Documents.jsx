@@ -16,6 +16,7 @@ import {
     getDocumentPreviewUrl,
 } from "../../services/documents.service.js";
 import { getSocket } from "../../services/socket.js";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 const groupAccessOptions = ["Members", "Officers", "Adviser/Dept. Chair"];
 
@@ -413,7 +414,7 @@ async function handleSaveAccess() {
                                 <button type="button" className="btn btn--outline" onClick={() => setIsFolderModalOpen(true)}>
                                     New Folder
                                 </button>
-                                <button type="button" className="btn btn--primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                <button aria-busy={isUploading} type="button" className="btn btn--primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                                     {isUploading ? "Uploading…" : "Upload"}
                                 </button>
                                 <button type="button" className="btn btn--outline btn--danger" onClick={openTrash}>
@@ -445,7 +446,7 @@ async function handleSaveAccess() {
 
             {isLoading ? (
                 <section className="card documents-main">
-                    <p className="card__sub">Loading documents…</p>
+                    <LoadingState label="Loading documents…" />
                 </section>
             ) : loadError ? (
                 <section className="card documents-main">
@@ -765,7 +766,7 @@ async function handleSaveAccess() {
                         onClick={closeAccessModal} disabled={isSaving}>
                         Cancel
                     </button>
-                    <button type="button" className="btn btn--primary"
+                    <button aria-busy={isSaving} type="button" className="btn btn--primary"
                         onClick={handleSaveAccess} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save Access"}
                     </button>

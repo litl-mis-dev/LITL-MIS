@@ -210,6 +210,7 @@ export default function DeveloperPanel() {
                 title={confirm?.title}
                 message={confirm?.message}
                 confirmLabel={busy ? "Working…" : confirm?.label}
+                busy={busy}
                 onConfirm={() => !busy && confirm?.run()}
                 onCancel={() => !busy && setConfirm(null)}
             />

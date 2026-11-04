@@ -113,6 +113,21 @@ const escapeHtml = (value = '') =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
+// "Bulletproof" email button: an orange table cell with the link inside, all
+// inline styles. Gmail, Apple Mail, Yahoo and Outlook (desktop, which ignores
+// padding/background on links but honours bgcolor on table cells) all show a
+// solid orange, fully clickable button. Expects an already-escaped href/label.
+const BRAND_ORANGE = '#ef8315'
+const emailButton = (href, label) => `
+      <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 24px 0; border-collapse: separate;">
+        <tr>
+          <td align="center" bgcolor="${BRAND_ORANGE}" style="border-radius: 8px; background-color: ${BRAND_ORANGE};">
+            <a href="${href}" target="_blank" rel="noopener"
+               style="display: inline-block; padding: 13px 28px; border: 1px solid ${BRAND_ORANGE}; border-radius: 8px; background-color: ${BRAND_ORANGE}; color: #ffffff; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; line-height: 20px; text-decoration: none;">${label}</a>
+          </td>
+        </tr>
+      </table>`
+
 // Landing page "Contact" form submission — forwarded to the organization
 // inbox. Reply-To is set to the sender's own email so officers can reply
 // directly from their email client.
@@ -160,9 +175,7 @@ const sendRegistrationStatusEmail = async (toEmail, memberName, approved) => {
         Congratulations! Your LITL membership registration has been <strong>approved</strong>
         and your account is now active. You can sign in using your email and password.
       </p>
-      <p style="margin: 24px 0;">
-        <a href="${loginUrl}" style="background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Sign in</a>
-      </p>
+      ${emailButton(escapeHtml(loginUrl), 'Sign in')}
     </div>
   `
     : `
@@ -200,8 +213,10 @@ const sendAdviserInviteEmail = async ({ toEmail, firstName, titleLabel, link, ex
         The LITL President has invited you to join LITL-MIS as <strong>${title}</strong>.
         Open the link below to set your password and activate your account.
       </p>
-      <p style="margin: 24px 0;">
-        <a href="${href}" style="background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Accept invitation</a>
+      ${emailButton(href, 'Accept invitation')}
+      <p style="color: #888; font-size: 12px; word-break: break-all;">
+        Button not working? Copy this link into your browser:<br />
+        <a href="${href}" style="color: ${BRAND_ORANGE};">${href}</a>
       </p>
       <p style="color: #888; font-size: 12px;">
         This link works once and expires on ${expires} (Philippine time). If you weren't expecting

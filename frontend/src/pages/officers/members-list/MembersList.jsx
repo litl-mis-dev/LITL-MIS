@@ -7,10 +7,12 @@ import MembershipPaymentSection from "./MembershipPaymentSection.jsx";
 import { useRole } from '../../../utils/useRole.js'
 import { ROLE_LABELS } from '../../../utils/roles.js'
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
+import Spinner from "../../../components/ui/Spinner.jsx";
 import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, updateMemberStatus, } from "../../../services/officer.service.js";
 import { getMemberPaymentHistory, sendPaymentReminder, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
 import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf, } from "../../../utils/downloadMembershipCardPdf.js";
 import { createAnnouncement } from "../../../services/announcement.service.js";
+import LoadingState from "../../../components/ui/LoadingState.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,8 @@ export default function MembersList({ compact = false }) {
 
     // Approval state
     const [approvalLoading, setApprovalLoading] = useState(false)
+    // Which registration is being approved/rejected, so only its button spins.
+    const [approvalAction, setApprovalAction] = useState(null) // { id, type }
     const [approvalError, setApprovalError] = useState('')
 
     // ── Load data ────────────────────────────────────────────────────────────
@@ -356,7 +360,7 @@ export default function MembersList({ compact = false }) {
     // ── Member approval ───────────────────────────────────────────────────────
 
     async function handleApproveMember(userId) {
-        setApprovalLoading(true); setApprovalError('')
+        setApprovalLoading(true); setApprovalError(''); setApprovalAction({ id: userId, type: 'approve' })
         try {
             await approveUser(userId)
             setPendingUsers(p => p.filter(u => u.id !== userId))
@@ -364,17 +368,17 @@ export default function MembersList({ compact = false }) {
             setMembers((md.members ?? []))
         } catch (err) {
             setApprovalError(err.response?.data?.message ?? 'Failed to approve.')
-        } finally { setApprovalLoading(false) }
+        } finally { setApprovalLoading(false); setApprovalAction(null) }
     }
 
     async function handleRejectMember(userId) {
-        setApprovalLoading(true); setApprovalError('')
+        setApprovalLoading(true); setApprovalError(''); setApprovalAction({ id: userId, type: 'reject' })
         try {
             await rejectUser(userId)
             setPendingUsers(p => p.filter(u => u.id !== userId))
         } catch (err) {
             setApprovalError(err.response?.data?.message ?? 'Failed to reject.')
-        } finally { setApprovalLoading(false) }
+        } finally { setApprovalLoading(false); setApprovalAction(null) }
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -441,12 +445,13 @@ export default function MembersList({ compact = false }) {
                                     className="btn btn--outline"
                                     onConfirm={handleDownloadMembers}
                                     disabled={loading || filteredMembers.length === 0 || isGeneratingAllCards || Boolean(generatingCardId)}
+                                    busy={isGeneratingAllCards}
                                     title="Download all membership cards?"
                                     message={`This will generate and download a membership card PDF for all ${filteredMembers.length} member${filteredMembers.length === 1 ? "" : "s"} currently shown in the list.`}
                                     confirmLabel="Download All"
                                     cancelLabel="Cancel"
                                 >
-                                    <DownloadIcon />
+                                    {!isGeneratingAllCards && <DownloadIcon />}
                                     <span>{isGeneratingAllCards ? "Generating..." : "Download All"}</span>
                                 </ConfirmActionButton>
                             )}
@@ -459,12 +464,13 @@ export default function MembersList({ compact = false }) {
                                     className="btn btn--outline"
                                     onConfirm={handleSendAllReminders}
                                     disabled={loading || isSendingAllReminders || Boolean(sendingReminderId)}
+                                    busy={isSendingAllReminders}
                                     title="Email all unpaid members?"
                                     message="This will immediately send a payment reminder email to every member who has not yet paid for the active semester."
                                     confirmLabel="Email All"
                                     cancelLabel="Cancel"
                                 >
-                                    <EmailIcon />
+                                    {!isSendingAllReminders && <EmailIcon />}
                                     <span>{isSendingAllReminders ? "Sending..." : "Email All"}</span>
                                 </ConfirmActionButton>
                             )}
@@ -576,9 +582,10 @@ export default function MembersList({ compact = false }) {
                                                             className="icon-btn member-action-buttons__button"
                                                             onClick={() => handleDownloadMemberCard(m)}
                                                             disabled={isGeneratingAllCards || generatingCardId === (m.memberId ?? m.id)}
+                                                            aria-busy={generatingCardId === (m.memberId ?? m.id)}
                                                             title="Download membership card"
                                                             aria-label={`Download ${m.name} membership card`}>
-                                                            <DownloadIcon />
+                                                            {generatingCardId === (m.memberId ?? m.id) ? <Spinner /> : <DownloadIcon />}
                                                         </button>
                                                     </>
                                                 )}
@@ -587,9 +594,10 @@ export default function MembersList({ compact = false }) {
                                                         className="icon-btn member-action-buttons__button"
                                                         onClick={() => handleSendMemberEmail(m)}
                                                         disabled={!m.email || m.isPaid || sendingReminderId === m.id || isSendingAllReminders}
+                                                        aria-busy={sendingReminderId === m.id}
                                                         title={!m.email ? "No email address" : m.isPaid ? "Member has already paid" : "Send payment reminder email"}
                                                         aria-label={`Send payment reminder email to ${m.name}`}>
-                                                        <EmailIcon />
+                                                        {sendingReminderId === m.id ? <Spinner /> : <EmailIcon />}
                                                     </button>
                                                 )}
                                             </div>
@@ -602,7 +610,7 @@ export default function MembersList({ compact = false }) {
                                     {error || "No members match the current search or filter."}
                                 </td></tr>
                             )}
-                            {loading && <tr><td colSpan="6" className="data-table__empty">Loading members...</td></tr>}
+                            {loading && <tr><td colSpan="6" className="data-table__empty"><LoadingState inline label="Loading members…" /></td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -645,6 +653,7 @@ export default function MembersList({ compact = false }) {
                                                 <ConfirmActionButton
                                                     className="btn btn--outline btn--sm btn--danger"
                                                     disabled={approvalLoading}
+                                                    busy={approvalAction?.id === u.id && approvalAction.type === 'reject'}
                                                     onConfirm={() => handleRejectMember(u.id)}
                                                     title="Reject this registration?"
                                                     message={`${name || u.email} will be notified that their registration was not approved and will not be able to sign in.`}
@@ -656,6 +665,7 @@ export default function MembersList({ compact = false }) {
                                                 <ConfirmActionButton
                                                     className="btn btn--primary btn--sm"
                                                     disabled={approvalLoading}
+                                                    busy={approvalAction?.id === u.id && approvalAction.type === 'approve'}
                                                     onConfirm={() => handleApproveMember(u.id)}
                                                     title="Approve this registration?"
                                                     message={`${name || u.email} will be notified and can sign in right away.`}
@@ -740,7 +750,7 @@ export default function MembersList({ compact = false }) {
                             <div className="member-modal__actions" style={{ marginTop: 16 }}>
                                 <button type="button" className="btn btn--outline"
                                     onClick={closeEdit} disabled={editSaving}>Cancel</button>
-                                <button type="submit" className="btn btn--primary"
+                                <button aria-busy={editSaving} type="submit" className="btn btn--primary"
                                     disabled={editSaving}>{editSaving ? "Saving..." : "Save Changes"}</button>
                             </div>
                         </form>
@@ -826,7 +836,7 @@ export default function MembersList({ compact = false }) {
                             <div className="member-modal__actions" style={{ marginTop: 16 }}>
                                 <button type="button" className="btn btn--outline"
                                     onClick={closeAnnouncementModal} disabled={isSendingAnnouncement}>Cancel</button>
-                                <button type="submit" className="btn btn--primary"
+                                <button aria-busy={isSendingAnnouncement} type="submit" className="btn btn--primary"
                                     disabled={isSendingAnnouncement}>{isSendingAnnouncement ? "Sending..." : "Send"}</button>
                             </div>
                         </form>

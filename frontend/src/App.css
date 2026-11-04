@@ -38,6 +38,8 @@
     min-height: 100vh;
     gap: 1.25rem;
     background: var(--background);
+    /* Appears only if loading takes longer than a blink — no flash on fast loads. */
+    animation: ui-fade-in 0.25s ease-out 0.12s both;
 }
 
 .logo-loader.logo-loader--full {
@@ -70,4 +72,123 @@
 @keyframes logo-pulse {
     0%, 100% { opacity: 1;   transform: scale(1);    }
     50%       { opacity: 0.5; transform: scale(0.93); }
+}
+
+/* ── Interaction feedback (system-wide) ─────────────────────────────────────
+   Every clickable control shows the hand cursor. Kept in the base layer so a
+   deliberate Tailwind cursor-* utility or component rule still wins. */
+@layer base {
+    button,
+    [role="button"],
+    a[href],
+    summary,
+    select,
+    label[for],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="file"],
+    input[type="submit"],
+    input[type="button"],
+    input[type="reset"] {
+        cursor: pointer;
+    }
+}
+
+/* Disabled and busy states override any component cursor (unlayered on purpose). */
+button:disabled,
+select:disabled,
+input:disabled,
+[role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
+button[aria-busy="true"],
+[aria-busy="true"] {
+    cursor: progress;
+}
+
+/* ── Loading indicators ─────────────────────────────────────────────────────
+   One spinner everywhere. Buttons get it automatically: add
+   aria-busy={isWorking} (and disabled) and the spinner appears before the label. */
+@keyframes ui-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ui-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.ui-spinner,
+button[aria-busy="true"]::before {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    vertical-align: -0.15em;
+    animation: ui-spin 0.7s linear infinite;
+}
+
+button[aria-busy="true"]::before {
+    content: "";
+    margin-inline-end: 0.45em;
+}
+
+/* Icon-only buttons swap their icon for <Spinner /> instead (no extra width). */
+button.icon-btn[aria-busy="true"]::before {
+    content: none;
+}
+
+/* Section / table / panel loading: spinner + label, centered. */
+.ui-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 2rem 1rem;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    animation: ui-fade-in 0.2s ease-out both;
+}
+
+.ui-loading .ui-spinner {
+    width: 1.15em;
+    height: 1.15em;
+    color: var(--primary);
+}
+
+/* Small, left-aligned variant for inside forms, cards and table cells. */
+.ui-loading--inline {
+    justify-content: flex-start;
+    padding: 0.25rem 0;
+}
+
+.data-table__empty .ui-loading--inline {
+    justify-content: center;
+}
+
+/* Page content fades in on navigation instead of a fixed full-screen wait. */
+.dash > * {
+    animation: ui-fade-in 0.18s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-spinner,
+    button[aria-busy="true"]::before {
+        animation-duration: 1.6s;
+    }
+
+    .logo-loader,
+    .ui-loading,
+    .dash > * {
+        animation: none;
+    }
+
+    .logo-loader__mark {
+        animation: none;
+        opacity: 1;
+    }
 }

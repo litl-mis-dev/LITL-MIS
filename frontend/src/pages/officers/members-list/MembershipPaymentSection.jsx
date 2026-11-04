@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { previewPayment, recordPayment } from "../../../services/financial.service.js";
+import LoadingState from "../../../components/ui/LoadingState.jsx";
 
 const PAYMENT_UNIT = 100;
 const SEMESTER_LABELS = { FIRST: "1st Semester", SECOND: "2nd Semester" };
@@ -30,7 +31,7 @@ function PaymentHistoryList({ history, loading, error }) {
             <h3 style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 8 }}>
                 Membership Payment History
             </h3>
-            {loading && <p style={{ fontSize: 13, color: "#6b7280" }}>Loading history...</p>}
+            {loading && <LoadingState inline label="Loading history…" />}
             {error && <p style={{ fontSize: 13, color: "#dc2626" }}>{error}</p>}
 
             {!loading && !error && history.length === 0 && (
@@ -148,7 +149,7 @@ export default function MembershipPaymentSection({ member, paymentHistory, histo
             </h3>
 
             {historyLoading ? (
-                <p style={{ fontSize: 13, color: "#6b7280" }}>Loading unpaid semesters...</p>
+                <LoadingState inline label="Loading unpaid semesters…" />
             ) : maxUnits === 0 ? (
                 <p style={{ fontSize: 13, color: "#6b7280" }}>This member has no unpaid semesters.</p>
             ) : (
@@ -192,7 +193,7 @@ export default function MembershipPaymentSection({ member, paymentHistory, histo
                     {error && <p style={{ fontSize: 13, color: "#dc2626", margin: "8px 0 0" }}>{error}</p>}
 
                     <div style={{ marginTop: 12 }}>
-                        <button type="button" className="btn btn--primary btn--sm"
+                        <button aria-busy={isVerifying} type="button" className="btn btn--primary btn--sm"
                             disabled={isVerifying || isRecording}
                             onClick={handleRecordClick}>
                             {isVerifying ? "Verifying..." : "Record Payment"}
@@ -246,7 +247,7 @@ export default function MembershipPaymentSection({ member, paymentHistory, histo
                                 disabled={isRecording}>
                                 Cancel
                             </button>
-                            <button type="button"
+                            <button aria-busy={isRecording} type="button"
                                 style={{
                                     padding: "8px 16px", borderRadius: 8, border: "none",
                                     background: "var(--primary,#ef8315)", color: "#fff", fontSize: 13,

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import LogoLoader from "../../components/LogoLoader.jsx";
 import Sidebar from "../../components/officers/Sidebar.jsx";
 import Topbar from "../../components/officers/Topbar.jsx";
 import "../../assets/styles/officers/Dashboard.css";
@@ -35,17 +34,9 @@ export default function DashboardLayout() {
             return false;
         }
     });
-    const [isPageLoading, setIsPageLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation();
     const currentPage = getCurrentPage(location.pathname);
-
-    useEffect(() => {
-        setIsPageLoading(true);
-        const loadingTimer = window.setTimeout(() => setIsPageLoading(false), 700);
-
-        return () => window.clearTimeout(loadingTimer);
-    }, [location.pathname]);
 
     function handleNavigate(page) {
         navigate(pagePaths[page] ?? "/");
@@ -85,21 +76,12 @@ export default function DashboardLayout() {
                 isCollapsed={isSidebarCollapsed}
             />
             <div className={`dash ${isSidebarCollapsed ? "dash--collapsed" : ""}`}>
-                {isPageLoading ? (
-                    <LogoLoader label={`Loading ${formatPageLabel(currentPage)}...`} />
-                ) : (
-                    <Outlet context={{ onNavigate: handleNavigate }} />
-                )}
+                {/* Pages show immediately (with a short fade-in, see App.css);
+                    each page shows its own loading state while its data loads. */}
+                <Outlet context={{ onNavigate: handleNavigate }} />
             </div>
         </>
     );
-}
-
-function formatPageLabel(page) {
-    return page
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
 }
 
 function getCurrentPage(pathname) {

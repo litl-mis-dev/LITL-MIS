@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listEvents } from "../../services/event.service.js";
 import { getSocket } from "../../services/socket.js";
 import "../../assets/styles/members/MemberDashboard.css";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 const TAG_CLASS = {
   open: "open",
@@ -77,7 +78,7 @@ export default function Events() {
 
         <div className="member-events">
           {loading ? (
-            <p className="member-events__state">Loading events...</p>
+            <LoadingState label="Loading events…" />
           ) : filteredEvents.length === 0 ? (
             <p className="member-events__state">
               {search.trim() ? "No events match your search." : "No events available at the moment."}

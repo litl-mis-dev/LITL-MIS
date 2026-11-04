@@ -15,6 +15,9 @@ export default function ConfirmActionButton({
     onOpenChange,
     beforeOpen,
     buttonType = "button",
+    // True while the confirmed action runs: spinner on this button and no
+    // second submission.
+    busy = false,
 }) {
     const [internalIsOpen, setInternalIsOpen] = useState(false);
     const isConfirmOpen = isOpen ?? internalIsOpen;
@@ -47,7 +50,7 @@ export default function ConfirmActionButton({
 
     return (
         <>
-            <button type={buttonType} className={className} disabled={disabled} onClick={handleOpen}>
+            <button type={buttonType} className={className} disabled={disabled || busy} aria-busy={busy} onClick={handleOpen}>
                 {children}
             </button>
 

@@ -375,7 +375,7 @@ export default function LandingPage() {
               {formStatus.error && <p className="landing-form-alert landing-form-error">{formStatus.error}</p>}
               {formStatus.success && <p className="landing-form-alert landing-form-success">Message received. We will get back to you soon.</p>}
 
-              <button type="submit" className="landing-primary-action" disabled={formStatus.loading}>
+              <button aria-busy={formStatus.loading} type="submit" className="landing-primary-action" disabled={formStatus.loading}>
                 {formStatus.loading ? "Sending..." : "Send message"}
               </button>
             </form>

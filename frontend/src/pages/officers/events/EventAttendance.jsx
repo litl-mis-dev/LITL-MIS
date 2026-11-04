@@ -156,7 +156,7 @@ export default function EventAttendance() {
           </p>
         </div>
         <div className="dash__header-actions">
-          <button
+          <button aria-busy={isDownloading}
             type="button"
             className="btn btn--outline"
             onClick={handleDownloadPdf}

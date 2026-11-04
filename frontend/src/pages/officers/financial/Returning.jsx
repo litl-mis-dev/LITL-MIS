@@ -6,6 +6,7 @@ import { downloadReturnFundCertificate } from '../../../utils/downloadReturnFund
 import { listReturnFunds, listDisbursements } from '../../../services/financial.service'
 import { useRole } from '../../../utils/useRole'
 import { getSocket } from '../../../services/socket'
+import LoadingState from '../../../components/ui/LoadingState.jsx'
 
 function formatCurrency(value) {
   const n = parseFloat(value) || 0
@@ -159,7 +160,7 @@ export default function Returning({ showHeader = true }) {
           </p>
         )}
 
-        {loading && <p className="px-4 py-8 text-center text-sm text-gray-500">Loading return funds...</p>}
+        {loading && <LoadingState label="Loading return funds…" />}
         {error   && <p className="px-4 py-8 text-center text-sm text-red-600">{error}</p>}
         {!loading && !error && (
           <FinancialRecordsTable

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { createMembershipCardPreview } from "../../utils/downloadMembershipCardPdf.js";
 import "../../assets/styles/members/MemberDashboard.css";
+import LoadingState from "../../components/ui/LoadingState.jsx";
 
 export default function QRCode({ member, qrCodeUrl, memberId }) {
   const { user } = useAuth();
@@ -44,7 +45,7 @@ export default function QRCode({ member, qrCodeUrl, memberId }) {
 
       <section className="member-card member-card-preview-section">
         {isRendering ? (
-          <p className="card__sub">Loading membership card...</p>
+          <LoadingState label="Loading membership card…" />
         ) : previewUrl ? (
           <img className="member-card-preview" src={previewUrl} alt="Digital membership card" />
         ) : (
