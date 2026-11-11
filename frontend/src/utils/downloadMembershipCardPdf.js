@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import litlLogoUrl from "../assets/images/LITL_Logo.png";
 import { getDocumentAssets } from "../services/documentAsset.service.js";
+import api from "../services/api.js";
 
 const MM_TO_PT = 72 / 25.4;
 const PX_PER_MM = 10;
@@ -89,27 +90,65 @@ function getIssueDate(member) {
 // once per member.
 let combinedTemplateRequest = null;
 
-// Images from another site (profile photos and templates in R2) must load
-// with CORS, or drawing them taints the canvas and the card can't be
-// exported at all. The extra query parameter keeps the browser from reusing
-// a copy it cached for a plain <img> without CORS headers. If an image can't
-// load this way, the card is still made, just without that image.
-function loadImage(src, crossOrigin = false) {
-    if (!src) return Promise.resolve(null);
-    const isRemote = /^https?:/i.test(src);
-    const url = crossOrigin && isRemote ? `${src}${src.includes("?") ? "&" : "?"}cors=1` : src;
-    if (imageCache.has(url)) return imageCache.get(url);
-
-    const promise = new Promise((resolve) => {
+function imageFromUrl(url) {
+    return new Promise((resolve) => {
         const image = new Image();
-        if (crossOrigin) image.crossOrigin = "anonymous";
         image.onload = () => resolve(image);
         image.onerror = () => resolve(null);
         image.src = url;
     });
+}
 
-    imageCache.set(url, promise);
+async function imageFromBlob(blob) {
+    if (!blob || !blob.type.startsWith("image/")) return null;
+    const url = URL.createObjectURL(blob);
+    const image = await imageFromUrl(url);
+    URL.revokeObjectURL(url);
+    return image;
+}
+
+// Images from another site (profile photos and templates in R2) can't be
+// drawn as plain <img> loads, or the canvas is "tainted" and the card can't
+// be exported at all. So they are downloaded fresh with CORS (never from the
+// browser cache, which may hold a copy without CORS headers) and drawn from
+// a local blob. `fallback` gets the same image another way when that fails.
+// If nothing works, the card is still made, just without that image.
+function loadImage(src, { remote = false, fallback } = {}) {
+    if (!src) return Promise.resolve(null);
+    if (imageCache.has(src)) return imageCache.get(src);
+
+    const promise = (async () => {
+        if (!remote || !/^https?:/i.test(src)) return imageFromUrl(src);
+        try {
+            const response = await fetch(src, { mode: "cors", cache: "no-store", credentials: "omit" });
+            if (response.ok) {
+                const image = await imageFromBlob(await response.blob());
+                if (image) return image;
+            }
+        } catch {
+            // CORS not allowed or network error: try the fallback below.
+        }
+        if (!fallback) return null;
+        try {
+            return await imageFromBlob(await fallback());
+        } catch {
+            return null;
+        }
+    })();
+
+    imageCache.set(src, promise);
     return promise;
+}
+
+// The member's profile picture, loaded through the LITL API when R2 can't be
+// read directly. `userId` is the account id (officers' member list: `id`).
+function loadProfileImage(member) {
+    const src = getAvatar(member);
+    const userId = member?.userId ?? member?.id;
+    const fallback = userId
+        ? () => api.get(`/auth/avatar/${encodeURIComponent(userId)}/image`, { responseType: "blob" }).then((r) => r.data)
+        : undefined;
+    return loadImage(src, { remote: true, fallback });
 }
 
 // Fetches the officer-uploaded Membership Card template from R2 (via
@@ -121,7 +160,7 @@ async function loadCombinedCardTemplate() {
         const data = await getDocumentAssets();
         const url = data?.assets?.membershipCard?.url;
         if (!url) return null;
-        return await loadImage(url, true);
+        return await loadImage(url, { remote: true });
     } catch {
         return null;
     }
@@ -508,7 +547,7 @@ async function getMemberAssets(member) {
 
     const [combinedTemplateImage, profileImage, qrImage, logo] = await Promise.all([
         getActiveCombinedTemplate(),
-        loadImage(getAvatar(member), true),
+        loadProfileImage(member),
         loadImage(qrDataUrl),
         loadImage(litlLogoUrl),
     ]);

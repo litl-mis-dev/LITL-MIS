@@ -18,6 +18,7 @@ const {
 } = require('../utils/pendingRegistrationCookie')
 const { syncMemberApprovalNotifications } = require('../services/notification.service')
 const { approveFromRosterIfListed } = require('../services/memberRoster.service')
+const { hasAccess } = require('../services/permissions.service')
 const { emitToOfficers } = require('../realtime/socket')
 
 const {
@@ -1367,6 +1368,36 @@ const changePassword = async (req, res) => {
   }
 }
 
+// GET /api/auth/avatar/:userId/image
+// The profile picture's bytes, for drawing it onto a membership card. The
+// card normally loads the photo straight from R2; this is its fallback when
+// the browser can't (no CORS rule, a stale cached copy). Allowed for your
+// own photo, and for officers who can view the Member List.
+const AVATAR_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }
+
+const getAvatarImage = async (req, res) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(404).json({ message: 'Not found.' })
+
+    if (userId !== req.user.id && !(await hasAccess(req.user.role, 'MEMBER_LIST', 'VIEW'))) {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+
+    const member = await prisma.member.findUnique({ where: { userId }, select: { avatarPath: true } })
+    if (!member?.avatarPath) return res.status(404).json({ message: 'No profile picture.' })
+
+    const buffer = await storageService.downloadFile(member.avatarPath)
+    const ext = member.avatarPath.split('.').pop().toLowerCase()
+    res.set('Content-Type', AVATAR_TYPES[ext] ?? 'application/octet-stream')
+    res.set('Cache-Control', 'private, no-store')
+    return res.send(buffer)
+  } catch (err) {
+    logError('Get avatar image failed', err)
+    return res.status(500).json({ message: 'Something went wrong.' })
+  }
+}
+
 // PUT /api/auth/avatar
 const uploadAvatar = async (req, res) => {
   try {
@@ -1436,5 +1467,5 @@ module.exports = {
   requestEmailChange,
   resendEmailChangeOtp,
   verifyEmailChange,
-  uploadAvatar,
+  uploadAvatar, getAvatarImage,
 }
