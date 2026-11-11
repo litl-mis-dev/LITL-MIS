@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { isNonMemberRole } from "../../utils/roles";
+import { isNonMemberRole, ROLE_LABELS } from "../../utils/roles";
 import { useNotifications } from "../../context/NotificationContext";
 import { timeAgo } from "../../utils/timeAgo";
 import ImportantAnnouncements from "../notifications/ImportantAnnouncements.jsx";
@@ -46,8 +46,9 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   });
 
   const displayName = getDisplayName(user, "Officer");
-  // The officer workspace is labelled by dashboard, not by position.
-  const displayRole = "Officer Dashboard";
+  // The officer's position, e.g. "President" or "Adviser" (the API sends it as
+  // `position`; the role label is the fallback).
+  const displayRole = user?.position || ROLE_LABELS[user?.role] || "Officer";
   const displayAvatar = getAvatar(user);
 
   useEffect(() => {
