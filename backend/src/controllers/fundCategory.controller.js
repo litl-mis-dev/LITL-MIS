@@ -161,11 +161,12 @@ const archiveCategory = async (req, res) => {
 }
 
 // PUT /api/financial/categories
-// Renames categories and/or changes their percentages at any time. Every
-// regular category of the current school year must be sent, so the total
-// can be checked: it must stay exactly 100%. A category's share can only go
-// down while it still covers what it has already spent. Each changed
-// category gets its own CATEGORY_UPDATED entry in the hash-linked ledger.
+// Renames categories, changes their percentages and adds new ones at any
+// time. Every regular category of the current school year must be sent (new
+// ones without an id), so the total can be checked: it must stay exactly
+// 100%. A category's share can only go down while it still covers what it
+// has already spent. Each changed category gets its own CATEGORY_UPDATED
+// entry in the hash-linked ledger; new ones get one CATEGORY_CREATED entry.
 const updateCategories = async (req, res) => {
   try {
     const { categories, confirmText } = req.body
@@ -197,7 +198,8 @@ const updateCategories = async (req, res) => {
     }
 
     const byId = new Map(existing.map(c => [c.id, c]))
-    const sentIds = categories.map(c => Number(c?.id))
+    const isNew = (cat) => cat?.id === null || cat?.id === undefined || cat?.id === ''
+    const sentIds = categories.filter(c => !isNew(c)).map(c => Number(c.id))
     if (new Set(sentIds).size !== sentIds.length || sentIds.length !== existing.length || !sentIds.every(id => byId.has(id))) {
       return res.status(400).json({ message: 'The category list is out of date. Please reopen the editor and try again.' })
     }
@@ -226,7 +228,7 @@ const updateCategories = async (req, res) => {
         total = total.plus(percentage)
       }
 
-      edits.push({ before: byId.get(Number(cat.id)), name, percentage })
+      edits.push({ before: isNew(cat) ? null : byId.get(Number(cat.id)), name, percentage })
     }
     if (errors.length > 0) return res.status(400).json({ message: errors.join(' ') })
 
@@ -238,12 +240,15 @@ const updateCategories = async (req, res) => {
       .filter(s => s.semester === 'FIRST' || s.id === activeSemester.id)
       .map(s => s.id)
 
+    const added = edits.filter(e => !e.before)
     const changed = edits.filter(e =>
-      e.name !== e.before.name || !e.percentage.equals(e.before.percentage)
+      e.before && (e.name !== e.before.name || !e.percentage.equals(e.before.percentage))
     )
-    if (changed.length === 0) {
+    if (changed.length === 0 && added.length === 0) {
       return res.status(400).json({ message: 'No changes to save.' })
     }
+    // New categories join the school year's existing ones (same semester row).
+    const categorySemesterId = existing[0].semesterId
 
     for (const edit of changed) {
       if (!edit.percentage.lt(edit.before.percentage)) continue
@@ -261,12 +266,20 @@ const updateCategories = async (req, res) => {
     }
 
     try {
-      await prisma.$transaction(
-        changed.map(edit => prisma.fundCategory.update({
+      await prisma.$transaction([
+        ...changed.map(edit => prisma.fundCategory.update({
           where: { id: edit.before.id },
           data: { name: edit.name, percentage: edit.percentage.toFixed(2) }
+        })),
+        ...added.map(edit => prisma.fundCategory.create({
+          data: {
+            name: edit.name,
+            percentage: edit.percentage.toFixed(2),
+            semesterId: categorySemesterId,
+            createdById: req.user.id
+          }
         }))
-      )
+      ])
     } catch (err) {
       if (err.code === 'P2002') {
         return res.status(400).json({ message: 'Another category in this semester already has one of those names.' })
@@ -290,9 +303,25 @@ const updateCategories = async (req, res) => {
       })
     }
 
+    if (added.length > 0) {
+      await writeAuditLog({
+        actorId: req.user.id,
+        action: AUDIT_ACTIONS.CATEGORY_CREATED,
+        details: {
+          names: added.map(e => e.name),
+          percentages: added.map(e => parseFloat(e.percentage)),
+          semesterId: categorySemesterId
+        }
+      })
+    }
+
     emitToOfficers('fundCategory:changed', { semesterId: activeSemester.id, action: 'updated' })
 
-    return res.json({ message: `Updated ${changed.length} categor${changed.length === 1 ? 'y' : 'ies'}.` })
+    const parts = []
+    if (changed.length) parts.push(`updated ${changed.length} categor${changed.length === 1 ? 'y' : 'ies'}`)
+    if (added.length) parts.push(`added ${added.length} new categor${added.length === 1 ? 'y' : 'ies'}`)
+    const summary = parts.join(' and ')
+    return res.json({ message: `${summary.charAt(0).toUpperCase()}${summary.slice(1)}.` })
   } catch (err) {
     logError('Update categories', err)
     return res.status(500).json({ message: 'Something went wrong.' })

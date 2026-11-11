@@ -396,7 +396,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 100;
+  z-index: var(--z-modal);
   animation: fadeIn 0.2s ease;
 }
 
@@ -405,7 +405,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 101;
+  z-index: calc(var(--z-modal) + 1);
   background: #fff;
   border-radius: 8px;
   width: min(560px, 92vw);
@@ -540,7 +540,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
-  z-index: 200;
+  z-index: var(--z-modal);
   animation: fadeIn 0.2s ease;
 }
 
@@ -549,7 +549,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 201;
+  z-index: calc(var(--z-modal) + 1);
   background: #fff;
   border-radius: 16px;
   width: min(380px, 92vw);

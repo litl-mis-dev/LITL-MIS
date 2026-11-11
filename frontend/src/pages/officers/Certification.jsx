@@ -388,7 +388,7 @@ export default function Certification() {
                     name={folder.title}
                     description={`${formatEventDate(folder.date)} · ${folder.location}`}
                     metaLabel={`${folder.certificateCount} ${folder.certificateCount === 1 ? "certificate" : "certificates"}`}
-                    status={folder.status}
+                    status={formatEventStatus(folder.status)}
                     onOpen={() => openEventFolder(folder)}
                     onSelect={() => setSelectedItem({ kind: "eventFolder", data: folder })}
                     isSelected={selectedItem?.kind === "eventFolder" && selectedItem.data.id === folder.id}
@@ -531,7 +531,7 @@ function DetailsPanel({ selectedItem, onClose, onOpenFolder, onRevoke, onDownloa
             <div><dt>Date</dt><dd>{formatEventDate(data.date)}</dd></div>
             <div><dt>Location</dt><dd>{data.location}</dd></div>
             <div><dt>Certificates</dt><dd>{data.certificateCount}</dd></div>
-            <div><dt>Status</dt><dd>{data.status}</dd></div>
+            <div><dt>Status</dt><dd>{formatEventStatus(data.status)}</dd></div>
           </dl>
           <div className="documents-details__actions">
             <button type="button" className="btn btn--primary" onClick={onOpenFolder}>Open folder</button>
@@ -641,6 +641,17 @@ function CertificateIcon() {
 
 function FolderIcon() {
   return <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /></svg>;
+}
+
+// Event folders carry the raw event status ("COMING_SOON"); show it the way
+// the Events page does ("Coming soon").
+const EVENT_STATUS_LABELS = { COMING_SOON: "Coming soon", OPEN: "Open", CLOSED: "Closed", CANCELLED: "Cancelled" };
+
+function formatEventStatus(status) {
+  if (!status) return "";
+  if (EVENT_STATUS_LABELS[status]) return EVENT_STATUS_LABELS[status];
+  const text = String(status).replace(/_/g, " ").toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function formatEventDate(dateValue) {

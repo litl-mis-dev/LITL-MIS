@@ -103,10 +103,34 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
+// A payment reminder sent to this user is pinned with the Important
+// Announcements for 7 days, like an Important announcement. It comes from
+// the reminder's own notification row, so there is no separate record.
+async function listPinnedPaymentReminders(userId) {
+  const since = new Date(Date.now() - IMPORTANT_ANNOUNCEMENT_DAYS * DAY_MS)
+  const reminders = await prisma.notification.findMany({
+    where: { userId, type: 'PAYMENT_REMINDER', createdAt: { gt: since } },
+    orderBy: { createdAt: 'desc' },
+    take: 1, // only the latest reminder matters
+  })
+  return reminders.map((n) => ({
+    id:         `payment-reminder-${n.id}`,
+    kind:       'PAYMENT_REMINDER',
+    title:      n.title,
+    message:    n.message,
+    recipients: 'MEMBERS',
+    priority:   'IMPORTANT',
+    expiresAt:  new Date(n.createdAt.getTime() + IMPORTANT_ANNOUNCEMENT_DAYS * DAY_MS),
+    createdAt:  n.createdAt,
+    createdBy:  null,
+  }))
+}
+
 // ── List active Important Announcements for the caller ─────────────────────
 // Scoped by the caller's effective role (so "view as member" shows what a
 // member would see) and by expiration — an expired Important announcement
-// simply stops being returned here, it is not deleted.
+// simply stops being returned here, it is not deleted. The caller's own
+// payment reminder from the last 7 days is listed first.
 const listImportantAnnouncements = async (req, res) => {
   try {
     // The Developer is neither a member nor an officer — no audience applies.
@@ -124,8 +148,9 @@ const listImportantAnnouncements = async (req, res) => {
       include: { createdBy: CREATED_BY_SELECT },
       orderBy: { createdAt: 'desc' },
     })
+    const reminders = await listPinnedPaymentReminders(req.user.id)
 
-    return res.json({ announcements: announcements.map(formatAnnouncement) })
+    return res.json({ announcements: [...reminders, ...announcements.map(formatAnnouncement)] })
   } catch (err) {
     logError('List important announcements', err)
     return res.status(500).json({ message: 'Something went wrong.' })

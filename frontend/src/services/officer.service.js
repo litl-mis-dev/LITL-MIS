@@ -44,3 +44,22 @@ export const removeOfficerRole = (userId) => {
 export const updateMemberStatus = (memberId, status) => {
   return api.put(`/officer/members/${memberId}/status`, { status }).then(res => res.data)
 }
+
+// ─── Member roster (automatic approval) ──────────────────────────────────────
+
+export const getMemberRoster = () => {
+  return api.get('/officer/member-roster').then(res => res.data)
+}
+
+// rows: [{ row, studentNumber, lastName }]; mode: 'add' | 'replace'
+export const previewMemberRoster = (rows, mode) => {
+  return api.post('/officer/member-roster/preview', { rows, mode }).then(res => res.data)
+}
+
+export const saveMemberRoster = (rows, mode) => {
+  return api.post('/officer/member-roster', { rows, mode }).then(res => res.data)
+}
+
+export const removeMemberRosterEntry = (studentNumber) => {
+  return api.delete(`/officer/member-roster/${encodeURIComponent(studentNumber)}`).then(res => res.data)
+}

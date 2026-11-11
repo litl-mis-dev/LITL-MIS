@@ -280,7 +280,17 @@ function buildDescription(action, details, targetName) {
     }
 
     case 'USER_APPROVED':
-      return `Approved member registration${d.memberName ? ` for ${d.memberName}` : targetName ? ` for ${targetName}` : ''}.`
+      return `Approved member registration${d.memberName ? ` for ${d.memberName}` : targetName ? ` for ${targetName}` : ''}${d.via === 'ROSTER' ? ' automatically (on the member roster)' : ''}.`
+
+    case 'MEMBER_ROSTER_UPDATED': {
+      if (d.mode === 'remove') return 'Removed a student from the member roster.'
+      const parts = [
+        d.added ? `${d.added} added` : null,
+        d.updated ? `${d.updated} updated` : null,
+        d.removed ? `${d.removed} removed` : null,
+      ].filter(Boolean).join(', ')
+      return `${d.mode === 'replace' ? 'Replaced' : 'Updated'} the member roster${parts ? ` (${parts})` : ''}; ${d.approvedCount ?? 0} pending member${d.approvedCount === 1 ? '' : 's'} approved automatically.`
+    }
 
     case 'USER_REJECTED':
       return `Rejected member registration${d.memberName ? ` for ${d.memberName}` : targetName ? ` for ${targetName}` : ''}.`

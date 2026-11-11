@@ -62,6 +62,8 @@ app.use(cors({
 }))
 
 app.use('/api/auth/avatar', express.json({ limit: '3mb' }))
+// An uploaded member roster can hold a few thousand rows.
+app.use('/api/officer/member-roster', express.json({ limit: '1mb' }))
 app.use(express.json())
 app.use(cookieParser())
 

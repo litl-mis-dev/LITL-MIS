@@ -5,6 +5,7 @@ const {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
   assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficerRoster
 } = require('../controllers/officer.controller')
+const { getRoster, previewRoster, applyRoster, removeRosterEntry } = require('../controllers/memberRoster.controller')
 const authMiddleware = require('../middleware/auth.middleware')
 const roleGuard      = require('../middleware/role.middleware')
 const requireModule  = require('../middleware/permission.middleware')
@@ -32,6 +33,13 @@ router.get('/advisers', authMiddleware, requireModule('SETTINGS_ROLES', 'VIEW'),
 router.get('/pending-users',   authMiddleware, requireModule('MEMBERS_APPROVAL', 'VIEW'), getPendingUsers)
 router.put('/approve/:userId', authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), approveUser)
 router.put('/reject/:userId',  authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), rejectUser)
+
+// Member roster (automatic approval). It holds students' personal data and
+// approves accounts, so every route needs Members Approval EDIT — viewing too.
+router.get('/member-roster',                  authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), getRoster)
+router.post('/member-roster/preview',         authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), previewRoster)
+router.post('/member-roster',                 authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), applyRoster)
+router.delete('/member-roster/:studentNumber', authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), removeRosterEntry)
 
 // Officer assignment — history is visible to anyone who can see the Member
 // List; making the actual assignment is a standing power reserved for

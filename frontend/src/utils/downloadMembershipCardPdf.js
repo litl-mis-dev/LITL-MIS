@@ -89,19 +89,26 @@ function getIssueDate(member) {
 // once per member.
 let combinedTemplateRequest = null;
 
+// Images from another site (profile photos and templates in R2) must load
+// with CORS, or drawing them taints the canvas and the card can't be
+// exported at all. The extra query parameter keeps the browser from reusing
+// a copy it cached for a plain <img> without CORS headers. If an image can't
+// load this way, the card is still made, just without that image.
 function loadImage(src, crossOrigin = false) {
     if (!src) return Promise.resolve(null);
-    if (imageCache.has(src)) return imageCache.get(src);
+    const isRemote = /^https?:/i.test(src);
+    const url = crossOrigin && isRemote ? `${src}${src.includes("?") ? "&" : "?"}cors=1` : src;
+    if (imageCache.has(url)) return imageCache.get(url);
 
     const promise = new Promise((resolve) => {
         const image = new Image();
         if (crossOrigin) image.crossOrigin = "anonymous";
         image.onload = () => resolve(image);
         image.onerror = () => resolve(null);
-        image.src = src;
+        image.src = url;
     });
 
-    imageCache.set(src, promise);
+    imageCache.set(url, promise);
     return promise;
 }
 
@@ -501,7 +508,7 @@ async function getMemberAssets(member) {
 
     const [combinedTemplateImage, profileImage, qrImage, logo] = await Promise.all([
         getActiveCombinedTemplate(),
-        loadImage(getAvatar(member)),
+        loadImage(getAvatar(member), true),
         loadImage(qrDataUrl),
         loadImage(litlLogoUrl),
     ]);

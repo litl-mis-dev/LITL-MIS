@@ -26,6 +26,15 @@
     /* Hover States */
     --primary-hover: #d97211;
     --secondary-hover: #e6de97;
+
+    /* Layers, lowest to highest. Modals and dialogs render into <body>
+       (components/ui/ModalPortal.jsx) so these always apply. */
+    --z-topbar: 100;
+    --z-sidebar: 200;
+    --z-dropdown: 300;
+    --z-modal: 1000;   /* every modal and its background */
+    --z-dialog: 1100;  /* confirm / success / message dialogs, above a modal */
+    --z-overlay: 1200; /* full-screen transitions above everything */
 }
 
 /* ─── Logo loader (used by ProtectedRoute / PublicRoute while session restores) ── */

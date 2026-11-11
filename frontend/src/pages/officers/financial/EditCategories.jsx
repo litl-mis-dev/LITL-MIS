@@ -4,6 +4,7 @@ import SuccessDialog from '../../../components/officers/SuccessDialog'
 import { listCategories, createCategoriesBatch, archiveCategory, updateCategories } from '../../../services/financial.service'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
 import RequiredMark from '../../../components/ui/RequiredMark.jsx'
+import ModalPortal from '../../../components/ui/ModalPortal.jsx'
 const initialFormData = { categories: '', percentage: '' }
 const CATEGORY_REGEX = /^[A-Za-z\s]+$/
 
@@ -15,7 +16,8 @@ function parsePercentage(value) {
 function onlyNumbers(value) { return value.replace(/\D/g, '') }
 
 // editOnly: categories are already finalized — names and percentages can
-// still be changed at any time (total stays 100%), but none added or removed.
+// still be changed and new categories added at any time (total stays 100%),
+// but saved categories can't be removed here.
 export default function EditCategories({ onSuccess, buttonLabel = 'Add Category', editOnly = false }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoadingExisting, setIsLoadingExisting] = useState(false)
@@ -102,7 +104,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
     if (!formData.categories.trim()) { setTopFormError('Category name is required.'); return false }
     if (!formData.percentage.trim()) { setTopFormError('Percentage is required.'); return false }
     if (currentPct <= 0) { setTopFormError('Percentage must be greater than 0%.'); return false }
-    if (isExceeded) { setTopFormError('Total percentage cannot exceed 100%.'); return false }
+    if (isExceeded) { setTopFormError('Total percentage cannot exceed 100%. Lower another category first to make room.'); return false }
     return true
   }
 
@@ -208,7 +210,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
 
       if (editOnly) {
         await updateCategories(
-          finalRows.map(r => ({ id: r.dbId, name: r.categories.trim(), percentage: parsePercentage(r.percentage) })),
+          finalRows.map(r => ({ id: r.dbId ?? null, name: r.categories.trim(), percentage: parsePercentage(r.percentage) })),
           confirmText
         )
         closeModal()
@@ -251,7 +253,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
 
   const hasExisting = originalSnapshot.length > 0
   const modalTitle = hasExisting || editOnly ? 'Edit Categories' : 'Add Categories'
-  const rowGridClass = editOnly ? 'grid-cols-[minmax(0,1fr)_120px]' : 'grid-cols-[minmax(0,1fr)_120px_52px]'
+  const rowGridClass = 'grid-cols-[minmax(0,1fr)_120px_52px]'
 
   return (
     <>
@@ -262,150 +264,151 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
       </button>)}
 
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 px-3 py-4 sm:px-4 sm:py-6">
-          <div className="max-h-[calc(100vh-92px)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-108px)]">
-            <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">{modalTitle}</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {editOnly
-                    ? 'Edit names and percentages directly. The total must stay exactly 100%, and a category can’t go below what it has already spent.'
-                    : hasExisting
-                      ? 'Edit names and percentages directly, remove categories with ×, or add new ones below.'
-                      : 'Complete the details before submitting.'}
-                </p>
-              </div>
-              <button type="button" onClick={closeModal}
-                className="rounded-md px-2 py-1 text-2xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                aria-label="Close modal">&times;</button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4 px-4 py-5 sm:px-6">
-              {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-              {formLevelError && <p className="text-sm text-red-600">{formLevelError}</p>}
-              {isLoadingExisting && <LoadingState inline label="Loading existing categories…" />}
-
-              {/* Add new row */}
-              {!editOnly && (
-              <div className="grid gap-4 md:grid-cols-2">
+        <ModalPortal>
+          <div className="fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 px-3 py-4 sm:px-4 sm:py-6">
+            <div className="max-h-[calc(100vh-92px)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-108px)]">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="categories">New Category</label>
-                  <input id="categories" name="categories" type="text" value={formData.categories}
-                    onChange={handleTopFormChange} maxLength={50}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                    placeholder="Enter category name" />
+                  <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">{modalTitle}</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {editOnly
+                      ? 'Edit names and percentages, or add a new category below. To make room for a new one, lower other percentages first. The total must be exactly 100%, and a category can’t go below what it has already spent.'
+                      : hasExisting
+                        ? 'Edit names and percentages directly, remove categories with ×, or add new ones below.'
+                        : 'Complete the details before submitting.'}
+                  </p>
                 </div>
+                <button type="button" onClick={closeModal}
+                  className="rounded-md px-2 py-1 text-2xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                  aria-label="Close modal">&times;</button>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="percentage">Percentage</label>
-                  <div className="mt-1 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
-                    <input id="percentage" name="percentage" type="text" inputMode="numeric"
-                      value={formData.percentage} onChange={handleTopFormChange} maxLength={3}
-                      className={`w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 ${isExceeded ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-200'}`}
-                      placeholder="Enter percentage" />
-                    <button type="button" onClick={handleAddCategory}
-                      className="group flex h-10 w-11 items-center justify-center rounded-md border-2 border-(--primary) hover:bg-(--primary) focus:outline-none focus:ring-2 focus:ring-orange-200"
-                      aria-label="Add category">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"
-                        className="h-6 w-6 text-black group-hover:text-white transition-colors duration-100" fill="currentColor">
-                        <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-                      </svg>
-                    </button>
+              <form onSubmit={handleSubmit} className="space-y-4 px-4 py-5 sm:px-6">
+                {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+                {formLevelError && <p className="text-sm text-red-600">{formLevelError}</p>}
+                {isLoadingExisting && <LoadingState inline label="Loading existing categories…" />}
+
+                {/* Add new row */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="categories">New Category</label>
+                    <input id="categories" name="categories" type="text" value={formData.categories}
+                      onChange={handleTopFormChange} maxLength={50}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                      placeholder="Enter category name" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="percentage">Percentage</label>
+                    <div className="mt-1 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
+                      <input id="percentage" name="percentage" type="text" inputMode="numeric"
+                        value={formData.percentage} onChange={handleTopFormChange} maxLength={3}
+                        className={`w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 ${isExceeded ? 'border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-200'}`}
+                        placeholder="Enter percentage" />
+                      <button type="button" onClick={handleAddCategory}
+                        className="group flex h-10 w-11 items-center justify-center rounded-md border-2 border-(--primary) hover:bg-(--primary) focus:outline-none focus:ring-2 focus:ring-orange-200"
+                        aria-label="Add category">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"
+                          className="h-6 w-6 text-black group-hover:text-white transition-colors duration-100" fill="currentColor">
+                          <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              )}
-              {topFormError && <p className="text-sm text-red-600 -mt-2">{topFormError}</p>}
+                {topFormError && <p className="text-sm text-red-600 -mt-2">{topFormError}</p>}
 
-              {/* Unified, inline-editable list — existing + new together */}
-              {categories.length > 0 && (
-                <div className="overflow-hidden rounded-md border border-gray-200">
-                  <div className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700`}>
-                    <span>Category<RequiredMark /></span>
-                    <span>Percentage<RequiredMark /></span>
-                    {!editOnly && <span className="text-center">Action</span>}
-                  </div>
-                  {categories.map(cat => (
-                    <div key={cat.uid} className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0`}>
-                      <input
-                        type="text"
-                        value={cat.categories}
-                        maxLength={50}
-                        onChange={(e) => handleRowChange(cat.uid, 'categories', e.target.value)}
-                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
-                      />
-                      <div className="flex items-center gap-1">
+                {/* Unified, inline-editable list — existing + new together */}
+                {categories.length > 0 && (
+                  <div className="overflow-hidden rounded-md border border-gray-200">
+                    <div className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700`}>
+                      <span>Category<RequiredMark /></span>
+                      <span>Percentage<RequiredMark /></span>
+                      <span className="text-center">Action</span>
+                    </div>
+                    {categories.map(cat => (
+                      <div key={cat.uid} className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0`}>
                         <input
                           type="text"
-                          inputMode="numeric"
-                          value={cat.percentage}
-                          maxLength={3}
-                          onChange={(e) => handleRowChange(cat.uid, 'percentage', e.target.value)}
-                          className="w-full rounded border border-gray-200 px-2 py-1 text-sm text-right outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
+                          value={cat.categories}
+                          maxLength={50}
+                          onChange={(e) => handleRowChange(cat.uid, 'categories', e.target.value)}
+                          className="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
                         />
-                        <span className="text-gray-400">%</span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={cat.percentage}
+                            maxLength={3}
+                            onChange={(e) => handleRowChange(cat.uid, 'percentage', e.target.value)}
+                            className="w-full rounded border border-gray-200 px-2 py-1 text-sm text-right outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
+                          />
+                          <span className="text-gray-400">%</span>
+                        </div>
+                        {/* Saved categories can't be removed once finalized; new rows can. */}
+                        {editOnly && cat.dbId ? <span /> : (
+                          <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
+                            className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                            aria-label={`Remove ${cat.categories}`}>&times;</button>
+                        )}
                       </div>
-                      {!editOnly && (
-                        <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
-                          className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                          aria-label={`Remove ${cat.categories}`}>&times;</button>
-                      )}
+                    ))}
+                    <div className={`grid ${rowGridClass} gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800`}>
+                      <span>Total</span>
+                      <span className="text-right">{savedTotal}%</span>
+                      <span />
                     </div>
-                  ))}
-                  <div className={`grid ${rowGridClass} gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800`}>
-                    <span>Total</span>
-                    <span className="text-right">{savedTotal}%</span>
-                    {!editOnly && <span />}
                   </div>
-                </div>
-              )}
+                )}
               
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Type <span className="font-mono font-bold">CONFIRM</span> to save:<RequiredMark />
-                </label>
-                <input
-                  type="text"
-                  value={confirmText}
-                  onChange={e => setConfirmText(e.target.value)}
-                  placeholder="CONFIRM"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Type <span className="font-mono font-bold">CONFIRM</span> to save:<RequiredMark />
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={e => setConfirmText(e.target.value)}
+                    placeholder="CONFIRM"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  />
+                </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
-                <button type="button" onClick={closeModal}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  Cancel  
-                </button>
+                <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
+                  <button type="button" onClick={closeModal}
+                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel  
+                  </button>
                 
-                <ConfirmActionButton
-                  className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)"
-                  isOpen={isConfirmOpen}
-                  title="Save category changes?"
-                  message="Are you sure you want to save these fund category changes?"
-                  confirmLabel={isSubmitting ? 'Saving...' : 'Save'}
-                  busy={isSubmitting}
-                  cancelLabel="Cancel"
-                  onOpenChange={setIsConfirmOpen}
-                  onCancel={handleCancelSubmit}
-                  beforeOpen={prepareSubmit}
-                  onConfirm={handleConfirmSubmit}
+                  <ConfirmActionButton
+                    className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)"
+                    isOpen={isConfirmOpen}
+                    title="Save category changes?"
+                    message="Are you sure you want to save these fund category changes?"
+                    confirmLabel={isSubmitting ? 'Saving...' : 'Save'}
+                    busy={isSubmitting}
+                    cancelLabel="Cancel"
+                    onOpenChange={setIsConfirmOpen}
+                    onCancel={handleCancelSubmit}
+                    beforeOpen={prepareSubmit}
+                    onConfirm={handleConfirmSubmit}
 
-                  beforeOpen={() => {
-                    if (confirmText.trim() !== 'CONFIRM') {
-                      setFormLevelError('You must type CONFIRM to save categories.')
-                      return false
-                    }
-                    return prepareSubmit()
-                  }}
-                >
-                  Save Categories
-                </ConfirmActionButton>
-              </div>
-            </form>
+                    beforeOpen={() => {
+                      if (confirmText.trim() !== 'CONFIRM') {
+                        setFormLevelError('You must type CONFIRM to save categories.')
+                        return false
+                      }
+                      return prepareSubmit()
+                    }}
+                  >
+                    Save Categories
+                  </ConfirmActionButton>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <SuccessDialog

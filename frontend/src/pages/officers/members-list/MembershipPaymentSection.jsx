@@ -204,7 +204,7 @@ export default function MembershipPaymentSection({ member, paymentHistory, histo
 
             {plan && createPortal(
                 <div style={{
-                    position: "fixed", inset: 0, zIndex: 200000, display: "flex",
+                    position: "fixed", inset: 0, zIndex: "var(--z-dialog)", display: "flex",
                     alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", padding: 16
                 }}>
                     <div style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>

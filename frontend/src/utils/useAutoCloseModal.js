@@ -7,21 +7,22 @@ const MODAL_SELECTOR = '[role="dialog"], [aria-modal="true"], dialog, .member-mo
 //   - presses Escape,
 //   - presses the pointer outside of `containerRef`,
 //   - or another modal appears in the page.
-// Interaction inside `containerRef` (including nested confirmation dialogs
-// rendered inside it) never closes it.
-export function useAutoCloseModal({ isOpen, onClose, containerRef }) {
+// Interaction inside `containerRef` — or `portalRef`, a part of the same popup
+// rendered into <body> — never closes it, and neither does an open
+// confirmation dialog (those render into <body> too).
+export function useAutoCloseModal({ isOpen, onClose, containerRef, portalRef }) {
     const onCloseRef = useRef(onClose);
     useEffect(() => { onCloseRef.current = onClose; });
 
     useEffect(() => {
         if (!isOpen) return undefined;
 
-        const isInside = (node) => Boolean(containerRef.current?.contains(node));
+        const isInside = (node) => Boolean(containerRef.current?.contains(node) || portalRef?.current?.contains(node));
 
         function handleKeyDown(event) {
             if (event.key !== "Escape" || event.defaultPrevented) return;
-            // A nested confirmation dialog is on top; leave this modal alone.
-            if (containerRef.current?.querySelector('[aria-labelledby="confirmation-dialog-title"]')) return;
+            // A confirmation dialog is on top; leave this modal alone.
+            if (document.querySelector('[aria-labelledby="confirmation-dialog-title"]')) return;
             onCloseRef.current?.();
         }
 
@@ -36,6 +37,8 @@ export function useAutoCloseModal({ isOpen, onClose, containerRef }) {
                     if (node.nodeType !== 1) continue;
                     const container = containerRef.current;
                     if (container && (container.contains(node) || node.contains(container))) continue;
+                    const portal = portalRef?.current;
+                    if (portal && (portal.contains(node) || node.contains(portal))) continue;
                     if (node.matches?.(MODAL_SELECTOR) || node.querySelector?.(MODAL_SELECTOR)) {
                         onCloseRef.current?.();
                         return;
@@ -53,5 +56,5 @@ export function useAutoCloseModal({ isOpen, onClose, containerRef }) {
             document.removeEventListener("pointerdown", handlePointerDown);
             observer.disconnect();
         };
-    }, [isOpen, containerRef]);
+    }, [isOpen, containerRef, portalRef]);
 }

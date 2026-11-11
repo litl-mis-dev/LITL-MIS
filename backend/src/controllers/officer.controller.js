@@ -3,7 +3,8 @@ const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL
 const { VALID_MEMBER_STATUSES } = require('../utils/validators')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
-const { notifyRegistrationApproved, notifyRegistrationRejected, syncMemberApprovalNotifications } = require('../services/notification.service')
+const { notifyRegistrationRejected, syncMemberApprovalNotifications } = require('../services/notification.service')
+const { approvePendingUser } = require('../services/memberApproval.service')
 const { emitToOfficers } = require('../realtime/socket')
 const { sendRegistrationStatusEmail } = require('../utils/email')
 
@@ -50,12 +51,9 @@ const getPendingUsers = async (req, res) => {
 // Approve a pending user
 const approveUser = async (req, res) => {
   try {
-    const { userId } = req.params
+    const userId = Number(req.params.userId)
 
-    const user = await prisma.user.findUnique({
-      where: { id: Number(userId) },
-      include: { member: { select: { firstName: true, lastName: true } } }
-    })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { status: true } })
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
@@ -65,24 +63,13 @@ const approveUser = async (req, res) => {
       return res.status(400).json({ message: 'This user is not awaiting approval' })
     }
 
-    await prisma.user.update({
-      where: { id: Number(userId) },
-      data: { status: 'APPROVED' }
-    })
+    const { approved } = await approvePendingUser(userId, { actorId: req.user.id })
+    if (!approved) {
+      return res.status(400).json({ message: 'This user is not awaiting approval' })
+    }
 
-    const memberName = user.member ? `${user.member.firstName} ${user.member.lastName}` : null
-    await writeAuditLog({
-      actorId: req.user.id,
-      targetUserId: Number(userId),
-      action: AUDIT_ACTIONS.USER_APPROVED,
-      details: { memberName }
-    })
-
-    await notifyRegistrationApproved(Number(userId), memberName)
-    // Best-effort: a failed email must never block the approval itself.
-    await sendRegistrationStatusEmail(user.email, memberName, true).catch((e) => console.error('Approval email failed:', e))
     await syncMemberApprovalNotifications()
-    emitToOfficers('membership:changed', { userId: Number(userId), action: 'approved' })
+    emitToOfficers('membership:changed', { userId, action: 'approved' })
 
     return res.json({ message: 'User approved successfully' })
   } catch (err) {

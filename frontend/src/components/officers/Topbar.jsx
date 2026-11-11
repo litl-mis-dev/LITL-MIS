@@ -8,6 +8,7 @@ import ImportantAnnouncements from "../notifications/ImportantAnnouncements.jsx"
 import PushPrompt from "../notifications/PushPrompt.jsx";
 import "../../assets/styles/officers/Topbar.css";
 import { useAutoCloseModal } from "../../utils/useAutoCloseModal.js";
+import ModalPortal from "../ui/ModalPortal.jsx";
 
 export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }) {
   const [showNotif, setShowNotif] = useState(false);
@@ -20,11 +21,15 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   const { notifications, unreadCount, markRead, markAllRead, removeNotification, clearAll, importantAnnouncements, openAnnouncement } = useNotifications();
   const [isExpanded, setIsExpanded] = useState(false);
   const notifRef = useRef(null);
+  // The expanded "All Notifications" view renders into <body> (above the sidebar)
+  // but still belongs to this popup.
+  const notifPortalRef = useRef(null);
 
   // Close notifications on outside click, Escape, or when another modal opens.
   useAutoCloseModal({
     isOpen: showNotif,
     containerRef: notifRef,
+    portalRef: notifPortalRef,
     onClose: () => {
       setShowNotif(false);
       setIsExpanded(false);
@@ -149,67 +154,70 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
           )}
 
           {showNotif && isExpanded && (
-            <div
-              className="topbar__notif-overlay"
-              role="dialog"
-              aria-modal="true"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setShowNotif(false);
-                  setIsExpanded(false);
-                }
-              }}
-            >
-              <div className="topbar__notif-expanded-panel">
-                <div className="topbar__dropdown-header">
-                  <p className="topbar__dropdown-title">All Notifications</p>
-                  <div className="topbar__notif-header-actions">
-                    {unreadCount > 0 && (
-                      <button className="topbar__notif-action-btn" onClick={markAllRead}>
-                        Mark all as read
+            <ModalPortal>
+              <div
+                ref={notifPortalRef}
+                className="topbar__notif-overlay"
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowNotif(false);
+                    setIsExpanded(false);
+                  }
+                }}
+              >
+                <div className="topbar__notif-expanded-panel">
+                  <div className="topbar__dropdown-header">
+                    <p className="topbar__dropdown-title">All Notifications</p>
+                    <div className="topbar__notif-header-actions">
+                      {unreadCount > 0 && (
+                        <button className="topbar__notif-action-btn" onClick={markAllRead}>
+                          Mark all as read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button className="topbar__notif-action-btn" onClick={clearAll}>
+                          Clear all
+                        </button>
+                      )}
+                      <button
+                        className="icon-btn icon-btn--plain"
+                        onClick={() => setIsExpanded(false)}
+                        aria-label="Close"
+                      >
+                        <CloseIcon />
                       </button>
+                    </div>
+                  </div>
+
+                  <div className="topbar__notif-list topbar__notif-list--expanded">
+                    <PushPrompt />
+                  <ImportantAnnouncements announcements={importantAnnouncements} />
+                    {notifications.length === 0 && (
+                      <p className="topbar__notif-empty">No notifications yet.</p>
                     )}
-                    {notifications.length > 0 && (
-                      <button className="topbar__notif-action-btn" onClick={clearAll}>
-                        Clear all
-                      </button>
-                    )}
-                    <button
-                      className="icon-btn icon-btn--plain"
-                      onClick={() => setIsExpanded(false)}
-                      aria-label="Close"
-                    >
-                      <CloseIcon />
-                    </button>
+                    {notifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onOpen={() => {
+                          if (!notification.isRead) markRead(notification.id);
+                          setShowNotif(false);
+                          setIsExpanded(false);
+                          if (notification.type === "ANNOUNCEMENT") openAnnouncement(notification);
+                          else if (notification.link) navigate(notification.link);
+                        }}
+                        onRemove={(e) => {
+                          e.stopPropagation();
+                          removeNotification(notification.id);
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
-
-                <div className="topbar__notif-list topbar__notif-list--expanded">
-                  <PushPrompt />
-                <ImportantAnnouncements announcements={importantAnnouncements} />
-                  {notifications.length === 0 && (
-                    <p className="topbar__notif-empty">No notifications yet.</p>
-                  )}
-                  {notifications.map((notification) => (
-                    <NotificationItem
-                      key={notification.id}
-                      notification={notification}
-                      onOpen={() => {
-                        if (!notification.isRead) markRead(notification.id);
-                        setShowNotif(false);
-                        setIsExpanded(false);
-                        if (notification.type === "ANNOUNCEMENT") openAnnouncement(notification);
-                        else if (notification.link) navigate(notification.link);
-                      }}
-                      onRemove={(e) => {
-                        e.stopPropagation();
-                        removeNotification(notification.id);
-                      }}
-                    />
-                  ))}
-                </div>
               </div>
-            </div>
+            </ModalPortal>
           )}
         </div>
 
@@ -258,12 +266,14 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
         </div>
       </div>
       {isSwitchingDashboard && (
-        <div className="dashboard-switch-transition" role="status" aria-live="polite">
-          <div className="dashboard-switch-transition__panel">
-            <span className="dashboard-switch-transition__spinner" aria-hidden="true" />
-            <span>Switching dashboard...</span>
+        <ModalPortal>
+          <div className="dashboard-switch-transition" role="status" aria-live="polite">
+            <div className="dashboard-switch-transition__panel">
+              <span className="dashboard-switch-transition__spinner" aria-hidden="true" />
+              <span>Switching dashboard...</span>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </header>
   );

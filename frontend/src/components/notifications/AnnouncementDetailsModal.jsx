@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAnnouncement } from "../../services/announcement.service";
 import "../../assets/styles/AnnouncementModal.css";
+import ModalPortal from "../ui/ModalPortal.jsx";
 
 const RECIPIENT_LABELS = {
   MEMBERS: "Members",
@@ -43,57 +44,62 @@ export default function AnnouncementDetailsModal({ announcementId, fallback, onC
 
   const announcement = details ?? fallback ?? {};
   const isImportant = announcement.priority === "IMPORTANT";
+  const isPaymentReminder = announcement.kind === "PAYMENT_REMINDER";
 
   return (
-    <div
-      className="announcement-modal"
-      role="presentation"
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-    >
-      <div className="announcement-modal__panel" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
-        <div className="announcement-modal__header">
-          <div>
-            <p className="announcement-modal__eyebrow">
-              {isImportant ? "Important Announcement" : "Announcement"}
-            </p>
-            <h2 id="announcement-modal-title" className="announcement-modal__title">
-              {announcement.title || "Announcement"}
-            </h2>
-          </div>
-          <button type="button" className="announcement-modal__close" onClick={onClose} aria-label="Close announcement">
-            ×
-          </button>
-        </div>
-
-        <div className="announcement-modal__body">
-          {loadError && !fallback && <p className="announcement-modal__error">{loadError}</p>}
-          {announcement.message && <p className="announcement-modal__message">{announcement.message}</p>}
-
-          <dl className="announcement-modal__meta">
+    <ModalPortal>
+      <div
+        className="announcement-modal"
+        role="presentation"
+        onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      >
+        <div className="announcement-modal__panel" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
+          <div className="announcement-modal__header">
             <div>
-              <dt>Posted by</dt>
-              <dd>
-                {announcement.createdBy
-                  ? `${announcement.createdBy.name}${announcement.createdBy.position && announcement.createdBy.position !== announcement.createdBy.name ? ` · ${announcement.createdBy.position}` : ""}`
-                  : isLoading ? "Loading…" : "Not available"}
-              </dd>
+              <p className="announcement-modal__eyebrow">
+                {isPaymentReminder ? "Payment Reminder" : isImportant ? "Important Announcement" : "Announcement"}
+              </p>
+              <h2 id="announcement-modal-title" className="announcement-modal__title">
+                {announcement.title || "Announcement"}
+              </h2>
             </div>
-            {announcement.createdAt && (
-              <div><dt>Posted on</dt><dd>{formatDateTime(announcement.createdAt)}</dd></div>
-            )}
-            {announcement.recipients && (
-              <div><dt>Sent to</dt><dd>{RECIPIENT_LABELS[announcement.recipients] ?? announcement.recipients}</dd></div>
-            )}
-            {isImportant && announcement.expiresAt && (
-              <div><dt>Pinned until</dt><dd>{formatDateTime(announcement.expiresAt)}</dd></div>
-            )}
-          </dl>
-        </div>
+            <button type="button" className="announcement-modal__close" onClick={onClose} aria-label="Close announcement">
+              ×
+            </button>
+          </div>
 
-        <div className="announcement-modal__footer">
-          <button type="button" className="announcement-modal__button" onClick={onClose}>Close</button>
+          <div className="announcement-modal__body">
+            {loadError && !fallback && <p className="announcement-modal__error">{loadError}</p>}
+            {announcement.message && <p className="announcement-modal__message">{announcement.message}</p>}
+
+            <dl className="announcement-modal__meta">
+              {!isPaymentReminder && (
+                <div>
+                  <dt>Posted by</dt>
+                  <dd>
+                    {announcement.createdBy
+                      ? `${announcement.createdBy.name}${announcement.createdBy.position && announcement.createdBy.position !== announcement.createdBy.name ? ` · ${announcement.createdBy.position}` : ""}`
+                      : isLoading ? "Loading…" : "Not available"}
+                  </dd>
+                </div>
+              )}
+              {announcement.createdAt && (
+                <div><dt>{isPaymentReminder ? "Sent on" : "Posted on"}</dt><dd>{formatDateTime(announcement.createdAt)}</dd></div>
+              )}
+              {announcement.recipients && !isPaymentReminder && (
+                <div><dt>Sent to</dt><dd>{RECIPIENT_LABELS[announcement.recipients] ?? announcement.recipients}</dd></div>
+              )}
+              {isImportant && announcement.expiresAt && (
+                <div><dt>Pinned until</dt><dd>{formatDateTime(announcement.expiresAt)}</dd></div>
+              )}
+            </dl>
+          </div>
+
+          <div className="announcement-modal__footer">
+            <button type="button" className="announcement-modal__button" onClick={onClose}>Close</button>
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

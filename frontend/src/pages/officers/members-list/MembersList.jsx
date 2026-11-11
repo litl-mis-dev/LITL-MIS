@@ -7,10 +7,11 @@ import MembershipPaymentSection from "./MembershipPaymentSection.jsx";
 import { useRole } from '../../../utils/useRole.js'
 import { ROLE_LABELS } from '../../../utils/roles.js'
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
-import Spinner from "../../../components/ui/Spinner.jsx";
 import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, updateMemberStatus, } from "../../../services/officer.service.js";
-import { getMemberPaymentHistory, sendPaymentReminder, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
-import MembershipCardsModal from "./MembershipCardsModal.jsx";
+import { getMemberPaymentHistory, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
+import MemberSelectionModal from "./MemberSelectionModal.jsx";
+import MemberRosterPanel from "./MemberRosterPanel.jsx";
+import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf } from "../../../utils/downloadMembershipCardPdf.js";
 import { createAnnouncement } from "../../../services/announcement.service.js";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
@@ -59,10 +60,8 @@ export default function MembersList({ compact = false }) {
     const [cardGenerationMessage, setCardGenerationMessage] = useState("");
 
     // Email reminder state
-    const [sendingReminderId, setSendingReminderId] = useState(null);
-    const [isSendingAllReminders, setIsSendingAllReminders] = useState(false);
+    const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [reminderMessage, setReminderMessage] = useState("");
-    const [reminderError, setReminderError] = useState("");
 
     // Announcement state
     const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
@@ -174,9 +173,17 @@ export default function MembersList({ compact = false }) {
         setIsCardsModalOpen(true)
     }
 
-    function handleCardsDownloaded(count) {
+    // Only the members ticked in the modal get a card.
+    async function handleDownloadCards(selected, setProgress) {
+        if (selected.length === 1) {
+            await downloadMembershipCardPdf(selected[0])
+        } else {
+            await downloadAllMembershipCardsPdf(selected, (done, total) => {
+                setProgress(`Generating membership cards... ${done}/${total}`)
+            })
+        }
         setIsCardsModalOpen(false)
-        setCardGenerationMessage(`Membership card PDF downloaded for ${count} member${count === 1 ? "" : "s"}.`)
+        setCardGenerationMessage(`Membership card PDF downloaded for ${selected.length} member${selected.length === 1 ? "" : "s"}.`)
     }
 
     function openScannerModal() {
@@ -242,37 +249,23 @@ export default function MembersList({ compact = false }) {
         setMembers((md.members ?? []))
     }
 
-    async function handleSendMemberEmail(member) {
-        if (!member?.email || sendingReminderId || isSendingAllReminders) return
+    // ── Payment reminders ─────────────────────────────────────────────────────
+    // Only unpaid, active members with an email can be reminded; the server
+    // checks this again and emails the selected members only.
+    const reminderEligibleMembers = useMemo(
+        () => members.filter((m) => !m.isPaid && m.email && m.memberStatus === "ACTIVE"),
+        [members]
+    )
 
-        setSendingReminderId(member.id)
-        setReminderError("")
+    function openReminderModal() {
         setReminderMessage("")
-        try {
-            const data = await sendPaymentReminder(member.memberId)
-            setReminderMessage(data.message || `Reminder email sent to ${member.name}.`)
-        } catch (err) {
-            setReminderError(err.response?.data?.message ?? "Failed to send reminder email.")
-        } finally {
-            setSendingReminderId(null)
-        }
+        setIsReminderModalOpen(true)
     }
 
-    async function handleSendAllReminders() {
-        if (isSendingAllReminders || sendingReminderId) return
-
-        setIsSendingAllReminders(true)
-        setReminderError("")
-        setReminderMessage("Sending reminder emails...")
-        try {
-            const data = await sendBulkPaymentReminders()
-            setReminderMessage(data.message || "Reminder emails sent.")
-        } catch (err) {
-            setReminderError(err.response?.data?.message ?? "Failed to send reminder emails.")
-            setReminderMessage("")
-        } finally {
-            setIsSendingAllReminders(false)
-        }
+    async function handleSendReminders(selected) {
+        const data = await sendBulkPaymentReminders(selected.map((m) => m.memberId))
+        setIsReminderModalOpen(false)
+        setReminderMessage(data.message || "Payment reminders sent.")
     }
     // ── Announcements ─────────────────────────────────────────────────────────
 
@@ -417,19 +410,15 @@ export default function MembersList({ compact = false }) {
                                 so it must depend only on that module's permission —
                                 not on Member List's. */}
                             {canManageFinancials && (
-                                <ConfirmActionButton
+                                <button
+                                    type="button"
                                     className="btn btn--outline"
-                                    onConfirm={handleSendAllReminders}
-                                    disabled={loading || isSendingAllReminders || Boolean(sendingReminderId)}
-                                    busy={isSendingAllReminders}
-                                    title="Email all unpaid members?"
-                                    message="This will immediately send a payment reminder email to every member who has not yet paid for the active semester."
-                                    confirmLabel="Email All"
-                                    cancelLabel="Cancel"
+                                    onClick={openReminderModal}
+                                    disabled={loading}
                                 >
-                                    {!isSendingAllReminders && <EmailIcon />}
-                                    <span>{isSendingAllReminders ? "Sending..." : "Email All"}</span>
-                                </ConfirmActionButton>
+                                    <EmailIcon />
+                                    <span>Send Payment Reminder</span>
+                                </button>
                             )}
                             {/* Announcement is a standing power reserved for the President,
                                 Vice President, and Senator for Publicity and Information —
@@ -470,10 +459,8 @@ export default function MembersList({ compact = false }) {
                     <p className="members-download-status">{cardGenerationMessage}</p>
                 )}
 
-                {(reminderMessage || reminderError) && (
-                    <p className={`members-download-status ${reminderError ? "members-download-status--error" : ""}`}>
-                        {reminderError || reminderMessage}
-                    </p>
+                {reminderMessage && (
+                    <p className="members-download-status" role="status">{reminderMessage}</p>
                 )}
 
                 {announcementSuccess && (
@@ -489,7 +476,7 @@ export default function MembersList({ compact = false }) {
                                 <th><span className="stacked-table-heading"><span>Year</span><span>Section</span></span></th>
                                 <th><span className="stacked-table-heading"><span>Payment</span><span>Status</span></span></th>
                                 <th><span className="stacked-table-heading"><span>Active</span><span>Status</span></span></th>
-                                {(canManageMemberList || canManageFinancials) && <th>Action</th>}
+                                {canManageMemberList && <th>Action</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -522,28 +509,15 @@ export default function MembersList({ compact = false }) {
                                             {m.memberStatus}
                                         </span>
                                     </td>
-                                    {(canManageMemberList || canManageFinancials) && (
+                                    {canManageMemberList && (
                                         <td>
                                             <div className="member-action-buttons">
-                                                {canManageMemberList && (
-                                                    <button type="button"
-                                                        className="icon-btn member-action-buttons__button"
-                                                        onClick={() => openEdit(m)} title="Edit member"
-                                                        aria-label={`Edit ${m.name}`}>
-                                                        <EditIcon />
-                                                    </button>
-                                                )}
-                                                {canManageFinancials && (
-                                                    <button type="button"
-                                                        className="icon-btn member-action-buttons__button"
-                                                        onClick={() => handleSendMemberEmail(m)}
-                                                        disabled={!m.email || m.isPaid || sendingReminderId === m.id || isSendingAllReminders}
-                                                        aria-busy={sendingReminderId === m.id}
-                                                        title={!m.email ? "No email address" : m.isPaid ? "Member has already paid" : "Send payment reminder email"}
-                                                        aria-label={`Send payment reminder email to ${m.name}`}>
-                                                        {sendingReminderId === m.id ? <Spinner /> : <EmailIcon />}
-                                                    </button>
-                                                )}
+                                                <button type="button"
+                                                    className="icon-btn member-action-buttons__button"
+                                                    onClick={() => openEdit(m)} title="Edit member"
+                                                    aria-label={`Edit ${m.name}`}>
+                                                    <EditIcon />
+                                                </button>
                                             </div>
                                         </td>
                                     )}
@@ -562,6 +536,10 @@ export default function MembersList({ compact = false }) {
             )}
 
             {/* ── Member Approval Tab ────────────────────────────────────────── */}
+            {/* The roster approves accounts, so it needs Member Approval EDIT. */}
+            {!compact && canApproveMembers && activeSection === "approval" && (
+                <MemberRosterPanel onApprovalsChanged={fetchAll} />
+            )}
             {!compact && canViewMemberApproval && activeSection === "approval" && (
                 <div className="card approval-card">
                     <div className="card__header">
@@ -820,10 +798,36 @@ export default function MembersList({ compact = false }) {
             )}
 
             {isCardsModalOpen && (
-                <MembershipCardsModal
+                <MemberSelectionModal
+                    eyebrow="Membership Cards"
+                    title="Download Membership Cards"
                     members={members}
+                    busyLabel="Generating membership cards..."
+                    submitLabel={(count, isAll) => isAll
+                        ? "Download All Membership Cards"
+                        : `Download ${count || ""} Membership Card${count === 1 ? "" : "s"}`}
+                    onSubmit={handleDownloadCards}
                     onClose={() => setIsCardsModalOpen(false)}
-                    onDownloaded={handleCardsDownloaded}
+                />
+            )}
+
+            {isReminderModalOpen && (
+                <MemberSelectionModal
+                    eyebrow="Payment Reminder"
+                    title="Send Payment Reminder"
+                    members={reminderEligibleMembers}
+                    emptyMessage="No unpaid members match your search or filters."
+                    busyLabel="Sending payment reminders..."
+                    submitLabel={(count, isAll) => isAll
+                        ? `Send Payment Reminder to All (${count})`
+                        : `Send Payment Reminder${count ? ` (${count})` : ""}`}
+                    confirm={{
+                        title: "Send payment reminders?",
+                        message: (count, isAll) => `This will email a payment reminder to ${isAll ? "all " : ""}${count} selected member${count === 1 ? "" : "s"}. Members you didn't select won't be emailed.`,
+                        confirmLabel: "Send",
+                    }}
+                    onSubmit={handleSendReminders}
+                    onClose={() => setIsReminderModalOpen(false)}
                 />
             )}
 

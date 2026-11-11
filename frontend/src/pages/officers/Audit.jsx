@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import ConfirmationDialog from "../../components/officers/ConfirmationDialog.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -363,23 +362,21 @@ export default function Audit() {
           if (await handleStatusChange(pendingReview.id, "FOR_CLARIFICATION", remarks)) setPendingReview(null);
         }}
       />}
-      {pendingClear && createPortal(
-        <div className="relative z-[1100]">
-          <ConfirmationDialog
-            isOpen
-            title="Clear audit record?"
-            message={`Mark ${pendingClear.displayId} as Cleared? This will lock the record and prevent further changes.`}
-            confirmLabel="Confirm Cleared"
-            cancelLabel="Cancel"
-            onCancel={() => setPendingClear(null)}
-            onConfirm={() => {
-              const id = pendingClear.id;
-              setPendingClear(null);
-              handleStatusChange(id, "CLEARED");
-            }}
-          />
-        </div>,
-        document.body
+      {/* ConfirmationDialog renders into <body> above any open modal. */}
+      {pendingClear && (
+        <ConfirmationDialog
+          isOpen
+          title="Clear audit record?"
+          message={`Mark ${pendingClear.displayId} as Cleared? This will lock the record and prevent further changes.`}
+          confirmLabel="Confirm Cleared"
+          cancelLabel="Cancel"
+          onCancel={() => setPendingClear(null)}
+          onConfirm={() => {
+            const id = pendingClear.id;
+            setPendingClear(null);
+            handleStatusChange(id, "CLEARED");
+          }}
+        />
       )}
     </>
   );

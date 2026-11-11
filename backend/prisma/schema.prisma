@@ -220,6 +220,7 @@ model User {
   developerAccount     DeveloperAccount?
 
   sentAdviserInvites     AdviserInvite[] @relation("AdviserInviteSentBy")
+  addedRosterEntries     MemberRoster[]  @relation("MemberRosterAddedBy")
   acceptedAdviserInvite  AdviserInvite?  @relation("AdviserInviteAcceptedBy")
 }
 
@@ -714,6 +715,23 @@ model MembershipCertificate {
 
   @@index([memberId])
   @@index([semesterId])
+}
+
+// ─── MEMBER ROSTER — AUTOMATIC MEMBER APPROVAL ─────────────────────────────
+// The officer-uploaded list of students who may join. A pending registration
+// whose student number AND last name match an entry is approved
+// automatically. Only these two fields are kept (Data Privacy Act).
+model MemberRoster {
+  id            Int      @id @default(autoincrement())
+  studentNumber String   @unique
+  lastName      String
+  addedById     Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  addedBy User @relation("MemberRosterAddedBy", fields: [addedById], references: [id])
+
+  @@index([addedById])
 }
 
 // ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
