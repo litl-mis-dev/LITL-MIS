@@ -99,11 +99,11 @@ export default function Sidebar({
   // Hide any nav item whose gating module resolves to NONE for this role.
   // Hash Chain has no RBAC module but is still hidden from the Adviser, who
   // has no access to it at all. Settings shows when any of its sections is
-  // available; History holds the Archive, which needs Financial edit access.
+  // available; History holds the read-only Archive, so Financial view access is enough.
   const isVisible = (item) => {
     if (item.page === 'hash-chain') return role !== 'ADVISER_DEPT_CHAIR';
     if (item.page === 'settings') return can('SETTINGS_ROLES', 'VIEW') || can('SETTINGS_DESIGN', 'VIEW') || role === 'PRESIDENT_ADMIN';
-    if (item.page === 'history') return can('FINANCIAL', 'EDIT');
+    if (item.page === 'history') return can('FINANCIAL', 'VIEW');
     const module = NAV_ITEM_MODULES[item.page];
     return !module || can(module, 'VIEW');
   };

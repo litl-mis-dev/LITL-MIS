@@ -1,9 +1,9 @@
 import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import ArchiveSettings from "./settings/ArchiveSettings.jsx";
 
-// History ▸ Archive — past semesters' financial records. Same access as the
-// Archive had under Settings: Financial edit access (route guard in
-// routes/OfficersRoutes.jsx, enforced by the archive API as well).
+// History ▸ Archive — past semesters' financial records, read-only. Anyone
+// with Financial view access may open it (route guard in
+// routes/OfficersRoutes.jsx; the archive API requires the same).
 export default function History() {
     return (
         <>
