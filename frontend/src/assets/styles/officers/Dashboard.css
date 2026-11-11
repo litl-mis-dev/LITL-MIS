@@ -1607,17 +1607,13 @@ button {
 }
 
 .event-modal {
-  top: 60px;
-  bottom: 0;
-  left: 0;
-  right: 0;
   align-items: center;
   padding: 24px 16px;
 }
 
 .event-modal .member-modal__panel {
-  max-height: calc(100vh - 108px);
-  max-height: calc(100dvh - 108px);
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
 }
 
@@ -5018,7 +5014,6 @@ button {
   }
 
   .event-modal {
-    top: 60px;
     align-items: center;
     padding: 16px 12px;
   }
@@ -5029,8 +5024,8 @@ button {
   }
 
   .event-modal .member-modal__panel {
-    max-height: calc(100vh - 92px);
-    max-height: calc(100dvh - 92px);
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
   }
 
   .member-modal__header {
@@ -5217,7 +5212,6 @@ button {
   }
 
   .event-modal {
-    top: 56px;
     padding: 8px;
   }
 
@@ -5229,8 +5223,8 @@ button {
   }
 
   .event-modal .member-modal__panel {
-    max-height: calc(100vh - 72px);
-    max-height: calc(100dvh - 72px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
     border-radius: 8px;
   }
 
@@ -5603,7 +5597,6 @@ button {
   }
 
   .event-modal {
-    top: 56px;
     padding: 8px;
   }
 
@@ -5613,8 +5606,8 @@ button {
   }
 
   .event-modal .member-modal__panel {
-    max-height: calc(100vh - 72px);
-    max-height: calc(100dvh - 72px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
   }
 
   .member-modal__header {
