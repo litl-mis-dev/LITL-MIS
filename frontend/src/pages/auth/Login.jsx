@@ -121,11 +121,11 @@ function Login() {
           </form>
 
           <div className="text-center text-xs text-gray-500 mt-4 leading-7">
-            <Link to="/forgot-password" className="text-gray-400 hover:underline">Forgot your password?</Link>
+            <Link to="/forgot-password" className="inline-block py-1 text-gray-400 hover:underline">Forgot your password?</Link>
             <br />
-            <Link to="/register" className="text-blue-600 font-semibold hover:underline">New member? Register here</Link>
+            <Link to="/register" className="inline-block py-1 text-blue-600 font-semibold hover:underline">New member? Register here</Link>
             <br />
-            <Link to="/" className="text-gray-400 hover:underline">Back to Portal</Link>
+            <Link to="/" className="inline-block py-1 text-gray-400 hover:underline">Back to Portal</Link>
           </div>
         </section>
       </section>
