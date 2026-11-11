@@ -7,6 +7,9 @@ const { positionLabel } = require('../utils/roles')
 
 const RECIPIENT_VALUES = ['MEMBERS', 'OFFICERS', 'BOTH']
 const PRIORITY_VALUES = ['NORMAL', 'IMPORTANT']
+// Same limits as the Create Announcement form (MembersList.jsx).
+const MAX_TITLE_LENGTH = 120
+const MAX_MESSAGE_LENGTH = 1000
 
 // Every Important announcement stays pinned for exactly this long.
 const IMPORTANT_ANNOUNCEMENT_DAYS = 7
@@ -58,8 +61,14 @@ const createAnnouncement = async (req, res) => {
   try {
     const { title, message, recipients, priority = 'NORMAL' } = req.body
 
-    if (!title?.trim() || !message?.trim()) {
+    if (typeof title !== 'string' || typeof message !== 'string' || !title.trim() || !message.trim()) {
       return res.status(400).json({ message: 'Title and message are required.' })
+    }
+    if (title.trim().length > MAX_TITLE_LENGTH) {
+      return res.status(400).json({ message: `Title must be ${MAX_TITLE_LENGTH} characters or fewer.` })
+    }
+    if (message.trim().length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ message: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` })
     }
 
     if (!RECIPIENT_VALUES.includes(recipients)) {

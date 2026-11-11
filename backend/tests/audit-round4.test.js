@@ -1,5 +1,6 @@
 // Audit round 4 fixes: requests without a JSON body (R3-01), unknown paths
-// (R3-11) and non-numeric IDs in URLs (R3-06).
+// (R3-11), non-numeric IDs in URLs (R3-06) and announcement length limits
+// (R3-07).
 // Runs a real Express app on a free local port; no database, email or
 // network. Run with: npm test
 const assert = require('node:assert/strict')
@@ -91,4 +92,25 @@ test('R3-06: every router checks each numeric parameter it uses', () => {
       assert.ok(router.params?.[name]?.length, `${file} does not validate :${name}`)
     }
   }
+})
+
+test('R3-07: announcement title and message have length limits', async () => {
+  stub('src/lib/prisma.js', { announcement: { create: async () => { throw new Error('must not reach the database') } } })
+  stub('src/utils/auditLog.js', { writeAuditLog: async () => {} })
+  stub('src/services/notification.service.js', { notifyAnnouncement: async () => {} })
+  delete require.cache[require.resolve(path.join(backend, 'src/controllers/announcement.controller'))]
+  const { createAnnouncement } = require(path.join(backend, 'src/controllers/announcement.controller'))
+
+  const call = async (body) => {
+    const res = { statusCode: 200 }
+    res.status = (code) => { res.statusCode = code; return res }
+    res.json = (b) => { res.body = b; return res }
+    await createAnnouncement({ body, user: { id: 1, role: 'PRESIDENT_ADMIN' } }, res)
+    return res
+  }
+  const base = { recipients: 'BOTH', priority: 'NORMAL' }
+  assert.match((await call({ ...base, title: 'x'.repeat(121), message: 'ok' })).body.message, /120 characters/)
+  assert.match((await call({ ...base, title: 'ok', message: 'x'.repeat(1001) })).body.message, /1000 characters/)
+  assert.equal((await call({ ...base, title: ['a'], message: 'ok' })).statusCode, 400)
+  assert.equal((await call({ ...base, title: '   ', message: 'ok' })).statusCode, 400)
 })
