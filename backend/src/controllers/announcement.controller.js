@@ -113,8 +113,20 @@ const createAnnouncement = async (req, res) => {
 }
 
 // A payment reminder sent to this user is pinned with the Important
-// Announcements for 7 days, like an Important announcement. It comes from
-// the reminder's own notification row, so there is no separate record.
+// Announcements for 7 days, like an Important announcement — until the
+// member pays for the active semester. It comes from the reminder's own
+// notification row, so there is no separate record.
+async function hasPaidActiveSemester(userId) {
+  const activeSemester = await prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } })
+  if (!activeSemester) return false
+  const payment = await prisma.payment.findFirst({
+    // Same "paid" rule as the Members List (officer.controller getApprovedMembers).
+    where: { member: { userId }, semesterId: activeSemester.id, obligationSemesterId: activeSemester.id, isArchived: false },
+    select: { id: true },
+  })
+  return Boolean(payment)
+}
+
 async function listPinnedPaymentReminders(userId) {
   const since = new Date(Date.now() - IMPORTANT_ANNOUNCEMENT_DAYS * DAY_MS)
   const reminders = await prisma.notification.findMany({
@@ -122,6 +134,7 @@ async function listPinnedPaymentReminders(userId) {
     orderBy: { createdAt: 'desc' },
     take: 1, // only the latest reminder matters
   })
+  if (reminders.length === 0 || await hasPaidActiveSemester(userId)) return []
   return reminders.map((n) => ({
     id:         `payment-reminder-${n.id}`,
     kind:       'PAYMENT_REMINDER',
