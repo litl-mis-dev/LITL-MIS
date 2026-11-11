@@ -5,7 +5,8 @@ const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
 const {
   getFundReport,
-  getTotalCategoryPercentage
+  getTotalCategoryPercentage,
+  getCategoryFinancials
 } = require('../services/calculations.service')
 const { emitToOfficers } = require('../realtime/socket')
 
@@ -159,4 +160,143 @@ const archiveCategory = async (req, res) => {
   }
 }
 
-module.exports = { listCategories, createCategoriesBatch, archiveCategory }
+// PUT /api/financial/categories
+// Renames categories and/or changes their percentages at any time. Every
+// regular category of the current school year must be sent, so the total
+// can be checked: it must stay exactly 100%. A category's share can only go
+// down while it still covers what it has already spent. Each changed
+// category gets its own CATEGORY_UPDATED entry in the hash-linked ledger.
+const updateCategories = async (req, res) => {
+  try {
+    const { categories, confirmText } = req.body
+
+    if (!confirmText || confirmText.trim() !== 'CONFIRM') {
+      return res.status(400).json({ message: 'You must type CONFIRM to confirm.' })
+    }
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ message: 'At least one category is required.' })
+    }
+
+    const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
+    if (!activeSemester) return res.status(400).json({ message: 'No active semester.' })
+
+    // Same set the Fund Report shows: the school year's regular categories.
+    const semestersInSchoolYear = await prisma.semester.findMany({
+      where: { schoolYear: activeSemester.schoolYear },
+      select: { id: true, semester: true }
+    })
+    const existing = await prisma.fundCategory.findMany({
+      where: {
+        semesterId: { in: semestersInSchoolYear.map(s => s.id) },
+        isTurnoverFund: false,
+        isArchived: false
+      }
+    })
+    if (existing.length === 0) {
+      return res.status(400).json({ message: 'There are no fund categories to edit yet.' })
+    }
+
+    const byId = new Map(existing.map(c => [c.id, c]))
+    const sentIds = categories.map(c => Number(c?.id))
+    if (new Set(sentIds).size !== sentIds.length || sentIds.length !== existing.length || !sentIds.every(id => byId.has(id))) {
+      return res.status(400).json({ message: 'The category list is out of date. Please reopen the editor and try again.' })
+    }
+
+    const errors = []
+    const seenNames = new Set()
+    let total = new Decimal(0)
+    const edits = []
+
+    for (const [i, cat] of categories.entries()) {
+      const name = typeof cat.name === 'string' ? cat.name.trim() : ''
+      if (name.length < 2 || name.length > 100) {
+        errors.push(`Category ${i + 1}: Name must be 2–100 characters.`)
+      } else if (name.toLowerCase() === RESERVED_CATEGORY_NAME) {
+        errors.push(`Category ${i + 1}: "Turnover Fund" is a reserved, system-generated name.`)
+      } else if (seenNames.has(name.toLowerCase())) {
+        errors.push(`Category ${i + 1}: "${name}" is used more than once.`)
+      }
+      seenNames.add(name.toLowerCase())
+
+      let percentage = null
+      try { percentage = new Decimal(cat.percentage) } catch { percentage = null }
+      if (!percentage || percentage.isNaN() || percentage.lte(0) || percentage.gt(100) || percentage.decimalPlaces() > 2) {
+        errors.push(`Category ${i + 1}: Percentage must be between 0 and 100.`)
+      } else {
+        total = total.plus(percentage)
+      }
+
+      edits.push({ before: byId.get(Number(cat.id)), name, percentage })
+    }
+    if (errors.length > 0) return res.status(400).json({ message: errors.join(' ') })
+
+    if (!total.equals(100)) {
+      return res.status(400).json({ message: `Total fund allocation must equal exactly 100%. Current total: ${total.toFixed(2)}%.` })
+    }
+
+    const countedSemesterIds = semestersInSchoolYear
+      .filter(s => s.semester === 'FIRST' || s.id === activeSemester.id)
+      .map(s => s.id)
+
+    const changed = edits.filter(e =>
+      e.name !== e.before.name || !e.percentage.equals(e.before.percentage)
+    )
+    if (changed.length === 0) {
+      return res.status(400).json({ message: 'No changes to save.' })
+    }
+
+    for (const edit of changed) {
+      if (!edit.percentage.lt(edit.before.percentage)) continue
+      const after = await getCategoryFinancials(
+        { ...edit.before, percentage: edit.percentage.toFixed(2) },
+        activeSemester.id,
+        countedSemesterIds
+      )
+      const netSpent = new Decimal(after.totalDisbursed).minus(after.totalReturned)
+      if (new Decimal(after.allocatedAmount).lt(netSpent)) {
+        return res.status(400).json({
+          message: `"${edit.before.name}" has already used ₱${netSpent.toFixed(2)}, so its share can't be lowered to ${edit.percentage.toFixed(2)}%.`
+        })
+      }
+    }
+
+    try {
+      await prisma.$transaction(
+        changed.map(edit => prisma.fundCategory.update({
+          where: { id: edit.before.id },
+          data: { name: edit.name, percentage: edit.percentage.toFixed(2) }
+        }))
+      )
+    } catch (err) {
+      if (err.code === 'P2002') {
+        return res.status(400).json({ message: 'Another category in this semester already has one of those names.' })
+      }
+      throw err
+    }
+
+    for (const edit of changed) {
+      await writeAuditLog({
+        actorId: req.user.id,
+        action: AUDIT_ACTIONS.CATEGORY_UPDATED,
+        details: {
+          categoryId: edit.before.id,
+          semesterId: edit.before.semesterId,
+          previousName: edit.before.name,
+          name: edit.name,
+          previousPercentage: parseFloat(edit.before.percentage),
+          percentage: parseFloat(edit.percentage),
+          snapshot: { id: edit.before.id, name: edit.name, percentage: edit.percentage.toFixed(2) }
+        }
+      })
+    }
+
+    emitToOfficers('fundCategory:changed', { semesterId: activeSemester.id, action: 'updated' })
+
+    return res.json({ message: `Updated ${changed.length} categor${changed.length === 1 ? 'y' : 'ies'}.` })
+  } catch (err) {
+    logError('Update categories', err)
+    return res.status(500).json({ message: 'Something went wrong.' })
+  }
+}
+
+module.exports = { listCategories, createCategoriesBatch, archiveCategory, updateCategories }

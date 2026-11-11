@@ -109,6 +109,7 @@ function EventCard({ event, onView }) {
         <h3>{event.title}</h3>
         <p>{formatDate(event.date)} | {formatTime(event.time)}</p>
         <p>{event.location || "To be announced"}</p>
+        <p>Budget: {formatBudget(event.budget)}</p>
 
         <div className="member-event__actions">
           <button type="button" className="btn btn--sm btn--outline" onClick={onView}>
@@ -145,6 +146,7 @@ function EventModal({ event, onClose }) {
             <Detail label="When" value={`${formatDate(event.date)} | ${formatTime(event.time)}`} />
             <Detail label="Where" value={event.location || "Location to be set"} />
             <Detail label="Proponent" value={event.Proponent || event.proponent || "LITL"} />
+            <Detail label="Budget" value={formatBudget(event.budget)} />
           </dl>
 
           {event.googleFormUrl && (
@@ -176,6 +178,11 @@ function Detail({ label, value }) {
 function formatDate(value) {
   if (!value) return "Date to be set";
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatBudget(value) {
+  if (value === null || value === undefined || value === "") return "Not set";
+  return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(Number(value));
 }
 
 function formatTime(value) {

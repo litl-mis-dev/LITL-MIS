@@ -9,6 +9,7 @@ const {
   notifyEventUpdated, notifyEventAccessGrantedToMembers,
 } = require('../services/notification.service')
 const { emitToAll, emitToOfficers } = require('../realtime/socket')
+const { validateScheduleDate, validateScheduleTime } = require('../utils/schedule')
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,8 +41,33 @@ function formatEvent(event) {
     hasGoogleForm: event.hasGoogleForm,
     googleFormUrl: event.googleFormUrl ?? '',
     createdAt:    event.createdAt,
+    budget:       event.budget == null ? null : event.budget.toFixed(2),
     attendanceCount: event._count?.attendances ?? 0,
   }
+}
+
+// Events are listed by status — Open, Coming soon, Closed, Cancelled — and
+// by date and time (soonest first) within the same status.
+const STATUS_SORT_ORDER = { OPEN: 0, COMING_SOON: 1, CLOSED: 2, CANCELLED: 3 }
+
+function compareEvents(a, b) {
+  return (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99)
+    || a.date.localeCompare(b.date)
+    || a.time.localeCompare(b.time)
+    || a.id - b.id
+}
+
+const MAX_BUDGET = 99999999.99 // DECIMAL(10, 2)
+
+// Returns { value } with the budget as a 2-decimal string, or { error }.
+function parseBudget(raw) {
+  const text = typeof raw === 'number' ? String(raw) : typeof raw === 'string' ? raw.trim() : ''
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) {
+    return { error: 'Budget must be a number with up to 2 decimal places.' }
+  }
+  const amount = Number(text)
+  if (amount > MAX_BUDGET) return { error: 'Budget is too large.' }
+  return { value: amount.toFixed(2) }
 }
 
 function parseStatus(raw) {
@@ -68,10 +94,9 @@ const listEvents = async (req, res) => {
         ? { isArchived: false }
         : { isArchived: false, access: { contains: '"Members"' } },
       include: { _count: { select: { attendances: true } } },
-      orderBy: { date: 'asc' }
     })
 
-    return res.json({ events: events.map(formatEvent) })
+    return res.json({ events: events.sort(compareEvents).map(formatEvent) })
   } catch (err) {
     logError('List events', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -113,12 +138,19 @@ const createEvent = async (req, res) => {
     const {
       title, date, time, location,
       Proponent: proponent,
-      description, status, access, hasGoogleForm, googleFormUrl
+      description, status, access, hasGoogleForm, googleFormUrl, budget
     } = req.body
 
-    if (!title?.trim() || !date || !time || !location?.trim() || !proponent?.trim() || !description?.trim()) {
+    if (!title?.trim() || !date || !time || !location?.trim() || !proponent?.trim() || !description?.trim()
+      || budget === undefined || budget === null || budget === '') {
       return res.status(400).json({ message: 'All required fields must be filled.' })
     }
+
+    const scheduleError = validateScheduleDate(date) || validateScheduleTime(time)
+    if (scheduleError) return res.status(400).json({ message: scheduleError })
+
+    const parsedBudget = parseBudget(budget)
+    if (parsedBudget.error) return res.status(400).json({ message: parsedBudget.error })
 
     if (!Array.isArray(access) || access.length === 0) {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
@@ -136,6 +168,7 @@ const createEvent = async (req, res) => {
         access:       JSON.stringify(access),
         hasGoogleForm: Boolean(hasGoogleForm),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
+        budget:        parsedBudget.value,
         createdById:   req.user.id,
       },
       include: { _count: { select: { attendances: true } } }
@@ -176,11 +209,31 @@ const updateEvent = async (req, res) => {
     const {
       title, date, time, location,
       Proponent: proponent,
-      description, status, access, hasGoogleForm, googleFormUrl
+      description, status, access, hasGoogleForm, googleFormUrl, budget
     } = req.body
 
     if (Array.isArray(access) && access.length === 0) {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
+    }
+
+    // Only a changed date/time is checked, so an event whose date has passed
+    // can still be edited (e.g. to close it) without being rescheduled.
+    if (date && date !== existing.date) {
+      const dateError = validateScheduleDate(date)
+      if (dateError) return res.status(400).json({ message: dateError })
+    }
+    if (time && time !== existing.time) {
+      const timeError = validateScheduleTime(time)
+      if (timeError) return res.status(400).json({ message: timeError })
+    }
+
+    let budgetValue
+    if (budget !== undefined && budget !== null && budget !== '') {
+      const parsedBudget = parseBudget(budget)
+      if (parsedBudget.error) return res.status(400).json({ message: parsedBudget.error })
+      budgetValue = parsedBudget.value
+    } else if (existing.budget != null && budget !== undefined) {
+      return res.status(400).json({ message: 'Budget is required.' })
     }
 
     const updated = await prisma.event.update({
@@ -196,6 +249,7 @@ const updateEvent = async (req, res) => {
         ...(access       && { access: JSON.stringify(access) }),
         ...(hasGoogleForm !== undefined && { hasGoogleForm: Boolean(hasGoogleForm) }),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
+        ...(budgetValue !== undefined && { budget: budgetValue }),
       },
       include: { _count: { select: { attendances: true } } }
     })

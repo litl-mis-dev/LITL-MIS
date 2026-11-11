@@ -132,7 +132,7 @@ const getSemesterEndingBalance = async (semesterId) => {
 
 // The Fund Report for one semester. This is the single source for BOTH the
 // Financial module's Fund Report (called with the active semester) and
-// Settings ▸ Archive (called with any past semester), so the two can never show
+// History ▸ Archive (called with any past semester), so the two can never show
 // different data. Categories belong to the school year; the Turnover Fund
 // belongs to this exact semester.
 //

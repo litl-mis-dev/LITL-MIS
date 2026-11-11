@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getActiveSemesterStats, listSemesters, advanceSemester, initFirstSemester } from '../../../services/financial.service'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
+import RequiredMark from '../../../components/ui/RequiredMark.jsx'
 
 function formatCurrency(value) {
   const n = parseFloat(value) || 0
@@ -242,7 +243,7 @@ export default function SemesterManager({ onSemesterChanged }) {
 
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Type <span className="font-mono font-bold">ACTIVATE</span> to confirm:
+                          Type <span className="font-mono font-bold">ACTIVATE</span> to confirm:<RequiredMark />
                         </label>
                         <input type="text" value={initConfirm}
                           onChange={e => { setInitConfirm(e.target.value); setInitError('') }}
@@ -332,7 +333,7 @@ export default function SemesterManager({ onSemesterChanged }) {
                   {/* Type-to-confirm */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:
+                      Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:<RequiredMark />
                     </label>
                     <input type="text" value={confirmInput}
                       onChange={e => setConfirmInput(e.target.value)}

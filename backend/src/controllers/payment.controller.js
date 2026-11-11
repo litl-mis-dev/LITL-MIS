@@ -12,6 +12,7 @@ const {
   PAYMENT_UNIT, PaymentValidationError, getUnpaidSemesters, buildAllocation, assertNotAdviser
 } = require('../services/membershipPayment.service')
 const { NON_MEMBER_ROLES, MEMBERSHIP_USER_FILTER } = require('../utils/roles')
+const { notifyPaymentReminder } = require('../services/notification.service')
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
 
@@ -617,6 +618,9 @@ const sendPaymentReminder = async (req, res) => {
 
     await sendPaymentReminderEmail(member.user.email, memberName, semesterLabel)
 
+    // The email went out — also put the reminder in the member's notifications.
+    await notifyPaymentReminder(member.user.id, semesterLabel).catch((err) => logError('Notify payment reminder', err))
+
     await writeAuditLog({
       actorId: req.user.id,
       targetUserId: member.user.id,
@@ -688,6 +692,11 @@ const sendBulkPaymentReminders = async (req, res) => {
 
     const sent = unpaidMembers.filter((_, i) => results[i].status === 'fulfilled')
     const failed = unpaidMembers.filter((_, i) => results[i].status === 'rejected')
+
+    // Members whose email went out also get the reminder in their notifications.
+    await Promise.all(sent.map((member) =>
+      notifyPaymentReminder(member.user.id, semesterLabel).catch((err) => logError('Notify payment reminder', err))
+    ))
 
     if (sent.length > 0) {
       await writeAuditLog({

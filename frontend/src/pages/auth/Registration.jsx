@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom'
 import AuthHeader from '../../components/AuthHeader'
 import { registerUser, getPendingRegistration } from '../../services/auth.service'
+import { formatPersonName } from "../../utils/formInputs.js";
 
 const NAME_REGEX = /^[A-Za-z\s'-]+$/
 
@@ -231,7 +232,7 @@ function Step1({ data, setData, onNext }) {
             onChange={(e) => {
               const value = e.target.value
               if (/^[A-Za-z\s'-]*$/.test(value)) {
-                setData({ ...data, firstName: value })
+                setData({ ...data, firstName: formatPersonName(value) })
                 setErrors({ ...errors, firstName: "" })
               }
             }}
@@ -246,7 +247,7 @@ function Step1({ data, setData, onNext }) {
             onChange={(e) => {
               const value = e.target.value
               if (/^[A-Za-z\s'-]*$/.test(value)) {
-                setData({ ...data, lastName: value })
+                setData({ ...data, lastName: formatPersonName(value) })
                 setErrors({ ...errors, lastName: "" })
               }
             }}
@@ -264,7 +265,7 @@ function Step1({ data, setData, onNext }) {
             const value = e.target.value
 
             if (/^[A-Za-z\s'-]*$/.test(value)) {
-              setData({ ...data, middleName: value })
+              setData({ ...data, middleName: formatPersonName(value) })
             }
           }}
         />

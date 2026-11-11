@@ -34,6 +34,11 @@ export const pageDetails = {
         title: "Settings",
         subtitle: "Manage semester controls and document assets.",
     },
+    history: {
+        eyebrow: "Records",
+        title: "History",
+        subtitle: "Browse archived financial records from past semesters.",
+    },
     events: {
         eyebrow: "Engagement",
         title: "Events",

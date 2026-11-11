@@ -571,6 +571,25 @@
   padding: 10px 12px;
 }
 
+.topbar__announcement-card--clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.topbar__announcement-card--clickable > span {
+  display: block;
+}
+
+.topbar__announcement-card--clickable:hover,
+.topbar__announcement-card--clickable:focus-visible {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
 .topbar__announcement-title {
   font-size: 13px;
   font-weight: 700;

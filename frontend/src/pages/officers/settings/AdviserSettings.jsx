@@ -5,6 +5,8 @@ import {
     getAdvisers, inviteAdviser, resendAdviserInvite, revokeAdviserInvite,
     deactivateAdviser, reactivateAdviser, changeAdviserTitle,
 } from "../../../services/adviser.service.js";
+import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import { formatPersonName } from "../../../utils/formInputs.js";
 
 // Settings ▸ Advisers — President only. Advisers and the Department Chair
 // join by email invitation; both titles have the same access. Seat limits,
@@ -116,14 +118,14 @@ export default function AdviserSettings() {
                 {/* Fields lock while the invitation is being sent. */}
                 <fieldset disabled={sending} className="mt-3 grid gap-3 sm:grid-cols-2 disabled:opacity-60">
                     <label>
-                        <span className="mb-1 block text-sm font-medium text-gray-700">First name</span>
+                        <span className="mb-1 block text-sm font-medium text-gray-700">First name<RequiredMark /></span>
                         <input className={inputClass} value={form.firstName} required maxLength={30}
-                            onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                            onChange={(e) => setForm({ ...form, firstName: formatPersonName(e.target.value) })} />
                     </label>
                     <label>
-                        <span className="mb-1 block text-sm font-medium text-gray-700">Last name</span>
+                        <span className="mb-1 block text-sm font-medium text-gray-700">Last name<RequiredMark /></span>
                         <input className={inputClass} value={form.lastName} required maxLength={30}
-                            onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                            onChange={(e) => setForm({ ...form, lastName: formatPersonName(e.target.value) })} />
                     </label>
                     <label>
                         <span className="mb-1 block text-sm font-medium text-gray-700">Suffix (optional)</span>
@@ -131,12 +133,12 @@ export default function AdviserSettings() {
                             onChange={(e) => setForm({ ...form, suffix: e.target.value })} />
                     </label>
                     <label>
-                        <span className="mb-1 block text-sm font-medium text-gray-700">Email</span>
+                        <span className="mb-1 block text-sm font-medium text-gray-700">Email<RequiredMark /></span>
                         <input className={inputClass} type="email" value={form.email} required
                             onChange={(e) => setForm({ ...form, email: e.target.value })} />
                     </label>
                     <label>
-                        <span className="mb-1 block text-sm font-medium text-gray-700">Title</span>
+                        <span className="mb-1 block text-sm font-medium text-gray-700">Title<RequiredMark /></span>
                         <select className={inputClass} value={form.title}
                             onChange={(e) => setForm({ ...form, title: e.target.value })}>
                             {TITLES.map((t) => (

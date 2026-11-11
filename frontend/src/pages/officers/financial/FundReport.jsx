@@ -4,6 +4,7 @@ import EditCategories from './EditCategories.jsx'
 import SemesterManager from './SemesterManager.jsx'
 import { useRole } from '../../../utils/useRole'
 import { listCategories } from '../../../services/financial.service'
+import { sortCategoriesByPercentage } from '../../../utils/financialRecordRows.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,11 +98,11 @@ export default function FundReport({ showHeader = true }) {
       setSemester(data.semester ?? null)
 
       // categoriesLocked = true means categories were already finalized for
-      // this school year — the Add/Edit button must be hidden entirely.
+      // this school year — they can then only be edited, not added.
       setCategoriesLocked(data.categoriesLocked ?? false)
 
       setRecords(
-        (data.categories || []).map(cat => ({
+        sortCategoriesByPercentage(data.categories || []).map(cat => ({
           id:             cat.id,
           rowKey:         String(cat.id),
           name:           cat.name,
@@ -122,7 +123,8 @@ export default function FundReport({ showHeader = true }) {
 
   useEffect(() => { fetchCategories() }, [fetchCategories])
 
-  const displayRows        = [buildOverallFundRow(records), ...records]
+  // Highest percentage first; the overall total always comes last.
+  const displayRows        = [...records, buildOverallFundRow(records)]
   const hasRegularCategories = records.filter(r => !r.isTurnoverFund).length > 0
   const categoryButtonLabel  = hasRegularCategories ? 'Add Category' : 'Add Category'
 
@@ -162,19 +164,13 @@ export default function FundReport({ showHeader = true }) {
               />
             )}
 
-            {/* Once finalized, show a read-only indicator instead of the button */}
+            {/* Once finalized, categories can still be renamed and re-weighted at any time */}
             {canManageFinancials && categoriesLocked && (
-              <span style={{
-                fontSize: 12,
-                color: 'var(--color-text-secondary, #6b7280)',
-                padding: '6px 12px',
-                border: '1px solid var(--color-border, #e5e7eb)',
-                borderRadius: 6,
-                background: 'var(--color-bg-secondary, #f9fafb)',
-                whiteSpace: 'nowrap',
-              }}>
-                Categories finalized
-              </span>
+              <EditCategories
+                onSuccess={fetchCategories}
+                buttonLabel="Edit Categories"
+                editOnly
+              />
             )}
           </div>
         </div>

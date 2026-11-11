@@ -1,0 +1,143 @@
+/* Announcement details modal (components/notifications/AnnouncementDetailsModal.jsx).
+   Loaded by the modal itself so it looks the same on the Member and Officer sides. */
+
+.announcement-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.announcement-modal__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  max-height: calc(100dvh - 32px);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
+  overflow: hidden;
+}
+
+.announcement-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid #f1e8d9;
+}
+
+.announcement-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.announcement-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  word-break: break-word;
+}
+
+.announcement-modal__close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.announcement-modal__close:hover {
+  background: #f3f4f6;
+}
+
+.announcement-modal__body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.announcement-modal__message {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.announcement-modal__error {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #b91c1c;
+}
+
+.announcement-modal__meta {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
+}
+
+.announcement-modal__meta div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.announcement-modal__meta dt {
+  font-weight: 700;
+  color: #92400e;
+}
+
+.announcement-modal__meta dd {
+  margin: 0;
+  color: #374151;
+  word-break: break-word;
+}
+
+.announcement-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #f1e8d9;
+}
+
+.announcement-modal__button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-weight: 700;
+  color: #374151;
+  cursor: pointer;
+}
+
+.announcement-modal__button:hover {
+  background: #f9fafb;
+}
+
+@media (max-width: 480px) {
+  .announcement-modal__meta div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

@@ -192,3 +192,10 @@ button.icon-btn[aria-busy="true"]::before {
         opacity: 1;
     }
 }
+
+/* Red asterisk beside required field labels (components/ui/RequiredMark.jsx). */
+.required-mark {
+    color: #dc2626;
+    margin-left: 2px;
+    font-weight: 600;
+}

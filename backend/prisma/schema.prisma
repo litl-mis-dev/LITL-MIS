@@ -149,6 +149,7 @@ enum NotificationType {
   MEMBER_APPROVAL_REQUEST
   ANNOUNCEMENT
   AUDIT_STATUS_CHANGED
+  PAYMENT_REMINDER
 }
 
 enum AnnouncementRecipient {
@@ -503,6 +504,9 @@ model Event {
   access        String      @db.Text    // JSON: ["Members"] | ["Officers"] | ["Members","Officers"]
   hasGoogleForm Boolean     @default(false)
   googleFormUrl String?
+  // Dedicated budget shown to viewers. Null only for events created before
+  // budgets existed; every new event must have one.
+  budget        Decimal?    @db.Decimal(10, 2)
   createdById   Int
   isArchived    Boolean     @default(false)
   createdAt     DateTime    @default(now())

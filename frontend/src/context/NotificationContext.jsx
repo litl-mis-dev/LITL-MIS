@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { connectSocket, disconnectSocket } from '../services/socket'
 import {
@@ -8,8 +8,17 @@ import {
 } from '../services/notification.service'
 import { getImportantAnnouncements } from '../services/announcement.service'
 import { enablePushNotifications, getPushPermission } from '../utils/push'
+import AnnouncementDetailsModal from '../components/notifications/AnnouncementDetailsModal.jsx'
 
 const NotificationContext = createContext(null)
+
+// Announcement notifications link to "<dashboard>?announcement=<id>".
+function announcementIdFromLink(link) {
+  if (typeof link !== 'string') return null
+  const query = link.split('?')[1]
+  const id = query ? new URLSearchParams(query).get('announcement') : null
+  return id && /^\d+$/.test(id) ? id : null
+}
 
 // Subscribes this browser and registers it with the server. `prompt` must
 // only be true when called from a click (see utils/push.js).
@@ -23,6 +32,9 @@ async function registerPush(publicKey, { prompt }) {
 export function NotificationProvider({ children }) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // { id, fallback } of the announcement whose details modal is open.
+  const [openAnnouncementState, setOpenAnnouncementState] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [importantAnnouncements, setImportantAnnouncements] = useState([])
@@ -126,6 +138,28 @@ export function NotificationProvider({ children }) {
     }
   }, [user, refresh, refreshAnnouncements])
 
+  // A pushed announcement (or any "?announcement=<id>" link) opens its details
+  // once the signed-in user has loaded; closing the modal drops the parameter.
+  const linkedAnnouncementId = user ? announcementIdFromLink(location.search) : null
+  const shownAnnouncement = openAnnouncementState
+    ?? (linkedAnnouncementId ? { id: linkedAnnouncementId, fallback: null } : null)
+
+  // `announcement` is a pinned announcement or an ANNOUNCEMENT notification.
+  const openAnnouncement = useCallback((announcement) => {
+    const id = announcement?.type === 'ANNOUNCEMENT'
+      ? announcementIdFromLink(announcement.link)
+      : announcement?.id
+    setOpenAnnouncementState({ id: id ?? null, fallback: announcement })
+  }, [])
+
+  const closeAnnouncement = useCallback(() => {
+    setOpenAnnouncementState(null)
+    const params = new URLSearchParams(location.search)
+    if (!params.has('announcement')) return
+    params.delete('announcement')
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true })
+  }, [location.pathname, location.search, navigate])
+
   const markRead = useCallback(async (id) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
     setUnreadCount((prev) => Math.max(0, prev - 1))
@@ -174,12 +208,20 @@ export function NotificationProvider({ children }) {
   return (
     <NotificationContext.Provider value={{
       notifications, unreadCount, markRead, markAllRead, removeNotification, clearAll, refresh,
-      importantAnnouncements, refreshAnnouncements, enablePush,
+      importantAnnouncements, refreshAnnouncements, enablePush, openAnnouncement,
       // Show the "Turn on" button only when the server supports push and
       // this browser hasn't been asked yet.
       canEnablePush: Boolean(vapidPublicKey) && pushPermission === 'default',
     }}>
       {children}
+      {shownAnnouncement && (
+        <AnnouncementDetailsModal
+          key={shownAnnouncement.id ?? 'fallback'}
+          announcementId={shownAnnouncement.id}
+          fallback={shownAnnouncement.fallback}
+          onClose={closeAnnouncement}
+        />
+      )}
     </NotificationContext.Provider>
   )
 }

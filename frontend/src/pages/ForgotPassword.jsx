@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { requestPasswordReset } from '../services/auth.service'
 import '../assets/styles/auth/LoginOTP.css'
+import RequiredMark from '../components/ui/RequiredMark.jsx'
 
 function ForgotPassword() {
   const navigate = useNavigate()
@@ -66,7 +67,7 @@ function ForgotPassword() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>Email address</span>
+            <span>Email address<RequiredMark /></span>
             <input
               type="email"
               placeholder="Enter your registered email"

@@ -10,6 +10,7 @@ import {
     verifyEmailChange,
 } from "../../services/auth.service.js";
 import "../../assets/styles/auth/LoginOTP.css";
+import RequiredMark from "../ui/RequiredMark.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -541,7 +542,7 @@ export default function UserProfile({ variant = "member" }) {
 
                         <form className="dash-form profile-password-form" onSubmit={handlePwSubmit}>
                             <label className="dash-form__field">
-                                Current Password
+                                <span>Current Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
                                     <input type={showCurPw ? "text" : "password"} name="currentPassword"
                                         value={pwForm.currentPassword} onChange={handlePwInput}
@@ -556,7 +557,7 @@ export default function UserProfile({ variant = "member" }) {
                             </label>
 
                             <label className="dash-form__field">
-                                New Password
+                                <span>New Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
                                     <input type={showNewPw ? "text" : "password"} name="newPassword"
                                         value={pwForm.newPassword} onChange={handlePwInput}
@@ -573,7 +574,7 @@ export default function UserProfile({ variant = "member" }) {
                             </label>
 
                             <label className="dash-form__field">
-                                Confirm New Password
+                                <span>Confirm New Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
                                     <input type={showConPw ? "text" : "password"} name="confirmNewPassword"
                                         value={pwForm.confirmNewPassword} onChange={handlePwInput}
@@ -650,7 +651,7 @@ export default function UserProfile({ variant = "member" }) {
 
                                 <form className="auth-form" onSubmit={handleSendCode}>
                                     <label className="field">
-                                        <span>New CvSU email</span>
+                                        <span>New CvSU email<RequiredMark /></span>
                                         <input
                                             ref={emailInputRef}
                                             type="email"

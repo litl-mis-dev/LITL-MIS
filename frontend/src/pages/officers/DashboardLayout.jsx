@@ -12,6 +12,7 @@ const pagePaths = {
     "hash-chain": "/officers/hash-chain",
     "activity-logs": "/officers/activity-logs",
     settings: "/officers/settings",
+    history: "/officers/history",
     events: "/officers/events",
     documents: "/officers/documents",
     certification: "/officers/certification",

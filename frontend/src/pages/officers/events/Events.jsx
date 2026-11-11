@@ -9,6 +9,11 @@ import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, g
 import { getSocket } from "../../../services/socket.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
+import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import {
+    CLASS_HOURS_END, CLASS_HOURS_MESSAGE, CLASS_HOURS_START, PAST_DATE_MESSAGE,
+    isPastDate, isWithinClassHours, minScheduleDate, todayDateString,
+} from "../../../utils/formInputs.js";
 
 const accessOptions        = ["Members", "Officers"];
 const maxDescriptionLength = 2000;
@@ -27,8 +32,11 @@ const monthOptions = [
 const emptyEvent = {
     title: "", date: "", time: "", location: "", Proponent: "",
     description: "", status: "Coming soon", access: ["Officers"],
-    hasGoogleForm: false, googleFormUrl: "",
+    hasGoogleForm: false, googleFormUrl: "", budget: "",
 };
+
+// Events are shown by status in this order, then by date and time.
+const STATUS_SORT_ORDER = { "Open": 0, "Coming soon": 1, "Closed": 2, "Cancelled": 3 };
 
 export default function Events() {
     const navigate = useNavigate();
@@ -61,6 +69,7 @@ export default function Events() {
     const [formEvent,               setFormEvent]               = useState(emptyEvent);
     const [editingEvent,            setEditingEvent]            = useState(null);
     const [isSaving,                setIsSaving]                = useState(false);
+    const [formError,               setFormError]               = useState("");
 
     const scannerRef               = useRef(null);
     const scannerRestartTimeoutRef = useRef(null);
@@ -91,10 +100,12 @@ export default function Events() {
                     && (filters.month  === "All" || mo === filters.month)
                     && (filters.year   === "All" || yr === filters.year);
             })
-            .sort((a, b) => {
-                if (isHappeningEvent(a) !== isHappeningEvent(b)) return isHappeningEvent(a) ? -1 : 1;
-                return a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
-            });
+            .sort((a, b) =>
+                (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99)
+                || a.date.localeCompare(b.date)
+                || a.time.localeCompare(b.time)
+                || a.id - b.id
+            );
     }, [events, filters, searchTerm]);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
@@ -192,6 +203,9 @@ export default function Events() {
     async function handleAddEvent(e) {
         e.preventDefault();
         if (formEvent.access.length === 0) { setAccessError("Select at least one access option."); return; }
+        if (isPastDate(formEvent.date)) { setFormError(PAST_DATE_MESSAGE); return; }
+        if (!isWithinClassHours(formEvent.time)) { setFormError(CLASS_HOURS_MESSAGE); return; }
+        setFormError("");
         setIsSaving(true);
         try {
             const data = await createEvent({
@@ -204,8 +218,9 @@ export default function Events() {
             setAccessError("");
             setIsAddModalOpen(false);
             setIsSuccessDialogOpen(true);
-        } catch {
+        } catch (err) {
             // form stays open on error
+            setFormError(err.response?.data?.message ?? "Failed to create the event. Please try again.");
         } finally {
             setIsSaving(false);
         }
@@ -217,12 +232,13 @@ export default function Events() {
         if (field === "hasGoogleForm" && !value) setFormEvent(prev => ({ ...prev, googleFormUrl: "" }));
     }
 
-    function openAddEventModal() { setFormEvent(emptyEvent); setAccessError(""); setIsAddModalOpen(true); }
+    function openAddEventModal() { setFormEvent(emptyEvent); setAccessError(""); setFormError(""); setIsAddModalOpen(true); }
 
     function openEditEventModal() {
         if (!selectedEvent) return;
-        setEditingEvent({ ...selectedEvent });
+        setEditingEvent({ ...selectedEvent, budget: selectedEvent.budget ?? "" });
         setAccessError("");
+        setFormError("");
         setIsAccessModalOpen(true);
     }
 
@@ -238,6 +254,11 @@ export default function Events() {
         e.preventDefault();
         if (!editingEvent) return;
         if (editingEvent.access.length === 0) { setAccessError("Select at least one access option."); return; }
+        // An event whose date or time no longer fits the rules can still be
+        // saved, as long as that date or time wasn't changed.
+        if (editingEvent.date !== selectedEvent?.date && isPastDate(editingEvent.date)) { setFormError(PAST_DATE_MESSAGE); return; }
+        if (editingEvent.time !== selectedEvent?.time && !isWithinClassHours(editingEvent.time)) { setFormError(CLASS_HOURS_MESSAGE); return; }
+        setFormError("");
         setIsSaving(true);
         try {
             await updateEvent(editingEvent.id, {
@@ -246,7 +267,9 @@ export default function Events() {
             });
             await fetchEvents();
             closeEditEventModal();
-        } catch { } finally {
+        } catch (err) {
+            setFormError(err.response?.data?.message ?? "Failed to save the event. Please try again.");
+        } finally {
             setIsSaving(false);
         }
     }
@@ -360,7 +383,7 @@ export default function Events() {
                 <div className="card__header events-board__header">
                     <div>
                         <h2 className="card__title">Event Cards</h2>
-                        <p className="card__sub">Happening events appear first and can scan member QR codes.</p>
+                        <p className="card__sub">Sorted by status: Open, Coming soon, Closed, then Cancelled. Happening events can scan member QR codes.</p>
                     </div>
                     <div className="member-list-actions">
                         <label className="member-search">
@@ -403,6 +426,7 @@ export default function Events() {
                                 <dl className="event-card__meta">
                                     <div><dt>Time</dt><dd>{formatTime(event.time)}</dd></div>
                                     <div><dt>Place</dt><dd>{event.location}</dd></div>
+                                    <div><dt>Budget</dt><dd>{formatBudget(event.budget)}</dd></div>
                                     <div><dt>Access</dt><dd>{event.access.join(", ")}</dd></div>
                                     <div><dt>Attendance</dt><dd>{attendanceRecords[event.id]?.length ?? event.attendanceCount ?? 0}</dd></div>
                                 </dl>
@@ -432,27 +456,31 @@ export default function Events() {
                     <div className="member-modal__panel" role="dialog" aria-modal="true">
                         <ModalHeader eyebrow="Event" title="Add Event" onClose={() => setIsAddModalOpen(false)} />
                         <form className="member-modal__form" onSubmit={handleAddEvent}>
-                            <label className="dash-form__field">Event title
+                            <label className="dash-form__field"><span>Event title<RequiredMark /></span>
                                 <input value={formEvent.title} onChange={e => handleFormChange("title", e.target.value)} maxLength={50} required autoFocus />
                             </label>
-                            <label className="dash-form__field">Proponent
+                            <label className="dash-form__field"><span>Proponent<RequiredMark /></span>
                                 <input value={formEvent.Proponent} onChange={e => handleFormChange("Proponent", e.target.value)} maxLength={50} required />
                             </label>
-                            <label className="dash-form__field">Date
-                                <input type="date" value={formEvent.date} onChange={e => handleFormChange("date", e.target.value)} required />
+                            <label className="dash-form__field"><span>Date<RequiredMark /></span>
+                                <input type="date" value={formEvent.date} min={todayDateString()} onChange={e => handleFormChange("date", e.target.value)} required />
                             </label>
-                            <label className="dash-form__field">Time
-                                <input type="time" value={formEvent.time} onChange={e => handleFormChange("time", e.target.value)} required />
+                            <label className="dash-form__field"><span>Time<RequiredMark /></span>
+                                <input type="time" value={formEvent.time} min={CLASS_HOURS_START} max={CLASS_HOURS_END} onChange={e => handleFormChange("time", e.target.value)} required />
+                                <span className="event-form__hint">Class hours: 7:00 AM to 10:00 PM</span>
                             </label>
-                            <label className="dash-form__field">Location
+                            <label className="dash-form__field"><span>Location<RequiredMark /></span>
                                 <input value={formEvent.location} onChange={e => handleFormChange("location", e.target.value)} maxLength={50} required />
+                            </label>
+                            <label className="dash-form__field"><span>Budget (PHP)<RequiredMark /></span>
+                                <input type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" value={formEvent.budget} onChange={e => handleFormChange("budget", e.target.value)} placeholder="0.00" required />
                             </label>
                             <label className="dash-form__field">Status
                                 <select value={formEvent.status} onChange={e => handleFormChange("status", e.target.value)}>
                                     {addStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </label>
-                            <label className="dash-form__field event-form__wide">Description
+                            <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={formEvent.description} onChange={e => handleFormChange("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
                                 <span className="event-form__hint">{formEvent.description.length}/{maxDescriptionLength} characters</span>
                             </label>
@@ -461,12 +489,12 @@ export default function Events() {
                                 <span>Add Google Form URL link</span>
                             </label>
                             {formEvent.hasGoogleForm && (
-                                <label className="dash-form__field event-form__wide">Google Form URL
+                                <label className="dash-form__field event-form__wide"><span>Google Form URL<RequiredMark /></span>
                                     <input type="url" value={formEvent.googleFormUrl} onChange={e => handleFormChange("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." required />
                                 </label>
                             )}
                             <fieldset className="feature-checklist" aria-invalid={accessError ? "true" : "false"}>
-                                <legend>Allowed access</legend>
+                                <legend>Allowed access<RequiredMark /></legend>
                                 <div className="feature-checklist__grid">
                                     {accessOptions.map(role => (
                                         <label key={role} className="feature-checklist__item">
@@ -482,6 +510,7 @@ export default function Events() {
                                 </div>
                                 {accessError && <p className="event-form__error">{accessError}</p>}
                             </fieldset>
+                            {formError && <p className="event-form__error event-form__wide" role="alert">{formError}</p>}
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={() => setIsAddModalOpen(false)} disabled={isSaving}>Cancel</button>
                                 <button aria-busy={isSaving} type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Creating..." : "Create"}</button>
@@ -506,6 +535,7 @@ export default function Events() {
                                 <div><dt>Date and time</dt><dd>{formatDate(selectedEvent.date)} | {formatTime(selectedEvent.time)}</dd></div>
                                 <div><dt>Location</dt><dd>{selectedEvent.location}</dd></div>
                                 <div><dt>Proponent</dt><dd>{selectedEvent.Proponent}</dd></div>
+                                <div><dt>Budget</dt><dd>{formatBudget(selectedEvent.budget)}</dd></div>
                                 <div><dt>Access</dt><dd>{selectedEvent.access.join(", ")}</dd></div>
                                 <div><dt>Attendees</dt><dd>{selectedAttendance.length}</dd></div>
                                 {selectedEvent.googleFormUrl && (
@@ -573,27 +603,31 @@ export default function Events() {
                     <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true">
                         <ModalHeader eyebrow="Event settings" title="Edit Event" onClose={closeEditEventModal} />
                         <form className="member-modal__form" onSubmit={handleSaveEdit}>
-                            <label className="dash-form__field">Event title
+                            <label className="dash-form__field"><span>Event title<RequiredMark /></span>
                                 <input value={editingEvent.title} onChange={e => handleEditField("title", e.target.value)} maxLength={50} required />
                             </label>
-                            <label className="dash-form__field">Proponent
+                            <label className="dash-form__field"><span>Proponent<RequiredMark /></span>
                                 <input value={editingEvent.Proponent} onChange={e => handleEditField("Proponent", e.target.value)} maxLength={50} required />
                             </label>
-                            <label className="dash-form__field">Date
-                                <input type="date" value={editingEvent.date} onChange={e => handleEditField("date", e.target.value)} required />
+                            <label className="dash-form__field"><span>Date<RequiredMark /></span>
+                                <input type="date" value={editingEvent.date} min={minScheduleDate(selectedEvent?.date)} onChange={e => handleEditField("date", e.target.value)} required />
                             </label>
-                            <label className="dash-form__field">Time
-                                <input type="time" value={editingEvent.time} onChange={e => handleEditField("time", e.target.value)} required />
+                            <label className="dash-form__field"><span>Time<RequiredMark /></span>
+                                <input type="time" value={editingEvent.time} {...(editingEvent.time !== selectedEvent?.time && { min: CLASS_HOURS_START, max: CLASS_HOURS_END })} onChange={e => handleEditField("time", e.target.value)} required />
+                                <span className="event-form__hint">Class hours: 7:00 AM to 10:00 PM</span>
                             </label>
-                            <label className="dash-form__field">Location
+                            <label className="dash-form__field"><span>Location<RequiredMark /></span>
                                 <input value={editingEvent.location} onChange={e => handleEditField("location", e.target.value)} maxLength={50} required />
+                            </label>
+                            <label className="dash-form__field"><span>Budget (PHP)<RequiredMark /></span>
+                                <input type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" value={editingEvent.budget} onChange={e => handleEditField("budget", e.target.value)} placeholder="0.00" required />
                             </label>
                             <label className="dash-form__field">Status
                                 <select value={editingEvent.status} onChange={e => handleEditField("status", e.target.value)}>
                                     {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </label>
-                            <label className="dash-form__field event-form__wide">Description
+                            <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={editingEvent.description} onChange={e => handleEditField("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
                                 <span className="event-form__hint">{editingEvent.description.length}/{maxDescriptionLength} characters</span>
                             </label>
@@ -602,12 +636,12 @@ export default function Events() {
                                 <span>Add Google Form URL link</span>
                             </label>
                             {editingEvent.hasGoogleForm && (
-                                <label className="dash-form__field event-form__wide">Google Form URL
+                                <label className="dash-form__field event-form__wide"><span>Google Form URL<RequiredMark /></span>
                                     <input type="url" value={editingEvent.googleFormUrl} onChange={e => handleEditField("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." required />
                                 </label>
                             )}
                             <fieldset className="filter-checklist">
-                                <legend>Allowed access</legend>
+                                <legend>Allowed access<RequiredMark /></legend>
                                 <div className="filter-checklist__grid">
                                     {accessOptions.map(role => (
                                         <label key={role} className="feature-checklist__item">
@@ -623,6 +657,7 @@ export default function Events() {
                                 </div>
                                 {accessError && <p className="event-form__error">{accessError}</p>}
                             </fieldset>
+                            {formError && <p className="event-form__error event-form__wide" role="alert">{formError}</p>}
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={closeEditEventModal} disabled={isSaving}>Cancel</button>
                                 <button aria-busy={isSaving} type="submit" className="btn btn--primary" disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</button>
@@ -746,6 +781,11 @@ function ModalHeader({ eyebrow, title, onClose }) {
 function formatDate(v) {
     if (!v) return "Date to be set";
     return new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(`${v}T00:00:00`));
+}
+
+function formatBudget(v) {
+    if (v === null || v === undefined || v === "") return "Not set";
+    return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(Number(v));
 }
 
 function formatTime(v) {

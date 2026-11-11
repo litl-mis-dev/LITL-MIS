@@ -33,6 +33,7 @@ router.post('/payments/send-reminders',         requireModule('FINANCIAL', 'EDIT
 // Fund Categories
 router.get('/categories',        requireModule('FINANCIAL', 'VIEW'), categoryCtrl.listCategories)
 router.post('/categories/batch', requireModule('FINANCIAL', 'EDIT'), categoryCtrl.createCategoriesBatch)
+router.put('/categories',        requireModule('FINANCIAL', 'EDIT'), categoryCtrl.updateCategories)
 router.delete('/categories/:id', requireModule('FINANCIAL', 'EDIT'), categoryCtrl.archiveCategory)
 
 // Disbursements
@@ -47,7 +48,7 @@ router.get('/return-funds/:id',    requireModule('FINANCIAL', 'VIEW'), returnFun
 router.post('/return-funds',       requireModule('FINANCIAL', 'EDIT'), returnFundCtrl.createReturnFund)
 router.delete('/return-funds/:id', requireModule('FINANCIAL', 'EDIT'), returnFundCtrl.archiveReturnFund)
 
-// Archive — read-only history of any semester (Settings ▸ Archive). GET only,
+// Archive — read-only history of any semester (History ▸ Archive). GET only,
 // and FINANCIAL VIEW like every other Financial read. The disbursement /
 // return-fund lists withhold document signatories unless the caller also has
 // FINANCIAL EDIT, mirroring who can download certificates.

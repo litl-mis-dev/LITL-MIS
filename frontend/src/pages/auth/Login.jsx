@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import AuthHeader from '../../components/AuthHeader'
 import { ROLE_HOME } from '../../utils/roles'
 import '../../assets/styles/auth/LoginOTP.css'
+import RequiredMark from '../../components/ui/RequiredMark.jsx'
 
 function IconInput({ icon, error, ...props }) {
   return (
@@ -61,7 +62,7 @@ function Login() {
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <label className="field">
-              <span>Email or Student Number</span>
+              <span>Email or Student Number<RequiredMark /></span>
               <input
                 type="text"
                 name="identifier"
@@ -74,7 +75,7 @@ function Login() {
             </label>
 
             <label className="field">
-              <span>Password</span>
+              <span>Password<RequiredMark /></span>
               <div className="password-field">
                 <IconInput
                   type={visiblePassword ? 'text' : 'password'}

@@ -366,24 +366,46 @@ async function notifyAuditStatusChanged(subjectLabel, previousStatus, newStatus,
   })
 }
 
-// ── Custom announcements ────────────────────────────────────────────────────
-async function notifyAnnouncement(announcement) {
-  const { recipients, title, message } = announcement
+// ── Membership payment reminders ────────────────────────────────────────────
+// Sent alongside the reminder email, to that member's own account only.
+async function notifyPaymentReminder(userId, semesterLabel) {
+  return createNotification({
+    userId,
+    type: 'PAYMENT_REMINDER',
+    title: 'Membership Payment Reminder',
+    message: `Our records show an unpaid membership fee for ${semesterLabel}. Kindly settle your payment at your earliest convenience to keep your membership active.`,
+    link: '/members/membership',
+  })
+}
 
-  let userIds = []
+// ── Custom announcements ────────────────────────────────────────────────────
+// Only the selected recipient group is notified (and pushed to). The link
+// opens the announcement's details on that group's own dashboard.
+async function notifyAnnouncement(announcement) {
+  const { id, recipients, title, message } = announcement
+
   if (recipients === 'MEMBERS' || recipients === 'BOTH') {
-    userIds = userIds.concat(await getApprovedMemberIds())
+    const memberIds = await getApprovedMemberIds()
+    if (memberIds.length) {
+      await createNotificationForUsers(memberIds, {
+        type: 'ANNOUNCEMENT',
+        title,
+        message,
+        link: `/members?announcement=${id}`,
+      })
+    }
   }
   if (recipients === 'OFFICERS' || recipients === 'BOTH') {
-    userIds = userIds.concat(await getApprovedOfficerIds())
+    const officerIds = await getApprovedOfficerIds()
+    if (officerIds.length) {
+      await createNotificationForUsers(officerIds, {
+        type: 'ANNOUNCEMENT',
+        title,
+        message,
+        link: `/officers/dashboard?announcement=${id}`,
+      })
+    }
   }
-  if (userIds.length === 0) return
-
-  await createNotificationForUsers(userIds, {
-    type: 'ANNOUNCEMENT',
-    title,
-    message,
-  })
 }
 
 module.exports = {
@@ -399,4 +421,5 @@ module.exports = {
   notifyAuditStatusChanged,
   syncMemberApprovalNotifications,
   notifyAnnouncement,
+  notifyPaymentReminder,
 }

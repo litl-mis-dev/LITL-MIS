@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import AuthHeader from '../../components/AuthHeader'
 import { acceptAdviserInvite, lookupAdviserInvite } from '../../services/adviser.service'
 import '../../assets/styles/auth/LoginOTP.css'
+import RequiredMark from '../../components/ui/RequiredMark.jsx'
+import { formatPersonName } from '../../utils/formInputs.js'
+
+const NAME_FIELDS = new Set(['firstName', 'lastName'])
 
 // Opened from the President's invitation email:
 //   https://litltrece.me/adviser-invite#token=…
@@ -57,7 +61,10 @@ export default function AcceptAdviserInvite() {
     }
   }
 
-  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const update = (field) => (e) => setForm({
+    ...form,
+    [field]: NAME_FIELDS.has(field) ? formatPersonName(e.target.value) : e.target.value,
+  })
 
   return (
     <main className="auth-page">
@@ -81,11 +88,11 @@ export default function AcceptAdviserInvite() {
                 <input type="email" value={invite.email} readOnly autoComplete="username" />
               </label>
               <label className="field">
-                <span>First name</span>
+                <span>First name<RequiredMark /></span>
                 <input type="text" value={form.firstName} onChange={update('firstName')} required maxLength={30} autoComplete="given-name" />
               </label>
               <label className="field">
-                <span>Last name</span>
+                <span>Last name<RequiredMark /></span>
                 <input type="text" value={form.lastName} onChange={update('lastName')} required maxLength={30} autoComplete="family-name" />
               </label>
               <label className="field">
@@ -93,7 +100,7 @@ export default function AcceptAdviserInvite() {
                 <input type="text" value={form.suffix} onChange={update('suffix')} maxLength={10} placeholder="Jr., III" />
               </label>
               <label className="field">
-                <span>Sex</span>
+                <span>Sex<RequiredMark /></span>
                 <select value={form.sex} onChange={update('sex')} required>
                   <option value="" disabled>Select</option>
                   <option value="MALE">Male</option>
@@ -102,11 +109,11 @@ export default function AcceptAdviserInvite() {
                 </select>
               </label>
               <label className="field">
-                <span>Password</span>
+                <span>Password<RequiredMark /></span>
                 <input type="password" value={form.password} onChange={update('password')} required autoComplete="new-password" />
               </label>
               <label className="field">
-                <span>Confirm password</span>
+                <span>Confirm password<RequiredMark /></span>
                 <input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} required autoComplete="new-password" />
               </label>
               <p className="text-xs text-gray-500">
