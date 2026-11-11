@@ -48,7 +48,14 @@ const fakePrisma = {
       return user
     },
     update: async ({ where, data }) => Object.assign(db.users.find((u) => u.id === where.id), data),
+    updateMany: async ({ where, data }) => {
+      const rows = db.users.filter((u) => matches(u, where))
+      rows.forEach((u) => Object.assign(u, data))
+      return { count: rows.length }
+    },
   },
+  // Nobody is on the member roster in these tests.
+  memberRoster: { findUnique: async () => null },
   member: {
     findUnique: async ({ where }) => {
       const m = db.members.find((x) => x.id === where.id)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import MembershipPaymentSection from "./MembershipPaymentSection.jsx";
+import ModalPortal from "../../../components/ui/ModalPortal.jsx";
 
 const scannerElementId = "officers-member-qr-reader";
 
@@ -170,85 +171,87 @@ export default function MemberLookupModal({ members, onClose, onPaymentRecorded,
     }, [scannerSessionKey]);
 
     return (
-        <div className="member-modal event-modal" role="presentation" onClick={handleBackdropClick}>
-            <div className="member-modal__panel member-modal__panel--lookup" role="dialog" aria-modal="true">
-                <ModalHeader eyebrow="Member lookup" title="Scan Member QR" onClose={closeModal} />
-                <div className="filter-modal__body member-lookup">
-                    <div className="member-lookup__grid">
-                        <section className="member-lookup__camera" aria-label="QR scanner">
-                            <div className="member-lookup__section-head">
-                                <h3>Camera</h3>
-                                <span>{scannerStatus && !scanResult ? "Scanning" : scanResult ? "Paused" : "Ready"}</span>
-                            </div>
-                            <div className="qr-scanner">
-                                <div key={scannerSessionKey} id={scannerElementId} className="qr-scanner__reader" />
-                                {scannerStatus && !scanResult && (
-                                    <p className="qr-scanner__status">{scannerStatus}</p>
-                                )}
-                            </div>
-                        </section>
-
-                        <aside className="member-lookup__side">
-                            <section className="member-lookup-card qr-attendance-list">
+        <ModalPortal>
+            <div className="member-modal event-modal" role="presentation" onClick={handleBackdropClick}>
+                <div className="member-modal__panel member-modal__panel--lookup" role="dialog" aria-modal="true">
+                    <ModalHeader eyebrow="Member lookup" title="Scan Member QR" onClose={closeModal} />
+                    <div className="filter-modal__body member-lookup">
+                        <div className="member-lookup__grid">
+                            <section className="member-lookup__camera" aria-label="QR scanner">
                                 <div className="member-lookup__section-head">
-                                    <h3>Member Details</h3>
-                                    {scannedMember && (
-                                        <span className={`member-lookup__pill member-lookup__pill--${scannedMember.isPaid ? "paid" : "unpaid"}`}>
-                                            {scannedMember.isPaid ? "Paid" : "Unpaid"}
-                                        </span>
+                                    <h3>Camera</h3>
+                                    <span>{scannerStatus && !scanResult ? "Scanning" : scanResult ? "Paused" : "Ready"}</span>
+                                </div>
+                                <div className="qr-scanner">
+                                    <div key={scannerSessionKey} id={scannerElementId} className="qr-scanner__reader" />
+                                    {scannerStatus && !scanResult && (
+                                        <p className="qr-scanner__status">{scannerStatus}</p>
                                     )}
                                 </div>
-                                {scannedMember ? (
-                                    <>
-                                        <div className="attendance-list__item">
-                                            <span>Name</span>
-                                            <strong>{scannedMember.name}</strong>
-                                        </div>
-                                        <div className="attendance-list__item">
-                                            <span>Student No.</span>
-                                            <strong>{scannedMember.studentNumber}</strong>
-                                        </div>
-                                        <div className="attendance-list__item">
-                                            <span>Year &amp; Section</span>
-                                            <strong>{scannedMember.yearLevel}-{scannedMember.section}</strong>
-                                        </div>
-                                        <div className="attendance-list__item">
-                                            <span>Active Semester</span>
-                                            <strong>{scannedMember.isPaid ? "Paid" : "Unpaid"}</strong>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <p className="attendance-list__empty">Scan a QR code to check an approved member.</p>
-                                )}
                             </section>
 
-                            {scanResult && (
-                                <div className={`qr-scan-result ${scannerError ? "qr-scan-result--warning" : ""}`}>
-                                    <span>{scannerError ? "QR not found" : "Member found"}</span>
-                                    <strong>{scannerError ? formatQrPreview(scanResult) : scannedMember?.studentNumber}</strong>
-                                </div>
-                            )}
-                        </aside>
-                    </div>
+                            <aside className="member-lookup__side">
+                                <section className="member-lookup-card qr-attendance-list">
+                                    <div className="member-lookup__section-head">
+                                        <h3>Member Details</h3>
+                                        {scannedMember && (
+                                            <span className={`member-lookup__pill member-lookup__pill--${scannedMember.isPaid ? "paid" : "unpaid"}`}>
+                                                {scannedMember.isPaid ? "Paid" : "Unpaid"}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {scannedMember ? (
+                                        <>
+                                            <div className="attendance-list__item">
+                                                <span>Name</span>
+                                                <strong>{scannedMember.name}</strong>
+                                            </div>
+                                            <div className="attendance-list__item">
+                                                <span>Student No.</span>
+                                                <strong>{scannedMember.studentNumber}</strong>
+                                            </div>
+                                            <div className="attendance-list__item">
+                                                <span>Year &amp; Section</span>
+                                                <strong>{scannedMember.yearLevel}-{scannedMember.section}</strong>
+                                            </div>
+                                            <div className="attendance-list__item">
+                                                <span>Active Semester</span>
+                                                <strong>{scannedMember.isPaid ? "Paid" : "Unpaid"}</strong>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="attendance-list__empty">Scan a QR code to check an approved member.</p>
+                                    )}
+                                </section>
 
-                    {scannedMember && (
-                        <MembershipPaymentSection
-                            member={scannedMember}
-                            paymentHistory={paymentHistory}
-                            historyLoading={paymentHistoryLoading}
-                            canManage
-                            onRecorded={handlePaymentRecorded}
-                        />
-                    )}
-                    {scannerError && <p className="event-form__error">{scannerError}</p>}
-                </div>
-                <div className="member-modal__footer">
-                    <button type="button" className="btn btn--outline" onClick={() => restartScanner()}>
-                        Scan Again
-                    </button>
+                                {scanResult && (
+                                    <div className={`qr-scan-result ${scannerError ? "qr-scan-result--warning" : ""}`}>
+                                        <span>{scannerError ? "QR not found" : "Member found"}</span>
+                                        <strong>{scannerError ? formatQrPreview(scanResult) : scannedMember?.studentNumber}</strong>
+                                    </div>
+                                )}
+                            </aside>
+                        </div>
+
+                        {scannedMember && (
+                            <MembershipPaymentSection
+                                member={scannedMember}
+                                paymentHistory={paymentHistory}
+                                historyLoading={paymentHistoryLoading}
+                                canManage
+                                onRecorded={handlePaymentRecorded}
+                            />
+                        )}
+                        {scannerError && <p className="event-form__error">{scannerError}</p>}
+                    </div>
+                    <div className="member-modal__footer">
+                        <button type="button" className="btn btn--outline" onClick={() => restartScanner()}>
+                            Scan Again
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </ModalPortal>
     );
 }
 

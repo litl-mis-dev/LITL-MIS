@@ -33,9 +33,9 @@ export const recordPayment = (memberId, amount, expectedSemesterIds) => api.post
 export const getMemberPaymentHistory = (memberId) => api.get(`/financial/members/${memberId}/payment-history`).then(r => r.data)
 
 // Payment reminder emails
-export const sendPaymentReminder = (memberId) => api.post(`/financial/members/${memberId}/send-reminder`).then(r => r.data)
 
-export const sendBulkPaymentReminders = () => api.post('/financial/payments/send-reminders').then(r => r.data)
+// Only the given members are emailed (the server re-checks each one is unpaid and active).
+export const sendBulkPaymentReminders = (memberIds) => api.post('/financial/payments/send-reminders', { memberIds }).then(r => r.data)
 
 // Fund Categories
 export const listCategories = () => api.get('/financial/categories').then(r => r.data)

@@ -111,7 +111,8 @@ export function NotificationProvider({ children }) {
       // A new ANNOUNCEMENT-type notification means an officer just sent one —
       // refetch the pinned Important Announcements list in case this one
       // (or another the officer sent alongside it) belongs there.
-      if (notification.type === 'ANNOUNCEMENT') {
+      // A payment reminder is pinned there as well.
+      if (notification.type === 'ANNOUNCEMENT' || notification.type === 'PAYMENT_REMINDER') {
         refreshAnnouncements()
       }
     }
@@ -145,10 +146,11 @@ export function NotificationProvider({ children }) {
     ?? (linkedAnnouncementId ? { id: linkedAnnouncementId, fallback: null } : null)
 
   // `announcement` is a pinned announcement or an ANNOUNCEMENT notification.
+  // A pinned payment reminder already carries everything it shows.
   const openAnnouncement = useCallback((announcement) => {
     const id = announcement?.type === 'ANNOUNCEMENT'
       ? announcementIdFromLink(announcement.link)
-      : announcement?.id
+      : announcement?.kind === 'PAYMENT_REMINDER' ? null : announcement?.id
     setOpenAnnouncementState({ id: id ?? null, fallback: announcement })
   }, [])
 

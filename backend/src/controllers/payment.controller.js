@@ -21,21 +21,6 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').repla
 const CERTIFICATE_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const SEMESTER_LABELS_REMINDER = { FIRST: '1st Semester', SECOND: '2nd Semester' }
 
-// Determine whether a member has a settled/paid record for the given active
-// semester (mirrors the "isPaid" logic used in officer.controller.getApprovedMembers).
-async function isMemberPaidForSemester(memberId, activeSemesterId) {
-  const payment = await prisma.payment.findFirst({
-    where: {
-      memberId,
-      semesterId: activeSemesterId,
-      obligationSemesterId: activeSemesterId,
-      isArchived: false,
-    },
-    select: { id: true }
-  })
-  return Boolean(payment)
-}
-
 function generateCertificateIdCandidate() {
   let id = ''
   const bytes = crypto.randomBytes(8)
@@ -588,71 +573,29 @@ const getMyPaymentHistory = async (req, res) => {
   }
 }
 
-// POST /api/financial/members/:memberId/send-reminder
-// Sends a payment reminder email to a single member — only if they are
-// unpaid/have an unsettled membership fee for the current active semester.
-const sendPaymentReminder = async (req, res) => {
-  try {
-    const memberId = Number(req.params.memberId)
+// POST /api/financial/payments/send-reminders   body: { memberIds: [...] }
+// Sends a payment reminder email to the SELECTED members only — and of those,
+// only to APPROVED, ACTIVE members who are unpaid/have an unsettled membership
+// fee for the current active semester. Anyone else in the selection (paid,
+// inactive, no email address) is skipped and counted, never emailed.
+const MAX_REMINDER_SELECTION = 2000
 
-    const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
-    if (!activeSemester) return res.status(400).json({ message: 'No active semester.' })
-
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
-      include: { user: { select: { id: true, email: true, status: true, role: true } } }
-    })
-    if (!member) return res.status(404).json({ message: 'Member not found.' })
-    if (NON_MEMBER_ROLES.includes(member.user?.role)) {
-      return res.status(400).json({ message: 'Advisers are not members and have no membership payments.' })
-    }
-    if (!member.user?.email) return res.status(400).json({ message: 'Member has no email address on file.' })
-
-    const alreadyPaid = await isMemberPaidForSemester(memberId, activeSemester.id)
-    if (alreadyPaid) {
-      return res.status(400).json({ message: 'This member has already paid for the current semester.' })
-    }
-
-    const memberName = [member.firstName, member.middleName, member.lastName, member.suffix].filter(Boolean).join(' ')
-    const semesterLabel = `${activeSemester.schoolYear} ${SEMESTER_LABELS_REMINDER[activeSemester.semester]}`
-
-    await sendPaymentReminderEmail(member.user.email, memberName, semesterLabel)
-
-    // The email went out — also put the reminder in the member's notifications.
-    await notifyPaymentReminder(member.user.id, semesterLabel).catch((err) => logError('Notify payment reminder', err))
-
-    await writeAuditLog({
-      actorId: req.user.id,
-      targetUserId: member.user.id,
-      action: AUDIT_ACTIONS.PAYMENT_REMINDER_SENT,
-      details: {
-        memberId: member.id,
-        memberName,
-        email: member.user.email,
-        semesterLabel,
-        activeSemesterId: activeSemester.id,
-        recipientCount: 1,
-      }
-    })
-
-    return res.json({ message: `Reminder email sent to ${memberName || member.user.email}.` })
-  } catch (err) {
-    logError('Send payment reminder', err)
-    return res.status(500).json({ message: 'Something went wrong.' })
-  }
-}
-
-// POST /api/financial/payments/send-reminders
-// Sends a payment reminder email to every APPROVED, ACTIVE member who is
-// unpaid/has an unsettled membership fee for the current active semester.
-// Paid members (and members without an email address) are skipped.
 const sendBulkPaymentReminders = async (req, res) => {
   try {
+    const { memberIds } = req.body ?? {}
+    if (!Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({ message: 'Select at least one member to remind.' })
+    }
+    const selectedIds = [...new Set(memberIds.map(Number))]
+    if (selectedIds.length > MAX_REMINDER_SELECTION || !selectedIds.every((id) => Number.isInteger(id) && id > 0)) {
+      return res.status(400).json({ message: 'The member selection is invalid.' })
+    }
+
     const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
     if (!activeSemester) return res.status(400).json({ message: 'No active semester.' })
 
     const members = await prisma.member.findMany({
-      where: { status: 'ACTIVE', user: { status: 'APPROVED', ...MEMBERSHIP_USER_FILTER } },
+      where: { id: { in: selectedIds }, status: 'ACTIVE', user: { status: 'APPROVED', ...MEMBERSHIP_USER_FILTER } },
       include: { user: { select: { id: true, email: true } } }
     })
 
@@ -668,8 +611,10 @@ const sendBulkPaymentReminders = async (req, res) => {
     const paidMemberIds = new Set(paidRows.map((p) => p.memberId))
     const unpaidMembers = members.filter((m) => m.user?.email && !paidMemberIds.has(m.id))
 
+    const skippedCount = selectedIds.length - unpaidMembers.length
+
     if (unpaidMembers.length === 0) {
-      return res.json({ message: 'No unpaid members to remind — everyone is settled for this semester.', sentCount: 0 })
+      return res.status(400).json({ message: 'None of the selected members can be reminded — they have already paid, are inactive, or have no email address.', sentCount: 0, skippedCount })
     }
 
     const semesterLabel = `${activeSemester.schoolYear} ${SEMESTER_LABELS_REMINDER[activeSemester.semester]}`
@@ -713,9 +658,12 @@ const sendBulkPaymentReminders = async (req, res) => {
     }
 
     return res.json({
-      message: `Reminder emails sent to ${sent.length} member${sent.length !== 1 ? 's' : ''}.${failed.length ? ` ${failed.length} failed to send.` : ''}`,
+      message: `Payment reminder sent to ${sent.length} member${sent.length !== 1 ? 's' : ''}.`
+        + `${failed.length ? ` ${failed.length} failed to send.` : ''}`
+        + `${skippedCount ? ` ${skippedCount} skipped (already paid, inactive or no email).` : ''}`,
       sentCount: sent.length,
       failedCount: failed.length,
+      skippedCount,
     })
   } catch (err) {
     logError('Send bulk payment reminders', err)
@@ -725,5 +673,5 @@ const sendBulkPaymentReminders = async (req, res) => {
 
 module.exports = {
   listPayments, recordPayment, previewPayment, getMemberPaymentHistory, archivePayment, getMyPaymentHistory,
-  sendPaymentReminder, sendBulkPaymentReminders
+  sendBulkPaymentReminders
 }

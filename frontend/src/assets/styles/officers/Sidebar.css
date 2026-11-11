@@ -8,7 +8,7 @@
   color: var(--text);
   display: flex;
   flex-direction: column;
-  z-index: 200;
+  z-index: var(--z-sidebar);
   transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.26s ease;
   overflow-y: auto;
   overflow-x: hidden;
@@ -24,7 +24,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 190;
+  z-index: calc(var(--z-sidebar) - 10);
 }
 
 .sidebar__brand {
@@ -298,7 +298,7 @@
   .sidebar--collapsed:hover {
     width: 240px;
     box-shadow: 8px 0 32px rgba(15, 23, 42, 0.2);
-    z-index: 250;
+    z-index: calc(var(--z-sidebar) + 50);
   }
 
   .sidebar--collapsed:hover .sidebar__brand {

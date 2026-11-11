@@ -27,7 +27,6 @@ router.post('/payments/preview', requireModule('FINANCIAL', 'EDIT'), paymentCtrl
 router.post('/payments',      requireModule('FINANCIAL', 'EDIT'), paymentCtrl.recordPayment)
 router.get('/members/:memberId/payment-history', requireModule('FINANCIAL', 'VIEW'), paymentCtrl.getMemberPaymentHistory)
 
-router.post('/members/:memberId/send-reminder', requireModule('FINANCIAL', 'EDIT'), paymentCtrl.sendPaymentReminder)
 router.post('/payments/send-reminders',         requireModule('FINANCIAL', 'EDIT'), paymentCtrl.sendBulkPaymentReminders)
 
 // Fund Categories

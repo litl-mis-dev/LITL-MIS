@@ -1464,7 +1464,7 @@ button {
 }
 
 .profile-message-modal {
-  z-index: 1500;
+  z-index: var(--z-dialog);
 }
 
 .profile-message-modal__panel {
@@ -1597,7 +1597,7 @@ button {
 .member-modal {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1619,21 +1619,6 @@ button {
   max-height: calc(100vh - 108px);
   max-height: calc(100dvh - 108px);
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
-}
-
-@media (min-width: 1024px) {
-  .event-modal {
-    left: 240px;
-    transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Sidebar collapsed: let the modal background start at the collapsed
-     sidebar edge instead of leaving an empty gap. Kept below the
-     hover-expanded sidebar (z-index 250) so that still opens on top. */
-  .dash--collapsed .event-modal {
-    left: 72px;
-    z-index: 240;
-  }
 }
 
 .member-modal__panel {
@@ -3651,7 +3636,7 @@ button {
 }
 
 .audit-modal {
-  z-index: 5000;
+  z-index: var(--z-modal);
 }
 
 .audit-modal .member-modal__panel {
@@ -5851,5 +5836,83 @@ button {
 
   .card-picker__meta {
     grid-column: 2;
+  }
+}
+
+/* ── Member roster (members-list/MemberRosterPanel.jsx) ───────────────────── */
+.roster-card {
+  margin-bottom: 16px;
+}
+
+.roster-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.roster-summary div {
+  padding: 10px 12px;
+  border: 1px solid #f1e8d9;
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.roster-summary dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.roster-summary dd {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.roster-list h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.roster-list .card-picker__list {
+  max-height: 220px;
+}
+
+.roster-list__item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.roster-list__item strong {
+  color: #111827;
+}
+
+.roster-list__item--row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.roster-list__status {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .roster-list__item--row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .roster-list__status {
+    grid-column: 1;
   }
 }

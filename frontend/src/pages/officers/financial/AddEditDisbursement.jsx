@@ -4,6 +4,7 @@ import { listCategories, createDisbursement } from '../../../services/financial.
 import { getSignatories } from '../../../services/officer.service'
 import RequiredMark from '../../../components/ui/RequiredMark.jsx'
 import { formatPersonName } from '../../../utils/formInputs.js'
+import ModalPortal from '../../../components/ui/ModalPortal.jsx'
 
 // Fields holding a person's name — capitalized as they're typed.
 const NAME_FIELDS = new Set(['name', 'receivedBy'])
@@ -238,168 +239,170 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
       )}
 
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 px-4 py-6">
-          <div className="max-h-[calc(100vh-108px)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+        <ModalPortal>
+          <div className="fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 px-4 py-6">
+            <div className="max-h-[calc(100vh-108px)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl">
 
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {step === 'form' ? 'Add Disbursement' : 'Confirm Disbursement'}
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {step === 'form'
-                    ? 'Complete all details. You will review before submitting.'
-                    : 'Review the summary carefully before confirming.'}
-                </p>
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {step === 'form' ? 'Add Disbursement' : 'Confirm Disbursement'}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {step === 'form'
+                      ? 'Complete all details. You will review before submitting.'
+                      : 'Review the summary carefully before confirming.'}
+                  </p>
+                </div>
+                <button type="button" onClick={closeModal} disabled={isSubmitting}
+                  className="rounded-md px-2 py-1 text-2xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40"
+                  aria-label="Close modal">&times;</button>
               </div>
-              <button type="button" onClick={closeModal} disabled={isSubmitting}
-                className="rounded-md px-2 py-1 text-2xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40"
-                aria-label="Close modal">&times;</button>
+
+              {/* ── FORM STEP ─────────────────────────────────────────────── */}
+              {step === 'form' && (
+                <form onSubmit={handleReviewSubmit} className="space-y-4 px-6 py-5">
+                  {signatoriesError && <p className="text-sm text-red-600">{signatoriesError}</p>}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-name">Name<RequiredMark /></label>
+                    <input id="dis-name" name="name" type="text" value={formData.name}
+                      onChange={handleTextChange} maxLength={50}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                      placeholder="Enter recipient name" />
+                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-category">Source of Fund<RequiredMark /></label>
+                    <select id="dis-category" name="fundCategoryId" value={formData.fundCategoryId}
+                      onChange={handleSelectChange}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200">
+                      <option value="">Select source</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.isTurnoverFund ? '↻ ' : ''}{cat.name} — Available: ₱{Number(cat.availableFund).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.fundCategoryId && <p className="mt-1 text-sm text-red-600">{errors.fundCategoryId}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-amount">Amount<RequiredMark /></label>
+                    <input id="dis-amount" name="amount" type="text" value={formData.amount}
+                      onChange={handleAmountChange}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                      placeholder="₱0.00" />
+                    {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount}</p>}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-purpose">Purpose of Fund<RequiredMark /></label>
+                      <input id="dis-purpose" name="purposeOfFund" type="text" value={formData.purposeOfFund}
+                        onChange={handleTextChange} maxLength={50}
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                        placeholder="Enter purpose" />
+                      {errors.purposeOfFund && <p className="mt-1 text-sm text-red-600">{errors.purposeOfFund}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-title">Title of Activity<RequiredMark /></label>
+                      <input id="dis-title" name="titleOfActivities" type="text" value={formData.titleOfActivities}
+                        onChange={handleTextChange} maxLength={50}
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                        placeholder="Enter activity" />
+                      {errors.titleOfActivities && <p className="mt-1 text-sm text-red-600">{errors.titleOfActivities}</p>}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="text-sm font-semibold text-gray-900">Signatories</h3>
+                    <div className="mt-3 grid gap-4 md:grid-cols-2">
+                      <SignatoryReadOnly nameLabel="Disbursed by" nameValue={formData.disbursedBy} positionValue={formData.disbursedByPosition} error={errors.disbursedBy} />
+                      <SignatoryReadOnly nameLabel="Approved by" nameValue={formData.approvedBy} positionValue={formData.approvedByPosition} error={errors.approvedBy} />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedBy">Received by<RequiredMark /></label>
+                        <input id="dis-receivedBy" name="receivedBy" type="text" value={formData.receivedBy}
+                          onChange={handleTextChange} maxLength={50}
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                          placeholder="Enter receiver name" />
+                        {errors.receivedBy && <p className="mt-1 text-sm text-red-600">{errors.receivedBy}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedByPos">Received by Position<RequiredMark /></label>
+                        <input id="dis-receivedByPos" name="receivedByPosition" type="text" value={formData.receivedByPosition}
+                          onChange={handleTextChange} maxLength={50}
+                          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                          placeholder="Enter receiver position" />
+                        {errors.receivedByPosition && <p className="mt-1 text-sm text-red-600">{errors.receivedByPosition}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={closeModal}
+                      className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                      Cancel
+                    </button>
+                    <button type="submit"
+                      className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)">
+                      Review & Submit
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* ── CONFIRM STEP ──────────────────────────────────────────── */}
+              {step === 'confirm' && snapshot && (
+                <div className="space-y-4 px-6 py-5">
+                  {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+
+                  {/* Transaction summary */}
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2">
+                    <SummaryRow label="Category"    value={selectedCategory?.name} />
+                    <SummaryRow label="Description" value={`${snapshot.purposeOfFund} — ${snapshot.titleOfActivities}`} />
+                    <SummaryRow label="Recipient"   value={snapshot.name} />
+                    <SummaryRow label="Amount"      value={formatCurrencyDisplay(snapshot.amount)} />
+                    <SummaryRow label="Semester"    value={activeSemesterLabel} />
+                    <SummaryRow label="Date"        value={todayFormatted()} />
+                  </div>
+
+                  {/* Immutability warning */}
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                    ⚠ This transaction cannot be edited or undone after confirmation.
+                  </p>
+
+                  {/* Type-to-confirm */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:<RequiredMark />
+                    </label>
+                    <input type="text" value={confirmInput}
+                      onChange={e => setConfirmInput(e.target.value)}
+                      disabled={isSubmitting}
+                      placeholder={CONFIRM_KEYWORD}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 disabled:bg-gray-100"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-2 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={handleGoBack} disabled={isSubmitting}
+                      className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
+                      Go Back
+                    </button>
+                    <button aria-busy={isSubmitting} type="button" onClick={handleConfirmSubmit} disabled={!confirmEnabled}
+                      className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
+                      {isSubmitting ? 'Saving...' : 'Confirm Disbursement'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* ── FORM STEP ─────────────────────────────────────────────── */}
-            {step === 'form' && (
-              <form onSubmit={handleReviewSubmit} className="space-y-4 px-6 py-5">
-                {signatoriesError && <p className="text-sm text-red-600">{signatoriesError}</p>}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-name">Name<RequiredMark /></label>
-                  <input id="dis-name" name="name" type="text" value={formData.name}
-                    onChange={handleTextChange} maxLength={50}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                    placeholder="Enter recipient name" />
-                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-category">Source of Fund<RequiredMark /></label>
-                  <select id="dis-category" name="fundCategoryId" value={formData.fundCategoryId}
-                    onChange={handleSelectChange}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200">
-                    <option value="">Select source</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.isTurnoverFund ? '↻ ' : ''}{cat.name} — Available: ₱{Number(cat.availableFund).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.fundCategoryId && <p className="mt-1 text-sm text-red-600">{errors.fundCategoryId}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-amount">Amount<RequiredMark /></label>
-                  <input id="dis-amount" name="amount" type="text" value={formData.amount}
-                    onChange={handleAmountChange}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                    placeholder="₱0.00" />
-                  {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount}</p>}
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-purpose">Purpose of Fund<RequiredMark /></label>
-                    <input id="dis-purpose" name="purposeOfFund" type="text" value={formData.purposeOfFund}
-                      onChange={handleTextChange} maxLength={50}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                      placeholder="Enter purpose" />
-                    {errors.purposeOfFund && <p className="mt-1 text-sm text-red-600">{errors.purposeOfFund}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-title">Title of Activity<RequiredMark /></label>
-                    <input id="dis-title" name="titleOfActivities" type="text" value={formData.titleOfActivities}
-                      onChange={handleTextChange} maxLength={50}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                      placeholder="Enter activity" />
-                    {errors.titleOfActivities && <p className="mt-1 text-sm text-red-600">{errors.titleOfActivities}</p>}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-semibold text-gray-900">Signatories</h3>
-                  <div className="mt-3 grid gap-4 md:grid-cols-2">
-                    <SignatoryReadOnly nameLabel="Disbursed by" nameValue={formData.disbursedBy} positionValue={formData.disbursedByPosition} error={errors.disbursedBy} />
-                    <SignatoryReadOnly nameLabel="Approved by" nameValue={formData.approvedBy} positionValue={formData.approvedByPosition} error={errors.approvedBy} />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedBy">Received by<RequiredMark /></label>
-                      <input id="dis-receivedBy" name="receivedBy" type="text" value={formData.receivedBy}
-                        onChange={handleTextChange} maxLength={50}
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                        placeholder="Enter receiver name" />
-                      {errors.receivedBy && <p className="mt-1 text-sm text-red-600">{errors.receivedBy}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedByPos">Received by Position<RequiredMark /></label>
-                      <input id="dis-receivedByPos" name="receivedByPosition" type="text" value={formData.receivedByPosition}
-                        onChange={handleTextChange} maxLength={50}
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                        placeholder="Enter receiver position" />
-                      {errors.receivedByPosition && <p className="mt-1 text-sm text-red-600">{errors.receivedByPosition}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
-                  <button type="button" onClick={closeModal}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Cancel
-                  </button>
-                  <button type="submit"
-                    className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)">
-                    Review & Submit
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* ── CONFIRM STEP ──────────────────────────────────────────── */}
-            {step === 'confirm' && snapshot && (
-              <div className="space-y-4 px-6 py-5">
-                {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-
-                {/* Transaction summary */}
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2">
-                  <SummaryRow label="Category"    value={selectedCategory?.name} />
-                  <SummaryRow label="Description" value={`${snapshot.purposeOfFund} — ${snapshot.titleOfActivities}`} />
-                  <SummaryRow label="Recipient"   value={snapshot.name} />
-                  <SummaryRow label="Amount"      value={formatCurrencyDisplay(snapshot.amount)} />
-                  <SummaryRow label="Semester"    value={activeSemesterLabel} />
-                  <SummaryRow label="Date"        value={todayFormatted()} />
-                </div>
-
-                {/* Immutability warning */}
-                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                  ⚠ This transaction cannot be edited or undone after confirmation.
-                </p>
-
-                {/* Type-to-confirm */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:<RequiredMark />
-                  </label>
-                  <input type="text" value={confirmInput}
-                    onChange={e => setConfirmInput(e.target.value)}
-                    disabled={isSubmitting}
-                    placeholder={CONFIRM_KEYWORD}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 disabled:bg-gray-100"
-                    autoFocus
-                  />
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-2 sm:flex-row sm:justify-end">
-                  <button type="button" onClick={handleGoBack} disabled={isSubmitting}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
-                    Go Back
-                  </button>
-                  <button aria-busy={isSubmitting} type="button" onClick={handleConfirmSubmit} disabled={!confirmEnabled}
-                    className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
-                    {isSubmitting ? 'Saving...' : 'Confirm Disbursement'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <SuccessDialog
