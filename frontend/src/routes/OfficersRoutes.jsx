@@ -57,10 +57,10 @@ export const officersRoutes = [
     },
     {
         path: "history",
-        // Holds the Archive, which needs Financial edit access (as it did
-        // when it was under Settings).
+        // Holds the read-only Archive: Financial view access, the same level
+        // the archive API requires.
         element: (
-            <ProtectedRoute requiredModule="FINANCIAL" requiredLevel="EDIT">
+            <ProtectedRoute requiredModule="FINANCIAL" requiredLevel="VIEW">
                 <LazyPage><History /></LazyPage>
             </ProtectedRoute>
         ),
