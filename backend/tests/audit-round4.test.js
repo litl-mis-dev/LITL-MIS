@@ -1,6 +1,6 @@
 // Audit round 4 fixes: requests without a JSON body (R3-01), unknown paths
-// (R3-11), non-numeric IDs in URLs (R3-06) and announcement length limits
-// (R3-07).
+// (R3-11), non-numeric IDs in URLs (R3-06), announcement length limits
+// (R3-07) and the Content-Type stored documents are served with (SEC-07).
 // Runs a real Express app on a free local port; no database, email or
 // network. Run with: npm test
 const assert = require('node:assert/strict')
@@ -13,6 +13,7 @@ const backend = path.resolve(__dirname, '..')
 const stub = (rel, exports) => { require.cache[require.resolve(path.join(backend, rel))] = { exports } }
 
 const { defaultEmptyBody, jsonNotFound, validateIdParams } = require(path.join(backend, 'src/middleware/request.middleware'))
+const { documentContentType, ALLOWED_DOCUMENT_EXTENSIONS } = require(path.join(backend, 'src/middleware/upload.middleware'))
 
 // Starts `app` on a free port, runs `fn(baseUrl)`, then closes it.
 async function withServer(app, fn) {
@@ -113,4 +114,15 @@ test('R3-07: announcement title and message have length limits', async () => {
   assert.match((await call({ ...base, title: 'ok', message: 'x'.repeat(1001) })).body.message, /1000 characters/)
   assert.equal((await call({ ...base, title: ['a'], message: 'ok' })).statusCode, 400)
   assert.equal((await call({ ...base, title: '   ', message: 'ok' })).statusCode, 400)
+})
+
+test("SEC-07: documents are stored with a Content-Type from their extension, not the browser's", () => {
+  assert.equal(documentContentType('Minutes.PDF'), 'application/pdf')
+  assert.equal(documentContentType('photo.jpeg'), 'image/jpeg')
+  assert.equal(documentContentType('notes.txt'), 'text/plain; charset=utf-8')
+  assert.equal(documentContentType('page.html'), 'application/octet-stream')
+  for (const ext of ALLOWED_DOCUMENT_EXTENSIONS) {
+    assert.notEqual(documentContentType(`file.${ext}`), 'application/octet-stream', `.${ext} has no Content-Type`)
+    assert.doesNotMatch(documentContentType(`file.${ext}`), /html|svg|javascript/, `.${ext}`)
+  }
 })
