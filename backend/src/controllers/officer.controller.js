@@ -223,6 +223,7 @@ const getApprovedMembers = async (req, res) => {
             yearLevel: true,
             section: true,
             status: true,
+            avatar: true,
             payments: {
               where: { semesterId: activeSemesterId ?? 0, obligationSemesterId: activeSemesterId ?? 0, isArchived: false },
               select: { id: true }
@@ -279,6 +280,8 @@ const getApprovedMembers = async (req, res) => {
         section: m?.section ?? '',
         isPaid: (m?.payments?.length ?? 0) > 0,
         paymentId: m?.payments?.[0]?.id ?? null,
+        // Profile picture, so membership cards downloaded here show it.
+        avatar: m?.avatar ?? null,
       }
     })
 

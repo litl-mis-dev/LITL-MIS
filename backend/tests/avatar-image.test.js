@@ -1,7 +1,8 @@
-// GET /api/auth/avatar/:userId/image — the profile picture used on a
-// membership card when the browser can't load it from R2 directly. Only the
-// owner, or an officer who can view the Member List, may read it. Runs with
-// stubbed storage and database. Run with: npm test
+// Profile pictures on membership cards. GET /api/auth/avatar/:userId/image
+// is used when the browser can't load the photo from R2 directly — only the
+// owner, or an officer who can view the Member List, may read it. The
+// officers' Members List must carry each photo, or cards downloaded there
+// have none. Runs with stubbed storage and database. Run with: npm test
 const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
@@ -16,7 +17,24 @@ const members = [
 ]
 stub('src/lib/prisma.js', {
   member: { findUnique: async ({ where }) => members.find((m) => m.userId === where.userId) ?? null },
+  semester: { findFirst: async () => ({ id: 1 }) },
+  user: {
+    findMany: async ({ select }) => [{
+      id: 5, studentNumber: '2023-100-1', email: 'a@cvsu.edu.ph', role: 'MEMBER', status: 'APPROVED', createdAt: new Date(),
+      member: {
+        id: 50, firstName: 'Ana', middleName: null, lastName: 'Cruz', suffix: null, yearLevel: '1st Year', section: '1', status: 'ACTIVE',
+        payments: [],
+        // Only returned when the query asks for it, like the real database.
+        ...(select.member.select.avatar && { avatar: 'https://pub.r2.dev/profiles/5.png' }),
+      },
+    }],
+  },
 })
+stub('src/realtime/socket.js', { emitToAll() {}, emitToOfficers() {}, emitToUser() {}, emitToHashChain() {} })
+stub('src/utils/auditLog.js', { writeAuditLog: async () => {} })
+stub('src/utils/email.js', { sendRegistrationStatusEmail: async () => {} })
+stub('src/services/notification.service.js', { notifyRegistrationRejected: async () => {}, syncMemberApprovalNotifications: async () => {} })
+stub('src/services/memberApproval.service.js', { approvePendingUser: async () => ({ approved: false }) })
 stub('src/services/storage.service.js', {
   downloadFile: async (p) => Buffer.from(`bytes-of-${p}`),
   uploadFile: async () => ({}), deleteFile: async () => {}, deleteFiles: async () => {}, getSignedUrl: async () => '',
@@ -27,6 +45,7 @@ stub('src/services/permissions.service.js', {
 })
 
 const { getAvatarImage } = require(path.join(backend, 'src/controllers/auth.controller'))
+const { getApprovedMembers } = require(path.join(backend, 'src/controllers/officer.controller'))
 
 const call = async (userId, user) => {
   const res = { statusCode: 200, headers: {}, body: null }
@@ -56,4 +75,14 @@ test('missing pictures and bad ids return 404', async () => {
   assert.equal((await call(6, { id: 6, role: 'MEMBER' })).statusCode, 404)
   assert.equal((await call(77, { id: 77, role: 'MEMBER' })).statusCode, 404)
   assert.equal((await call('abc', { id: 5, role: 'MEMBER' })).statusCode, 404)
+})
+
+test("the officers' Members List includes each member's profile picture", async () => {
+  const res = { statusCode: 200, body: null }
+  res.status = (code) => { res.statusCode = code; return res }
+  res.json = (body) => { res.body = body; return res }
+  await getApprovedMembers({ user: { id: 9, role: 'SECRETARY' } }, res)
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.members[0].avatar, 'https://pub.r2.dev/profiles/5.png')
+  assert.equal(res.body.members[0].id, 5, 'account id, used for the photo fallback')
 })
