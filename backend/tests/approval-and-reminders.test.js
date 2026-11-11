@@ -126,8 +126,9 @@ const call = async (handler, req) => {
 }
 const clearLogs = () => { auditLogs.length = 0; emails.length = 0; approvalNotices.length = 0; reminderNotices.length = 0 }
 
-const addUser = ({ studentNumber, lastName, firstName = 'Ana', status = 'PENDING_OFFICER_APPROVAL', role = 'MEMBER' }) => {
-  const user = { id: nextId++, email: `${studentNumber}@cvsu.edu.ph`, studentNumber, status, role }
+const addUser = ({ studentNumber, lastName, firstName = 'Ana', status = 'PENDING_OFFICER_APPROVAL', role = 'MEMBER', emailType = 'CVSU' }) => {
+  const email = emailType === 'CVSU' ? `${studentNumber}@cvsu.edu.ph` : `${studentNumber}@gmail.com`
+  const user = { id: nextId++, email, emailType, studentNumber, status, role }
   db.users.push(user)
   db.members.push({ id: nextId++, userId: user.id, firstName, lastName, status: 'ACTIVE' })
   return user
@@ -222,6 +223,26 @@ test('a registrant on the roster is approved right after email verification', as
   assert.equal(await roster.approveFromRosterIfListed(adviser.id), false)
   assert.equal(auditLogs.filter((l) => l.action === 'USER_APPROVED').length, 1)
   assert.equal(auditLogs[0].actorId, null)
+})
+
+test('a personal-email registration is never approved automatically from the roster', async () => {
+  reset(); clearLogs()
+  db.roster.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
+  const impostor = addUser({ studentNumber: '2023-100-1', lastName: 'Dela Cruz', emailType: 'PERSONAL' })
+
+  // At registration time
+  assert.equal(await roster.approveFromRosterIfListed(impostor.id), false)
+  assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
+
+  // When an officer saves the roster: listed for manual review, not approved
+  const rows = [{ row: 1, studentNumber: '2023-100-1', lastName: 'Dela Cruz' }]
+  const preview = await call(rosterCtrl.previewRoster, { body: { rows, mode: 'add' } })
+  assert.deepEqual(preview.body.willApprove, [])
+  assert.deepEqual(preview.body.personalEmail.map((u) => u.userId), [impostor.id])
+  const saved = await call(rosterCtrl.applyRoster, { body: { rows, mode: 'add' } })
+  assert.equal(saved.body.approvedCount, 0)
+  assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
+  assert.equal(emails.length, 0)
 })
 
 test('roster requests are rejected when empty, too large or in an unknown mode', async () => {

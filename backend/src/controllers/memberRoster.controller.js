@@ -31,6 +31,7 @@ function planResponse(plan, invalid, totalRows) {
     ...plan.summary,
     willApprove: plan.willApprove,
     nameMismatch: plan.nameMismatch,
+    personalEmail: plan.personalEmail,
   }
 }
 
