@@ -5,3 +5,5 @@ export const getImportantAnnouncements = () =>
 
 export const createAnnouncement = (payload) =>
   api.post('/announcements', payload).then((r) => r.data)
+export const getAnnouncement = (id) =>
+  api.get(`/announcements/${encodeURIComponent(id)}`).then((r) => r.data.announcement)

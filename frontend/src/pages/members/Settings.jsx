@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import "../../assets/styles/members/MemberDashboard.css";
 import LoadingState from "../../components/ui/LoadingState.jsx";
+import RequiredMark from "../../components/ui/RequiredMark.jsx";
 
 const TEMP_MEMBER = {
   name: "Juan dela Cruz",
@@ -56,7 +57,7 @@ export default function Settings() {
           <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
             {["Current Password", "New Password", "Confirm New Password"].map((label) => (
               <div key={label} className="dash-form__field">
-                <label>{label}</label>
+                <label>{label}<RequiredMark /></label>
                 <input type="password" placeholder="••••••••" />
               </div>
             ))}

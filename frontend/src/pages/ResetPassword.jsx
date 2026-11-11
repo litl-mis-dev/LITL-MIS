@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { resetPassword } from '../services/auth.service'
 import '../assets/styles/auth/LoginOTP.css'
+import RequiredMark from '../components/ui/RequiredMark.jsx'
 
 function EyeIcon({ visible }) {
   return (
@@ -214,7 +215,7 @@ function ResetPassword() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>New password</span>
+            <span>New password<RequiredMark /></span>
             <div className="password-field">
               <input
                 type={showNew ? 'text' : 'password'}
@@ -238,7 +239,7 @@ function ResetPassword() {
           </label>
 
           <label className="field">
-            <span>Confirm new password</span>
+            <span>Confirm new password<RequiredMark /></span>
             <div className="password-field">
               <input
                 type={showConfirm ? 'text' : 'password'}

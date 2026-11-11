@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
 import { listDisbursements, createReturnFund, getActiveSemester } from '../../../services/financial.service'
 import { getSignatories } from '../../../services/officer.service'
+import RequiredMark from '../../../components/ui/RequiredMark.jsx'
+import { formatPersonName } from '../../../utils/formInputs.js'
+
+// Fields holding a person's name — capitalized as they're typed.
+const NAME_FIELDS = new Set(['receivedFrom', 'refundedBy'])
 
 const TEXT_ONLY_REGEX = /^[A-Za-z\s'.,-]+$/
 const MAX_AMOUNT = 100_000
@@ -148,7 +153,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
   function handleTextChange(e) {
     const { name, value } = e.target
     if (value === '' || TEXT_ONLY_REGEX.test(value)) {
-      setFormData(f => ({ ...f, [name]: value }))
+      setFormData(f => ({ ...f, [name]: NAME_FIELDS.has(name) ? formatPersonName(value) : value }))
     }
     setErrors(err => ({ ...err, [name]: '' }))
   }
@@ -271,7 +276,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700" htmlFor="rf-disbursement">
-                    Disbursement Reference
+                    Disbursement Reference<RequiredMark />
                   </label>
                   <select id="rf-disbursement" value={formData.disbursementId}
                     onChange={handleDisbursementSelect}
@@ -307,7 +312,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="rf-receivedFrom">Received from</label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="rf-receivedFrom">Received from<RequiredMark /></label>
                   <input id="rf-receivedFrom" name="receivedFrom" type="text" value={formData.receivedFrom}
                     onChange={handleTextChange} maxLength={50}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -316,7 +321,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="rf-amount">Amount Returned</label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="rf-amount">Amount Returned<RequiredMark /></label>
                   <input id="rf-amount" name="amount" type="text" value={formData.amount}
                     onChange={handleAmountChange}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -328,7 +333,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
                   <h3 className="text-sm font-semibold text-gray-900">Signatories</h3>
                   <div className="mt-3 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="rf-refundedBy">Refunded by</label>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="rf-refundedBy">Refunded by<RequiredMark /></label>
                       <input id="rf-refundedBy" name="refundedBy" type="text" value={formData.refundedBy}
                         onChange={handleTextChange} maxLength={50}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -336,7 +341,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
                       {errors.refundedBy && <p className="mt-1 text-sm text-red-600">{errors.refundedBy}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="rf-refundedByPos">Position</label>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="rf-refundedByPos">Position<RequiredMark /></label>
                       <input id="rf-refundedByPos" name="refundedByPosition" type="text" value={formData.refundedByPosition}
                         onChange={handleTextChange} maxLength={50}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -382,7 +387,7 @@ export default function AddReturnFund({ onSuccess, buttonLabel = 'Add Return Fun
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:
+                    Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:<RequiredMark />
                   </label>
                   <input type="text" value={confirmInput}
                     onChange={e => setConfirmInput(e.target.value)}

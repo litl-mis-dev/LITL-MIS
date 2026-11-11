@@ -15,6 +15,7 @@ const Events = lazy(() => import("../pages/officers/events/Events"));
 const EventAttendance = lazy(() => import("../pages/officers/events/EventAttendance"));
 const HashChainMonitoring = lazy(() => import("../pages/officers/HashChainMonitoring"));
 const Settings = lazy(() => import("../pages/officers/settings/Settings"));
+const History = lazy(() => import("../pages/officers/History"));
 const Certification = lazy(() => import("../pages/officers/Certification"));
 
 export const officersRoutes = [
@@ -53,6 +54,16 @@ export const officersRoutes = [
         element: <LazyPage><Settings /></LazyPage>,
         // No single module — Settings.jsx renders whichever section(s) the
         // role actually has access to, and an empty state if none.
+    },
+    {
+        path: "history",
+        // Holds the Archive, which needs Financial edit access (as it did
+        // when it was under Settings).
+        element: (
+            <ProtectedRoute requiredModule="FINANCIAL" requiredLevel="EDIT">
+                <LazyPage><History /></LazyPage>
+            </ProtectedRoute>
+        ),
     },
     {
         path: "events",

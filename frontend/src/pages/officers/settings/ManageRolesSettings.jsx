@@ -8,6 +8,7 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import { useRole } from "../../../utils/useRole.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
+import RequiredMark from "../../../components/ui/RequiredMark.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -383,7 +384,7 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
 
                 <div className="member-modal__form manage-roles-modal__body">
                     <label className="dash-form__field">
-                        Officer Role
+                        <span>Officer Role<RequiredMark /></span>
                         <select
                             value={draftRole}
                             onChange={(e) => onDraftRoleChange(e.target.value)}

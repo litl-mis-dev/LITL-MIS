@@ -17,7 +17,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   const switchTimerRef = useRef(null);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { notifications, unreadCount, markRead, markAllRead, removeNotification, clearAll, importantAnnouncements } = useNotifications();
+  const { notifications, unreadCount, markRead, markAllRead, removeNotification, clearAll, importantAnnouncements, openAnnouncement } = useNotifications();
   const [isExpanded, setIsExpanded] = useState(false);
   const notifRef = useRef(null);
 
@@ -41,7 +41,8 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
   });
 
   const displayName = getDisplayName(user, "Officer");
-  const displayRole = user?.position || formatRole(user?.role ?? "Officer");
+  // The officer workspace is labelled by dashboard, not by position.
+  const displayRole = "Officer Dashboard";
   const displayAvatar = getAvatar(user);
 
   useEffect(() => {
@@ -125,7 +126,8 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                     onOpen={() => {
                       if (!notification.isRead) markRead(notification.id);
                       setShowNotif(false);
-                      if (notification.link) navigate(notification.link);
+                      if (notification.type === "ANNOUNCEMENT") openAnnouncement(notification);
+                      else if (notification.link) navigate(notification.link);
                     }}
                     onRemove={(e) => {
                       e.stopPropagation();
@@ -196,7 +198,8 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                         if (!notification.isRead) markRead(notification.id);
                         setShowNotif(false);
                         setIsExpanded(false);
-                        if (notification.link) navigate(notification.link);
+                        if (notification.type === "ANNOUNCEMENT") openAnnouncement(notification);
+                        else if (notification.link) navigate(notification.link);
                       }}
                       onRemove={(e) => {
                         e.stopPropagation();
@@ -283,14 +286,6 @@ function getInitials(name, fallback) {
     .join("") || fallback;
 }
 
-function formatRole(role) {
-  return role
-    .toString()
-    .toLowerCase()
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 function BellIcon() {
   return (

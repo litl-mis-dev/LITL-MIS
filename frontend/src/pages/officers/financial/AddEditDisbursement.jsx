@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
 import { listCategories, createDisbursement } from '../../../services/financial.service'
 import { getSignatories } from '../../../services/officer.service'
+import RequiredMark from '../../../components/ui/RequiredMark.jsx'
+import { formatPersonName } from '../../../utils/formInputs.js'
+
+// Fields holding a person's name — capitalized as they're typed.
+const NAME_FIELDS = new Set(['name', 'receivedBy'])
 
 const TEXT_ONLY_REGEX = /^[A-Za-z\s'.,-]+$/
 const MAX_AMOUNT = 100_000
@@ -123,7 +128,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
   function handleTextChange(e) {
     const { name, value } = e.target
     if (name === 'titleOfActivities' || value === '' || TEXT_ONLY_REGEX.test(value)) {
-      setFormData(f => ({ ...f, [name]: value }))
+      setFormData(f => ({ ...f, [name]: NAME_FIELDS.has(name) ? formatPersonName(value) : value }))
     }
     setErrors(err => ({ ...err, [name]: '' }))
   }
@@ -259,7 +264,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                 {signatoriesError && <p className="text-sm text-red-600">{signatoriesError}</p>}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-name">Name</label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-name">Name<RequiredMark /></label>
                   <input id="dis-name" name="name" type="text" value={formData.name}
                     onChange={handleTextChange} maxLength={50}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -268,7 +273,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-category">Source of Fund</label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-category">Source of Fund<RequiredMark /></label>
                   <select id="dis-category" name="fundCategoryId" value={formData.fundCategoryId}
                     onChange={handleSelectChange}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200">
@@ -283,7 +288,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-amount">Amount</label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="dis-amount">Amount<RequiredMark /></label>
                   <input id="dis-amount" name="amount" type="text" value={formData.amount}
                     onChange={handleAmountChange}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -293,7 +298,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-purpose">Purpose of Fund</label>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-purpose">Purpose of Fund<RequiredMark /></label>
                     <input id="dis-purpose" name="purposeOfFund" type="text" value={formData.purposeOfFund}
                       onChange={handleTextChange} maxLength={50}
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -301,7 +306,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                     {errors.purposeOfFund && <p className="mt-1 text-sm text-red-600">{errors.purposeOfFund}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-title">Title of Activity</label>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="dis-title">Title of Activity<RequiredMark /></label>
                     <input id="dis-title" name="titleOfActivities" type="text" value={formData.titleOfActivities}
                       onChange={handleTextChange} maxLength={50}
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -316,7 +321,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                     <SignatoryReadOnly nameLabel="Disbursed by" nameValue={formData.disbursedBy} positionValue={formData.disbursedByPosition} error={errors.disbursedBy} />
                     <SignatoryReadOnly nameLabel="Approved by" nameValue={formData.approvedBy} positionValue={formData.approvedByPosition} error={errors.approvedBy} />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedBy">Received by</label>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedBy">Received by<RequiredMark /></label>
                       <input id="dis-receivedBy" name="receivedBy" type="text" value={formData.receivedBy}
                         onChange={handleTextChange} maxLength={50}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -324,7 +329,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                       {errors.receivedBy && <p className="mt-1 text-sm text-red-600">{errors.receivedBy}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedByPos">Received by Position</label>
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedByPos">Received by Position<RequiredMark /></label>
                       <input id="dis-receivedByPos" name="receivedByPosition" type="text" value={formData.receivedByPosition}
                         onChange={handleTextChange} maxLength={50}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -370,7 +375,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                 {/* Type-to-confirm */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:
+                    Type <span className="font-mono font-bold">{CONFIRM_KEYWORD}</span> to confirm:<RequiredMark />
                   </label>
                   <input type="text" value={confirmInput}
                     onChange={e => setConfirmInput(e.target.value)}

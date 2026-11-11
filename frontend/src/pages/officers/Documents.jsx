@@ -17,6 +17,7 @@ import {
 } from "../../services/documents.service.js";
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
+import RequiredMark from "../../components/ui/RequiredMark.jsx";
 
 const groupAccessOptions = ["Members", "Officers", "Adviser/Dept. Chair"];
 
@@ -658,7 +659,7 @@ async function handleSaveAccess() {
                         </div>
                         <form className="member-modal__form document-modal-form" onSubmit={handleCreateFolder}>
                             <label className="dash-form__field">
-                                Folder name
+                                <span>Folder name<RequiredMark /></span>
                                 <input
                                     value={newFolderName}
                                     onChange={(event) => setNewFolderName(event.target.value)}
@@ -790,7 +791,7 @@ async function handleSaveAccess() {
                         </div>
                         <form className="member-modal__form document-modal-form" onSubmit={handleRenameItem}>
                             <label className="dash-form__field">
-                                Name
+                                <span>Name<RequiredMark /></span>
                                 <input
                                     value={renameValue}
                                     onChange={(event) => setRenameValue(event.target.value)}

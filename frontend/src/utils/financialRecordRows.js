@@ -1,5 +1,5 @@
 // Row shapes and table columns for Disbursement and Return Fund records. Shared by
-// the Financial module pages and Settings ▸ Archive so both show — and generate
+// the Financial module pages and History ▸ Archive so both show — and generate
 // certificates from — exactly the same data.
 
 function formatCurrency(value) {
@@ -106,8 +106,17 @@ function parseCurrency(value) {
   return parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0
 }
 
+// Fund Report order: highest percentage first, the Turnover Fund (a fixed
+// amount, no percentage) after the regular categories.
+export function sortCategoriesByPercentage(categories) {
+  return [...categories].sort((a, b) =>
+    (a.isTurnoverFund ? 1 : 0) - (b.isTurnoverFund ? 1 : 0)
+    || (parseFloat(b.percentage) || 0) - (parseFloat(a.percentage) || 0)
+  )
+}
+
 export function buildFundReportRows(categories) {
-  const records = categories.map(cat => ({
+  const records = sortCategoriesByPercentage(categories).map(cat => ({
     rowKey:         String(cat.id),
     name:           cat.name,
     isTurnoverFund: cat.isTurnoverFund,
@@ -119,12 +128,12 @@ export function buildFundReportRows(categories) {
   }))
   const sum = key => records.reduce((acc, r) => acc + parseCurrency(r[key]), 0)
   return [
+    ...records,
     {
       rowKey: 'overall', name: 'Overall Total Fund', percentage: '100%',
       total: formatCurrency(sum('total')), disbursed: formatCurrency(sum('disbursed')),
       returned: formatCurrency(sum('returned')), remaining: formatCurrency(sum('remaining')),
       isSummary: true,
     },
-    ...records,
   ]
 }

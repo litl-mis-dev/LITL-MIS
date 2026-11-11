@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import DashboardHeader from "../../../components/officers/DashboardHeader.jsx";
-import ArchiveSettings from "./ArchiveSettings.jsx";
 import DocumentSettings from "./DocumentSettings.jsx";
 import MembershipCardSettings from "./MembershipCardSettings.jsx";
 import MembershipCertificateSettings from "./MembershipCertificateSettings.jsx";
@@ -11,7 +10,7 @@ import { useAuth } from "../../../context/AuthContext";
 
 export default function Settings() {
     const { can } = useRole();
-    const canSeeArchive = can("FINANCIAL", "EDIT");
+    // The Archive moved to its own History page (pages/officers/History.jsx).
     const canSeeRoles    = can("SETTINGS_ROLES", "VIEW");
     const canSeeDesign   = can("SETTINGS_DESIGN", "VIEW");
     // Inviting and managing advisers is the President's alone (enforced by the server too).
@@ -19,7 +18,7 @@ export default function Settings() {
     const canSeeAdvisers = user?.role === "PRESIDENT_ADMIN";
 
     const [activeSection, setActiveSection] = useState(
-        canSeeArchive ? "archive" : canSeeRoles ? "roles" : canSeeAdvisers ? "advisers" : canSeeDesign ? "disbursement" : ""
+        canSeeRoles ? "roles" : canSeeAdvisers ? "advisers" : canSeeDesign ? "disbursement" : ""
     );
     const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
     const documentsRef = useRef(null);
@@ -44,16 +43,6 @@ export default function Settings() {
 
             <div className="settings-shell">
                 <nav className="settings-nav" aria-label="Settings sections">
-                    {canSeeArchive && (
-                        <button
-                            type="button"
-                            className={`settings-nav__item ${activeSection === "archive" ? "settings-nav__item--active" : ""}`}
-                            onClick={() => setActiveSection("archive")}
-                        >
-                            <span className="settings-nav__label">Archive</span>
-                        </button>
-                    )}
-
                     {canSeeRoles && (
                         <button
                             type="button"
@@ -132,7 +121,6 @@ export default function Settings() {
                         </div>
                     </div>
 
-                    {activeSection === "archive" && canSeeArchive && <ArchiveSettings />}
                     {activeSection === "roles" && canSeeRoles && <ManageRolesSettings />}
                     {activeSection === "advisers" && canSeeAdvisers && <AdviserSettings />}
                     {activeSection === "membershipCertificate" && canSeeDesign && <MembershipCertificateSettings />}
@@ -146,9 +134,6 @@ export default function Settings() {
 }
 
 function getPanelMeta(activeSection) {
-    if (activeSection === "archive") {
-        return { title: "Archive", description: "Financial records by academic year." };
-    }
     if (activeSection === "advisers") {
         return { title: "Advisers", description: "Invite and manage the Advisers and the Department Chair." };
     }

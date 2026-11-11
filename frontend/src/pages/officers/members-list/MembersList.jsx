@@ -10,9 +10,10 @@ import ConfirmActionButton from "../../../components/officers/ConfirmActionButto
 import Spinner from "../../../components/ui/Spinner.jsx";
 import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, updateMemberStatus, } from "../../../services/officer.service.js";
 import { getMemberPaymentHistory, sendPaymentReminder, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
-import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf, } from "../../../utils/downloadMembershipCardPdf.js";
+import MembershipCardsModal from "./MembershipCardsModal.jsx";
 import { createAnnouncement } from "../../../services/announcement.service.js";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
+import RequiredMark from "../../../components/ui/RequiredMark.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -54,10 +55,8 @@ export default function MembersList({ compact = false }) {
     const [editSaving, setEditSaving] = useState(false);
     const [editError, setEditError] = useState('');
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [generatingCardId, setGeneratingCardId] = useState(null);
-    const [isGeneratingAllCards, setIsGeneratingAllCards] = useState(false);
+    const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
     const [cardGenerationMessage, setCardGenerationMessage] = useState("");
-    const [cardGenerationError, setCardGenerationError] = useState("");
 
     // Email reminder state
     const [sendingReminderId, setSendingReminderId] = useState(null);
@@ -71,7 +70,6 @@ export default function MembersList({ compact = false }) {
     const [announcementMessage, setAnnouncementMessage] = useState("");
     const [announcementRecipients, setAnnouncementRecipients] = useState("MEMBERS");
     const [announcementPriority, setAnnouncementPriority] = useState("NORMAL");
-    const [announcementExpiresAt, setAnnouncementExpiresAt] = useState("");
     const [isSendingAnnouncement, setIsSendingAnnouncement] = useState(false);
     const [announcementError, setAnnouncementError] = useState("");
     const [announcementSuccess, setAnnouncementSuccess] = useState("");
@@ -171,24 +169,14 @@ export default function MembersList({ compact = false }) {
         setFilters({ years: [], section: "", payment: "", memberStatus: "" });
     }
 
-    async function handleDownloadMembers() {
-        if (filteredMembers.length === 0 || isGeneratingAllCards) return
+    function openCardsModal() {
+        setCardGenerationMessage("")
+        setIsCardsModalOpen(true)
+    }
 
-        setIsGeneratingAllCards(true)
-        setCardGenerationError("")
-        setCardGenerationMessage("Generating membership cards...")
-
-        try {
-            await downloadAllMembershipCardsPdf(filteredMembers, (done, total) => {
-                setCardGenerationMessage(`Generating membership cards... ${done}/${total}`)
-            })
-            setCardGenerationMessage("Membership cards PDF downloaded.")
-        } catch (err) {
-            setCardGenerationError(err.message || "Failed to generate membership cards.")
-            setCardGenerationMessage("")
-        } finally {
-            setIsGeneratingAllCards(false)
-        }
+    function handleCardsDownloaded(count) {
+        setIsCardsModalOpen(false)
+        setCardGenerationMessage(`Membership card PDF downloaded for ${count} member${count === 1 ? "" : "s"}.`)
     }
 
     function openScannerModal() {
@@ -254,25 +242,6 @@ export default function MembersList({ compact = false }) {
         setMembers((md.members ?? []))
     }
 
-    async function handleDownloadMemberCard(member) {
-        if (!member || generatingCardId) return
-
-        const cardId = member.memberId ?? member.id
-        setGeneratingCardId(cardId)
-        setCardGenerationError("")
-        setCardGenerationMessage(`Generating membership card for ${member.name}...`)
-
-        try {
-            await downloadMembershipCardPdf(member)
-            setCardGenerationMessage("Membership card PDF downloaded.")
-        } catch (err) {
-            setCardGenerationError(err.message || "Failed to generate membership card.")
-            setCardGenerationMessage("")
-        } finally {
-            setGeneratingCardId(null)
-        }
-    }
-
     async function handleSendMemberEmail(member) {
         if (!member?.email || sendingReminderId || isSendingAllReminders) return
 
@@ -312,7 +281,6 @@ export default function MembersList({ compact = false }) {
         setAnnouncementMessage("");
         setAnnouncementRecipients("MEMBERS");
         setAnnouncementPriority("NORMAL");
-        setAnnouncementExpiresAt("");
         setAnnouncementError("");
         setAnnouncementSuccess("");
         setIsAnnouncementOpen(true);
@@ -331,10 +299,6 @@ export default function MembersList({ compact = false }) {
             setAnnouncementError("Title and message are required.");
             return;
         }
-        if (announcementPriority === "IMPORTANT" && !announcementExpiresAt) {
-            setAnnouncementError("Please set an expiration date for an Important announcement.");
-            return;
-        }
 
         setIsSendingAnnouncement(true);
         setAnnouncementError("");
@@ -344,9 +308,6 @@ export default function MembersList({ compact = false }) {
                 message: announcementMessage.trim(),
                 recipients: announcementRecipients,
                 priority: announcementPriority,
-                expiresAt: announcementPriority === "IMPORTANT" && announcementExpiresAt
-                    ? new Date(`${announcementExpiresAt}T23:59:59`).toISOString()
-                    : null,
             });
             setAnnouncementSuccess("Announcement sent.");
             setIsAnnouncementOpen(false);
@@ -441,19 +402,15 @@ export default function MembersList({ compact = false }) {
                                 </button>
                             )}
                             {canManageMemberList && (
-                                <ConfirmActionButton
+                                <button
+                                    type="button"
                                     className="btn btn--outline"
-                                    onConfirm={handleDownloadMembers}
-                                    disabled={loading || filteredMembers.length === 0 || isGeneratingAllCards || Boolean(generatingCardId)}
-                                    busy={isGeneratingAllCards}
-                                    title="Download all membership cards?"
-                                    message={`This will generate and download a membership card PDF for all ${filteredMembers.length} member${filteredMembers.length === 1 ? "" : "s"} currently shown in the list.`}
-                                    confirmLabel="Download All"
-                                    cancelLabel="Cancel"
+                                    onClick={openCardsModal}
+                                    disabled={loading || members.length === 0}
                                 >
-                                    {!isGeneratingAllCards && <DownloadIcon />}
-                                    <span>{isGeneratingAllCards ? "Generating..." : "Download All"}</span>
-                                </ConfirmActionButton>
+                                    <DownloadIcon />
+                                    <span>Download Membership Cards</span>
+                                </button>
                             )}
                             {/* Sending reminder emails is a Financial-module action
                                 (the backend authorizes it purely on FINANCIAL EDIT),
@@ -509,10 +466,8 @@ export default function MembersList({ compact = false }) {
                     )}
                 </div>
 
-                {(cardGenerationMessage || cardGenerationError) && (
-                    <p className={`members-download-status ${cardGenerationError ? "members-download-status--error" : ""}`}>
-                        {cardGenerationError || cardGenerationMessage}
-                    </p>
+                {cardGenerationMessage && (
+                    <p className="members-download-status">{cardGenerationMessage}</p>
                 )}
 
                 {(reminderMessage || reminderError) && (
@@ -571,23 +526,12 @@ export default function MembersList({ compact = false }) {
                                         <td>
                                             <div className="member-action-buttons">
                                                 {canManageMemberList && (
-                                                    <>
-                                                        <button type="button"
-                                                            className="icon-btn member-action-buttons__button"
-                                                            onClick={() => openEdit(m)} title="Edit member"
-                                                            aria-label={`Edit ${m.name}`}>
-                                                            <EditIcon />
-                                                        </button>
-                                                        <button type="button"
-                                                            className="icon-btn member-action-buttons__button"
-                                                            onClick={() => handleDownloadMemberCard(m)}
-                                                            disabled={isGeneratingAllCards || generatingCardId === (m.memberId ?? m.id)}
-                                                            aria-busy={generatingCardId === (m.memberId ?? m.id)}
-                                                            title="Download membership card"
-                                                            aria-label={`Download ${m.name} membership card`}>
-                                                            {generatingCardId === (m.memberId ?? m.id) ? <Spinner /> : <DownloadIcon />}
-                                                        </button>
-                                                    </>
+                                                    <button type="button"
+                                                        className="icon-btn member-action-buttons__button"
+                                                        onClick={() => openEdit(m)} title="Edit member"
+                                                        aria-label={`Edit ${m.name}`}>
+                                                        <EditIcon />
+                                                    </button>
                                                 )}
                                                 {canManageFinancials && (
                                                     <button type="button"
@@ -778,7 +722,7 @@ export default function MembersList({ compact = false }) {
                             {announcementError && <p className="text-sm text-red-600 mb-2">{announcementError}</p>}
 
                             <label className="dash-form__field">
-                                Title
+                                <span>Title<RequiredMark /></span>
                                 <input
                                     type="text"
                                     value={announcementTitle}
@@ -790,7 +734,7 @@ export default function MembersList({ compact = false }) {
                             </label>
 
                             <label className="dash-form__field">
-                                Message
+                                <span>Message<RequiredMark /></span>
                                 <textarea
                                     value={announcementMessage}
                                     onChange={e => setAnnouncementMessage(e.target.value)}
@@ -821,16 +765,9 @@ export default function MembersList({ compact = false }) {
                             </label>
 
                             {announcementPriority === "IMPORTANT" && (
-                                <label className="dash-form__field">
-                                    Expiration Date
-                                    <input
-                                        type="date"
-                                        value={announcementExpiresAt}
-                                        min={new Date().toISOString().slice(0, 10)}
-                                        onChange={e => setAnnouncementExpiresAt(e.target.value)}
-                                        required
-                                    />
-                                </label>
+                                <p className="text-sm text-gray-500">
+                                    Important announcements stay pinned in the recipients&apos; notifications for 7 days.
+                                </p>
                             )}
 
                             <div className="member-modal__actions" style={{ marginTop: 16 }}>
@@ -880,6 +817,14 @@ export default function MembersList({ compact = false }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isCardsModalOpen && (
+                <MembershipCardsModal
+                    members={members}
+                    onClose={() => setIsCardsModalOpen(false)}
+                    onDownloaded={handleCardsDownloaded}
+                />
             )}
 
             {isScannerOpen && (

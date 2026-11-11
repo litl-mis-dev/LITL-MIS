@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import RequiredMark from "../ui/RequiredMark.jsx";
 
 export default function AuditRemarksDialog({ item, busy, error, onCancel, onSave }) {
   const dialogRef = useRef(null);
@@ -18,7 +19,7 @@ export default function AuditRemarksDialog({ item, busy, error, onCancel, onSave
         <p className="card__sub">{item.displayId}</p>
         {error && <p className="settings-message settings-message--error" role="alert">{error}</p>}
         <label className="audit-remarks-field">
-          <span>Remarks</span>
+          <span>Remarks<RequiredMark /></span>
           <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)}
             placeholder="What needs to be clarified?" rows={4} required disabled={busy} autoFocus />
         </label>

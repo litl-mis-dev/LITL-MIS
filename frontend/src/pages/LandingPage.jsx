@@ -5,6 +5,8 @@ import { getPublicOfficerRoster } from "../services/officer.service.js";
 import logo from "../assets/images/LogoAndText.png";
 import heroImage from "../assets/images/LogoAndText.png";
 import "../assets/styles/LandingPage.css";
+import RequiredMark from "../components/ui/RequiredMark.jsx";
+import { formatPersonName } from "../utils/formInputs.js";
 
 const NAV_LINKS = [
   { label: "Home", id: "home" },
@@ -101,7 +103,7 @@ export default function LandingPage() {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
-    setFormData((current) => ({ ...current, [name]: value }));
+    setFormData((current) => ({ ...current, [name]: name === "name" ? formatPersonName(value) : value }));
   };
 
   const handleFormSubmit = async (event) => {
@@ -322,7 +324,7 @@ export default function LandingPage() {
 
             <form className="landing-contact-form" onSubmit={handleFormSubmit}>
               <label>
-                <span>Category / Affiliation</span>
+                <span>Category / Affiliation<RequiredMark /></span>
                 <select
                   name="affiliation"
                   value={formData.affiliation}
@@ -338,12 +340,12 @@ export default function LandingPage() {
               </label>
 
               <label>
-                <span>Name</span>
+                <span>Name<RequiredMark /></span>
                 <input name="name" value={formData.name} onChange={handleFormChange} placeholder="Your full name" required />
               </label>
 
               <label>
-                <span>Email</span>
+                <span>Email<RequiredMark /></span>
                 <input type="email" name="email" value={formData.email} onChange={handleFormChange} placeholder="your.email@example.com" required />
               </label>
 
@@ -363,12 +365,12 @@ export default function LandingPage() {
               })()}
 
               <label>
-                <span>Subject</span>
+                <span>Subject<RequiredMark /></span>
                 <input name="subject" value={formData.subject} onChange={handleFormChange} placeholder="What can we help with?" required />
               </label>
 
               <label>
-                <span>Message</span>
+                <span>Message<RequiredMark /></span>
                 <textarea name="message" value={formData.message} onChange={handleFormChange} placeholder="Write your message here..." required />
               </label>
 

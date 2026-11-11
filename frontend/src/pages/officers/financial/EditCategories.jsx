@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import ConfirmActionButton from '../../../components/officers/ConfirmActionButton'
 import SuccessDialog from '../../../components/officers/SuccessDialog'
-import { listCategories, createCategoriesBatch, archiveCategory } from '../../../services/financial.service'
+import { listCategories, createCategoriesBatch, archiveCategory, updateCategories } from '../../../services/financial.service'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
+import RequiredMark from '../../../components/ui/RequiredMark.jsx'
 const initialFormData = { categories: '', percentage: '' }
 const CATEGORY_REGEX = /^[A-Za-z\s]+$/
 
@@ -13,7 +14,9 @@ function parsePercentage(value) {
 
 function onlyNumbers(value) { return value.replace(/\D/g, '') }
 
-export default function EditCategories({ onSuccess, buttonLabel = 'Add Category' }) {
+// editOnly: categories are already finalized — names and percentages can
+// still be changed at any time (total stays 100%), but none added or removed.
+export default function EditCategories({ onSuccess, buttonLabel = 'Add Category', editOnly = false }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoadingExisting, setIsLoadingExisting] = useState(false)
 
@@ -159,6 +162,10 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
       }
     }
     const total = rows.reduce((sum, r) => sum + parsePercentage(r.percentage), 0)
+    if (editOnly && total !== 100) {
+      setFormLevelError(`Total percentage is ${total}%. It must be exactly 100%.`)
+      return false
+    }
     if (total > 100) {
       setFormLevelError(`Total percentage is ${total}%, which exceeds 100%. Please adjust before saving.`)
       return false
@@ -199,6 +206,16 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
     try {
       const finalRows = pendingCategories
 
+      if (editOnly) {
+        await updateCategories(
+          finalRows.map(r => ({ id: r.dbId, name: r.categories.trim(), percentage: parsePercentage(r.percentage) })),
+          confirmText
+        )
+        closeModal()
+        setIsSuccessOpen(true)
+        return
+      }
+
       const toCreate = finalRows.filter(r => !r.dbId)
       
       const keptIds = new Set(finalRows.filter(r => r.dbId).map(r => r.dbId))
@@ -233,11 +250,12 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
   function handleCancelSubmit() { setIsConfirmOpen(false); setPendingCategories([]) }
 
   const hasExisting = originalSnapshot.length > 0
-  const modalTitle = hasExisting ? 'Edit Categories' : 'Add Categories'
+  const modalTitle = hasExisting || editOnly ? 'Edit Categories' : 'Add Categories'
+  const rowGridClass = editOnly ? 'grid-cols-[minmax(0,1fr)_120px]' : 'grid-cols-[minmax(0,1fr)_120px_52px]'
 
   return (
     <>
-    {!isSecondSemester && (
+    {(editOnly || !isSecondSemester) && (
       <button type="button" onClick={openModal}
         className="btn btn--sm bg-(--primary) text-white hover:bg-(--primary-hover)">
         {buttonLabel}
@@ -250,9 +268,11 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">{modalTitle}</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  {hasExisting
-                    ? 'Edit names and percentages directly, remove categories with ×, or add new ones below.'
-                    : 'Complete the details before submitting.'}
+                  {editOnly
+                    ? 'Edit names and percentages directly. The total must stay exactly 100%, and a category can’t go below what it has already spent.'
+                    : hasExisting
+                      ? 'Edit names and percentages directly, remove categories with ×, or add new ones below.'
+                      : 'Complete the details before submitting.'}
                 </p>
               </div>
               <button type="button" onClick={closeModal}
@@ -266,6 +286,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
               {isLoadingExisting && <LoadingState inline label="Loading existing categories…" />}
 
               {/* Add new row */}
+              {!editOnly && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700" htmlFor="categories">New Category</label>
@@ -293,18 +314,19 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                   </div>
                 </div>
               </div>
+              )}
               {topFormError && <p className="text-sm text-red-600 -mt-2">{topFormError}</p>}
 
               {/* Unified, inline-editable list — existing + new together */}
               {categories.length > 0 && (
                 <div className="overflow-hidden rounded-md border border-gray-200">
-                  <div className="grid grid-cols-[minmax(0,1fr)_120px_52px] items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700">
-                    <span>Category</span>
-                    <span>Percentage</span>
-                    <span className="text-center">Action</span>
+                  <div className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700`}>
+                    <span>Category<RequiredMark /></span>
+                    <span>Percentage<RequiredMark /></span>
+                    {!editOnly && <span className="text-center">Action</span>}
                   </div>
                   {categories.map(cat => (
-                    <div key={cat.uid} className="grid grid-cols-[minmax(0,1fr)_120px_52px] items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0">
+                    <div key={cat.uid} className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0`}>
                       <input
                         type="text"
                         value={cat.categories}
@@ -323,22 +345,24 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                         />
                         <span className="text-gray-400">%</span>
                       </div>
-                      <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
-                        className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                        aria-label={`Remove ${cat.categories}`}>&times;</button>
+                      {!editOnly && (
+                        <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
+                          className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                          aria-label={`Remove ${cat.categories}`}>&times;</button>
+                      )}
                     </div>
                   ))}
-                  <div className="grid grid-cols-[minmax(0,1fr)_120px_52px] gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">
+                  <div className={`grid ${rowGridClass} gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800`}>
                     <span>Total</span>
                     <span className="text-right">{savedTotal}%</span>
-                    <span />
+                    {!editOnly && <span />}
                   </div>
                 </div>
               )}
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Type <span className="font-mono font-bold">CONFIRM</span> to save:
+                  Type <span className="font-mono font-bold">CONFIRM</span> to save:<RequiredMark />
                 </label>
                 <input
                   type="text"

@@ -43,6 +43,7 @@ export const listCategories = () => api.get('/financial/categories').then(r => r
 export const createCategoriesBatch = (categories, confirmText) => api.post('/financial/categories/batch', { categories, confirmText }).then(r => r.data)
 
 export const archiveCategory = (id) => api.delete(`/financial/categories/${id}`).then(r => r.data)
+export const updateCategories = (categories, confirmText) => api.put('/financial/categories', { categories, confirmText }).then(r => r.data)
 
 // Disbursements
 export const listDisbursements = () => api.get('/financial/disbursements').then(r => r.data)

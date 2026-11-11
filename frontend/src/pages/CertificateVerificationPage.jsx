@@ -6,6 +6,7 @@ import "../assets/styles/LandingPage.css";
 import { verifyCertificate } from "../services/certification.service.js";
 import { renderVerifiedMembershipCertificateImage } from "../utils/downloadMembershipCertificate.js";
 import LoadingState from "../components/ui/LoadingState.jsx";
+import RequiredMark from "../components/ui/RequiredMark.jsx";
 
 export default function CertificateVerificationPage() {
   const { token = "" } = useParams();
@@ -126,7 +127,7 @@ export default function CertificateVerificationPage() {
               </button>
               <div className="landing-verification-divider"><span>or enter manually</span></div>
               <form className="landing-verification-form" onSubmit={handleSubmit}>
-                <label htmlFor="certificate-id">Certificate ID</label>
+                <label htmlFor="certificate-id">Certificate ID<RequiredMark /></label>
                 <div>
                   <input id="certificate-id" value={certificateId} onChange={(event) => { setCertificateId(event.target.value); setResult(null); }} placeholder="e.g. a1b2c3d4-..." autoComplete="off" autoFocus />
                   <button aria-busy={isVerifying} type="submit" className="landing-primary-action" disabled={isVerifying}>{isVerifying ? "Verifying…" : "Verify"}</button>

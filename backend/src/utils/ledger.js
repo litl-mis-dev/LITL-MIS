@@ -8,6 +8,7 @@ const FINANCIAL_LEDGER_ACTIONS = new Set([
   'PAYMENT_RECORDED',
   'PAYMENT_ARCHIVED',
   'CATEGORY_CREATED',
+  'CATEGORY_UPDATED',
   'CATEGORY_ARCHIVED',
   'DISBURSEMENT_CREATED',
   'DISBURSEMENT_ARCHIVED',
@@ -342,21 +343,71 @@ const CHECKS = {
   async CATEGORY_CREATED(details) {
     if (!details?.names?.length) return { ok: true, skipped: true }
 
-    const found = await prisma.fundCategory.count({
+    const found = await prisma.fundCategory.findMany({
       where: {
         name:       { in: details.names },
         semesterId: details.semesterId ?? undefined,
-      }
+      },
+      select: { name: true }
     })
+    const foundNames = new Set(found.map(c => c.name))
 
-    if (found < details.names.length) {
-      const missing = details.names.length - found
+    // A category renamed through the app has a CATEGORY_UPDATED entry with
+    // its old name — that entry's own check covers the category from there.
+    const missingNames = []
+    for (const name of details.names) {
+      if (foundNames.has(name)) continue
+      const renamed = await prisma.auditLog.findFirst({
+        where: {
+          action:  'CATEGORY_UPDATED',
+          details: { contains: `"previousName":${JSON.stringify(name)},` },
+        },
+        select: { id: true }
+      })
+      if (!renamed) missingNames.push(name)
+    }
+
+    if (missingNames.length > 0) {
+      const missing = missingNames.length
       return {
         ok: false,
-        reasons: [`${missing} fund categor${missing === 1 ? 'y' : 'ies'} (${details.names.join(', ')}) ${missing === 1 ? 'was' : 'were'} deleted directly from the database.`]
+        reasons: [`${missing} fund categor${missing === 1 ? 'y' : 'ies'} (${missingNames.join(', ')}) ${missing === 1 ? 'was' : 'were'} deleted directly from the database.`]
       }
     }
     return { ok: true }
+  },
+
+  async CATEGORY_UPDATED(details, log) {
+    const snap = details?.snapshot
+    if (!snap?.id) return { ok: true, skipped: true }
+
+    const record = await prisma.fundCategory.findUnique({ where: { id: snap.id } })
+    if (!record) {
+      return {
+        ok: false,
+        reasons: [`Fund category "${snap.name}" was permanently deleted from the database.`]
+      }
+    }
+
+    // Only the newest edit of a category says what it should look like now.
+    const laterEdit = await prisma.auditLog.findFirst({
+      where: {
+        action:  'CATEGORY_UPDATED',
+        id:      { gt: log.id },
+        details: { contains: `"categoryId":${snap.id},` },
+      },
+      select: { id: true }
+    })
+    if (laterEdit) return { ok: true }
+
+    const reasons = []
+    if (record.name !== snap.name) {
+      reasons.push(`Fund category "${snap.name}" was renamed to "${record.name}" directly in the database.`)
+    }
+    if (Math.abs(parseFloat(record.percentage) - parseFloat(snap.percentage)) > 0.001) {
+      reasons.push(`Fund category "${record.name}" percentage was changed (${snap.percentage}% → ${parseFloat(record.percentage).toFixed(2)}%) directly in the database.`)
+    }
+    return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 
   async CATEGORY_ARCHIVED(details) {
@@ -516,7 +567,7 @@ async function verifyLedger() {
     const checkFn       = CHECKS[log.action]
     let crossRefResult  = { ok: true, skipped: false }
     if (checkFn) {
-      try { crossRefResult = await checkFn(details) } catch (e) {
+      try { crossRefResult = await checkFn(details, log) } catch (e) {
         logError(`Cross-ref check failed for ${log.action} #${log.id}`, e)
       }
     }
