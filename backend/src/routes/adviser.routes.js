@@ -1,5 +1,7 @@
 const express = require('express')
 const router = express.Router()
+const { validateIdParams } = require('../middleware/request.middleware')
+validateIdParams(router, ['id', 'userId'])
 const authMiddleware = require('../middleware/auth.middleware')
 const roleGuard = require('../middleware/role.middleware')
 const { adviserInviteLinkLimiter, adviserInviteSendLimiter } = require('../middleware/rateLimit.middleware')

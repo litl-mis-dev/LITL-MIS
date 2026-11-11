@@ -1,5 +1,7 @@
 const express = require('express')
 const router = express.Router()
+const { validateIdParams } = require('../middleware/request.middleware')
+validateIdParams(router, ['userId'])
 
 const {
   register,

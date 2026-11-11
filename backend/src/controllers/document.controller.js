@@ -240,6 +240,9 @@ const uploadFiles = async (req, res) => {
     const parentId = req.body.parentId != null && req.body.parentId !== ''
       ? Number(req.body.parentId)
       : null
+    if (parentId != null && !(Number.isInteger(parentId) && parentId > 0)) {
+      return res.status(400).json({ message: 'Invalid destination folder.' })
+    }
 
     if (parentId != null) {
       const parent = await loadDocument(parentId)

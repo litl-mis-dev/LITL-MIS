@@ -13,4 +13,18 @@ const jsonNotFound = (req, res) => {
   res.status(404).json({ message: 'Not found' })
 }
 
-module.exports = { defaultEmptyBody, jsonNotFound }
+// Route IDs are database integers. Without this, "/documents/abc" became
+// Number('abc') = NaN, Prisma rejected it and the handler answered 500.
+// Registered per router for its numeric parameters; text parameters
+// (publicId, studentNumber, assetType) are left alone.
+const MAX_INT = 2147483647
+const validateIdParams = (router, names) => {
+  for (const name of names) {
+    router.param(name, (req, res, next, value) => {
+      if (/^\d{1,10}$/.test(value) && Number(value) > 0 && Number(value) <= MAX_INT) return next()
+      return res.status(400).json({ message: 'Invalid ID.' })
+    })
+  }
+}
+
+module.exports = { defaultEmptyBody, jsonNotFound, validateIdParams }

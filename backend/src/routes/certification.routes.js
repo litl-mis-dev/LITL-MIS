@@ -1,5 +1,7 @@
 const express = require('express')
 const router = express.Router()
+const { validateIdParams } = require('../middleware/request.middleware')
+validateIdParams(router, ['eventId', 'id'])
 const authMiddleware = require('../middleware/auth.middleware')
 const requireModule  = require('../middleware/permission.middleware')
 const { uploadCertificate } = require('../middleware/upload.middleware')

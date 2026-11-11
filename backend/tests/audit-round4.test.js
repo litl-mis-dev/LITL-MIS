@@ -1,15 +1,17 @@
-// Audit round 4 fixes: requests without a JSON body (R3-01) and unknown
-// paths (R3-11).
+// Audit round 4 fixes: requests without a JSON body (R3-01), unknown paths
+// (R3-11) and non-numeric IDs in URLs (R3-06).
 // Runs a real Express app on a free local port; no database, email or
 // network. Run with: npm test
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const express = require('express')
 
 const backend = path.resolve(__dirname, '..')
+const stub = (rel, exports) => { require.cache[require.resolve(path.join(backend, rel))] = { exports } }
 
-const { defaultEmptyBody, jsonNotFound } = require(path.join(backend, 'src/middleware/request.middleware'))
+const { defaultEmptyBody, jsonNotFound, validateIdParams } = require(path.join(backend, 'src/middleware/request.middleware'))
 
 // Starts `app` on a free port, runs `fn(baseUrl)`, then closes it.
 async function withServer(app, fn) {
@@ -58,4 +60,35 @@ test('R3-11: unknown paths get a JSON 404, not the Express HTML page', async () 
       assert.deepEqual(await res.json(), { message: 'Not found' })
     }
   })
+})
+
+test('R3-06: non-numeric or out-of-range IDs get 400; text parameters are untouched', async () => {
+  const router = express.Router()
+  validateIdParams(router, ['id'])
+  router.get('/docs/:id', (req, res) => res.json({ id: Number(req.params.id) }))
+  router.get('/verify/:publicId', (req, res) => res.json({ publicId: req.params.publicId }))
+  await withServer(express().use(router), async (base) => {
+    for (const bad of ['abc', '0', '-1', '1.5', '1e3', '99999999999', '2147483648', '%20']) {
+      assert.equal((await fetch(`${base}/docs/${bad}`)).status, 400, bad)
+    }
+    assert.deepEqual(await (await fetch(`${base}/docs/42`)).json(), { id: 42 })
+    assert.deepEqual(await (await fetch(`${base}/verify/AbC-123`)).json(), { publicId: 'AbC-123' })
+  })
+})
+
+test('R3-06: every router checks each numeric parameter it uses', () => {
+  // Routers load their controllers; none of them touches the database here.
+  stub('src/lib/prisma.js', {})
+  const routesDir = path.join(backend, 'src/routes')
+  const TEXT_PARAMS = new Set(['publicId', 'studentNumber', 'assetType'])
+  for (const file of fs.readdirSync(routesDir)) {
+    const source = fs.readFileSync(path.join(routesDir, file), 'utf8')
+    const used = new Set((source.match(/'\/[^']*'/g) ?? []).flatMap((p) => p.match(/:([a-zA-Z]+)/g) ?? []).map((p) => p.slice(1)))
+    const numeric = [...used].filter((p) => !TEXT_PARAMS.has(p))
+    if (numeric.length === 0) continue
+    const router = require(path.join(routesDir, file))
+    for (const name of numeric) {
+      assert.ok(router.params?.[name]?.length, `${file} does not validate :${name}`)
+    }
+  }
 })
