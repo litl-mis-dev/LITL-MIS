@@ -16,7 +16,7 @@ const {
   requestEmailChange,
   resendEmailChangeOtp,
   verifyEmailChange,
-  uploadAvatar,
+  uploadAvatar, getAvatarImage,
 } = require('../controllers/auth.controller')
 
 const authMiddleware = require('../middleware/auth.middleware')
@@ -45,6 +45,7 @@ router.post('/login', loginLimiter, login)
 router.post('/logout', logout)
 router.get('/me', authMiddleware, getMe)
 router.put('/avatar', authMiddleware, uploadAvatar)
+router.get('/avatar/:userId/image', authMiddleware, getAvatarImage)
 
 router.post('/request-email-change',    authMiddleware, emailChangeLimiter,       requestEmailChange)
 router.post('/resend-email-change-otp', authMiddleware, emailChangeLimiter,       resendEmailChangeOtp)

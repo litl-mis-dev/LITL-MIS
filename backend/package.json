@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "seed:permissions": "node prisma/seed.permissions.js",
-    "test": "node tests/audit-fixes.test.js && node --test tests/immediate-fixes.test.js tests/push-delivery.test.js tests/developer-account.test.js tests/permission-sql.test.js tests/email-escaping.test.js tests/adviser-invites.test.js tests/system-improvements.test.js tests/approval-and-reminders.test.js src/controllers/audit.controller.test.js"
+    "test": "node tests/audit-fixes.test.js && node --test tests/immediate-fixes.test.js tests/push-delivery.test.js tests/developer-account.test.js tests/permission-sql.test.js tests/email-escaping.test.js tests/adviser-invites.test.js tests/system-improvements.test.js tests/approval-and-reminders.test.js tests/avatar-image.test.js src/controllers/audit.controller.test.js"
   },
   "engines": {
     "node": ">=20"
