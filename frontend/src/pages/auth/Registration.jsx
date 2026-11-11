@@ -13,13 +13,14 @@ const PASSWORD_REGEX =
 
 const STEPS = ["Personal Info", "Additional Info", "Account"];
 
+// text-base (16px) on phones so iPhones don't zoom in on focus; text-sm from sm up.
 const inputBase =
-  "w-full h-10 px-3 border rounded-lg text-sm text-gray-900 bg-white outline-none placeholder-gray-400 transition";
+  "w-full h-10 px-3 border rounded-lg text-base sm:text-sm text-gray-900 bg-white outline-none placeholder-gray-400 transition";
 const inputNormal = inputBase + " border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 const inputError = inputBase + " border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100";
 
 const selectBase =
-  "w-full h-10 px-3 border rounded-lg text-sm text-gray-900 bg-white outline-none transition";
+  "w-full h-10 px-3 border rounded-lg text-base sm:text-sm text-gray-900 bg-white outline-none transition";
 const selectNormal = selectBase + " border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 const selectError = selectBase + " border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100";
 
