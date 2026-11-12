@@ -12,7 +12,8 @@ import {
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
 
-const LEVEL = { ROOT: "root", ARCHIVE: "archive", EVENT: "event" };
+// Certification → Academic Year → Semester → Event → certificates
+const LEVEL = { ROOT: "root", ARCHIVE: "archive", SEMESTER: "semester", EVENT: "event" };
 
 export default function Certification() {
   const { can } = useRole();
@@ -25,6 +26,7 @@ export default function Certification() {
 
   const [level, setLevel] = useState(LEVEL.ROOT);
   const [activeArchive, setActiveArchive] = useState(null);
+  const [activeSemester, setActiveSemester] = useState(null);
   const [activeEventFolder, setActiveEventFolder] = useState(null);
   const [isLoadingFolder, setIsLoadingFolder] = useState(false);
   const [folderError, setFolderError] = useState("");
@@ -98,6 +100,15 @@ export default function Certification() {
   function openArchive(archive) {
     setLevel(LEVEL.ARCHIVE);
     setActiveArchive(archive);
+    setActiveSemester(null);
+    setActiveEventFolder(null);
+    setSelectedItem(null);
+    setSearchTerm("");
+  }
+
+  function openSemester(semester) {
+    setLevel(LEVEL.SEMESTER);
+    setActiveSemester(semester);
     setActiveEventFolder(null);
     setSelectedItem(null);
     setSearchTerm("");
@@ -106,6 +117,7 @@ export default function Certification() {
   function goToRoot() {
     setLevel(LEVEL.ROOT);
     setActiveArchive(null);
+    setActiveSemester(null);
     setActiveEventFolder(null);
     setSelectedItem(null);
     setSearchTerm("");
@@ -228,11 +240,21 @@ export default function Certification() {
     return tree.archives.filter((archive) => !query || archive.schoolYear.toLowerCase().includes(query));
   }, [tree.archives, searchTerm]);
 
-  const visibleEventFolders = useMemo(() => {
-    if (!activeArchive) return [];
+  const visibleSemesters = useMemo(() => {
+    if (level !== LEVEL.ARCHIVE || !activeArchive) return [];
     const query = searchTerm.trim().toLowerCase();
-    return activeArchive.eventFolders.filter((folder) => !query || folder.title.toLowerCase().includes(query));
-  }, [activeArchive, searchTerm]);
+    return (activeArchive.semesters ?? []).filter((semester) => !query || semester.label.toLowerCase().includes(query));
+  }, [level, activeArchive, searchTerm]);
+
+  // Inside a semester: its events. Directly inside an academic year: only the
+  // events that have no semester (or every event, from an older API).
+  const visibleEventFolders = useMemo(() => {
+    const folders = level === LEVEL.SEMESTER
+      ? activeSemester?.eventFolders
+      : activeArchive?.unassignedEventFolders ?? activeArchive?.eventFolders;
+    const query = searchTerm.trim().toLowerCase();
+    return (folders ?? []).filter((folder) => !query || folder.title.toLowerCase().includes(query));
+  }, [level, activeArchive, activeSemester, searchTerm]);
 
   const visibleCertificates = useMemo(() => {
     if (!activeEventFolder) return [];
@@ -260,6 +282,16 @@ export default function Certification() {
                     <strong>Academic Year {activeArchive.schoolYear}</strong>
                   ) : (
                     <button type="button" onClick={() => openArchive(activeArchive)}>Academic Year {activeArchive.schoolYear}</button>
+                  )}
+                </span>
+              )}
+              {(level === LEVEL.SEMESTER || level === LEVEL.EVENT) && activeSemester && (
+                <span className="documents-breadcrumbs__item">
+                  <span>/</span>
+                  {level === LEVEL.SEMESTER ? (
+                    <strong>{activeSemester.label}</strong>
+                  ) : (
+                    <button type="button" onClick={() => openSemester(activeSemester)}>{activeSemester.label}</button>
                   )}
                 </span>
               )}
@@ -373,13 +405,34 @@ export default function Certification() {
               </>
             )}
 
-            {level === LEVEL.ARCHIVE && (
+            {level === LEVEL.ARCHIVE && visibleSemesters.length === 0 && visibleEventFolders.length === 0 && (
+              <div className="documents-empty">
+                <span className="documents-empty__icon"><CertificateIcon /></span>
+                <h2 className="card__title">No semesters yet</h2>
+                <p>A semester folder is created automatically here when that semester is activated.</p>
+              </div>
+            )}
+
+            {level === LEVEL.ARCHIVE && visibleSemesters.map((semester) => (
+              <FolderTile
+                key={`semester-${semester.id}`}
+                name={semester.label}
+                description={`Academic Year ${activeArchive.schoolYear}`}
+                metaLabel={`${semester.eventFolders.length} activity ${semester.eventFolders.length === 1 ? "folder" : "folders"}`}
+                status={semester.isActive ? "Active" : "Closed"}
+                onOpen={() => openSemester(semester)}
+                onSelect={() => setSelectedItem({ kind: "semester", data: semester })}
+                isSelected={selectedItem?.kind === "semester" && selectedItem.data.id === semester.id}
+              />
+            ))}
+
+            {(level === LEVEL.ARCHIVE || level === LEVEL.SEMESTER) && (
               <>
-                {visibleEventFolders.length === 0 && (
+                {level === LEVEL.SEMESTER && visibleEventFolders.length === 0 && (
                   <div className="documents-empty">
                     <span className="documents-empty__icon"><CertificateIcon /></span>
                     <h2 className="card__title">No events yet</h2>
-                    <p>A folder is created automatically here whenever an officer creates an event.</p>
+                    <p>A folder is created automatically here whenever an officer creates an event during this semester.</p>
                   </div>
                 )}
                 {visibleEventFolders.map((folder) => (
@@ -429,7 +482,11 @@ export default function Certification() {
           <DetailsPanel
             selectedItem={selectedItem}
             onClose={() => setSelectedItem(null)}
-            onOpenFolder={level === LEVEL.ROOT ? () => openArchive(selectedItem.data) : () => openEventFolder(selectedItem.data)}
+            onOpenFolder={{
+              archive: () => openArchive(selectedItem.data),
+              semester: () => openSemester(selectedItem.data),
+              eventFolder: () => openEventFolder(selectedItem.data),
+            }[selectedItem.kind]}
             onRevoke={canEdit ? openRevokeModal : undefined}
             onDownload={canEdit ? handleDownloadCertificate : undefined}
             isDownloading={Boolean(downloadState)}
@@ -518,6 +575,21 @@ function DetailsPanel({ selectedItem, onClose, onOpenFolder, onRevoke, onDownloa
           </dl>
           <div className="documents-details__actions">
             <button type="button" className="btn btn--primary" onClick={onOpenFolder}>Open archive</button>
+            <button type="button" className="btn" onClick={onClose}>Close details</button>
+          </div>
+        </>
+      )}
+
+      {kind === "semester" && (
+        <>
+          <h2>{data.label}</h2>
+          <p>Semester certification folder</p>
+          <dl className="documents-meta-list">
+            <div><dt>Event folders</dt><dd>{data.eventFolders.length}</dd></div>
+            <div><dt>Status</dt><dd>{data.isActive ? "Active" : "Closed"}</dd></div>
+          </dl>
+          <div className="documents-details__actions">
+            <button type="button" className="btn btn--primary" onClick={onOpenFolder}>Open folder</button>
             <button type="button" className="btn" onClick={onClose}>Close details</button>
           </div>
         </>
