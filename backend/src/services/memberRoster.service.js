@@ -6,8 +6,11 @@ const { approvePendingUser } = require('./memberApproval.service')
 
 // Member roster: the officer-uploaded list of students allowed to join. A
 // registration waiting for approval is approved automatically when its
-// student number AND last name match a roster entry. A name mismatch is left
-// for an officer to review, and nobody is ever rejected automatically.
+// student number AND last name match a roster entry AND it was made with a
+// CvSU email. Student numbers and last names aren't secret, so a matching
+// registration with a personal email could be someone else using a
+// classmate's details: it is left for an officer to review, like a name
+// mismatch. Nobody is ever rejected automatically.
 
 const MAX_ROSTER_ROWS = 5000
 const LAST_NAME_REGEX = /^[\p{L}\s'.-]+$/u
@@ -80,19 +83,21 @@ async function buildRosterPlan(entries, mode) {
   const pending = await prisma.user.findMany({
     where: { status: 'PENDING_OFFICER_APPROVAL', studentNumber: { not: null }, ...MEMBERSHIP_USER_FILTER },
     select: {
-      id: true, studentNumber: true,
+      id: true, studentNumber: true, emailType: true,
       member: { select: { firstName: true, middleName: true, lastName: true, suffix: true } },
     },
   })
   const willApprove = []
   const nameMismatch = []
+  const personalEmail = []
   let pendingNotListed = 0
   for (const user of pending) {
     const rosterLastName = after.get(user.studentNumber)
     const item = { userId: user.id, name: displayName(user.member), studentNumber: user.studentNumber }
     if (rosterLastName === undefined) pendingNotListed++
-    else if (normalizeLastName(rosterLastName) === normalizeLastName(user.member?.lastName)) willApprove.push(item)
-    else nameMismatch.push({ ...item, rosterLastName })
+    else if (normalizeLastName(rosterLastName) !== normalizeLastName(user.member?.lastName)) nameMismatch.push({ ...item, rosterLastName })
+    else if (user.emailType !== 'CVSU') personalEmail.push(item)
+    else willApprove.push(item)
   }
 
   const uploadedNumbers = [...entries.keys()]
@@ -115,6 +120,7 @@ async function buildRosterPlan(entries, mode) {
     },
     willApprove,
     nameMismatch,
+    personalEmail,
   }
 }
 
@@ -149,9 +155,10 @@ async function applyRosterPlan(plan, actorId) {
 async function approveFromRosterIfListed(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { status: true, studentNumber: true, role: true, member: { select: { lastName: true } } },
+    select: { status: true, studentNumber: true, role: true, emailType: true, member: { select: { lastName: true } } },
   })
   if (!user || user.status !== 'PENDING_OFFICER_APPROVAL' || user.role !== 'MEMBER' || !user.studentNumber) return false
+  if (user.emailType !== 'CVSU') return false // personal email: an officer reviews it
 
   const entry = await prisma.memberRoster.findUnique({ where: { studentNumber: user.studentNumber } })
   if (!entry || normalizeLastName(entry.lastName) !== normalizeLastName(user.member?.lastName)) return false

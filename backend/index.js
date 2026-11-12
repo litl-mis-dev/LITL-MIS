@@ -30,6 +30,7 @@ const adviserRoutes = require('./src/routes/adviser.routes')
 const http = require('http')
 const { initSocket } = require('./src/realtime/socket')
 const prisma = require('./src/lib/prisma')
+const { defaultEmptyBody, jsonNotFound } = require('./src/middleware/request.middleware')
 
 const app = express()
 
@@ -65,6 +66,7 @@ app.use('/api/auth/avatar', express.json({ limit: '3mb' }))
 // An uploaded member roster can hold a few thousand rows.
 app.use('/api/officer/member-roster', express.json({ limit: '1mb' }))
 app.use(express.json())
+app.use(defaultEmptyBody)
 app.use(cookieParser())
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -107,9 +109,7 @@ app.get('/api/health/ready', async (req, res) => {
   }
 })
 
-app.use('/api', (req, res) => {
-  res.status(404).json({ message: 'Not found' })
-})
+app.use(jsonNotFound)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

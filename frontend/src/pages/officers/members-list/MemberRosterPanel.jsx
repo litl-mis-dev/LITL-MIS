@@ -102,7 +102,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
                     <p className="card__sub">
                         {loadError || (entries === null
                             ? "Loading roster…"
-                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the roster. Registrations matching a student number and last name are approved automatically.`)}
+                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the roster. Registrations with a CvSU email that match a student number and last name are approved automatically.`)}
                     </p>
                 </div>
                 <div className="member-list-actions">
@@ -250,6 +250,8 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber}</span></>} />
                                 <RosterList title="Name doesn't match — stays pending for manual review" items={preview.nameMismatch}
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · roster says &quot;{u.rosterLastName}&quot;</span></>} />
+                                <RosterList title="Registered with a personal email — stays pending for manual review" items={preview.personalEmail}
+                                    render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · confirm it&apos;s really this student before approving</span></>} />
                             </>
                         )}
                         {preview?.invalidCount > 0 && (

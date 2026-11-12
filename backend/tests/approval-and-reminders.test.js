@@ -48,7 +48,11 @@ const fakePrisma = {
       .map((m) => ({ ...m, user: db.users.find((u) => u.id === m.userId) }))
       .filter((m) => matches(m, where)),
   },
-  payment: { findMany: async ({ where }) => db.payments.filter((p) => matches(p, where)) },
+  payment: {
+    findMany: async ({ where }) => db.payments.filter((p) => matches(p, where)),
+    findFirst: async ({ where: { member, ...where } }) => db.payments.find((p) => matches(p, where)
+      && (!member || db.members.find((m) => m.id === p.memberId)?.userId === member.userId)) ?? null,
+  },
   memberRoster: {
     findMany: async () => db.roster.map((e) => ({ ...e })),
     findUnique: async ({ where }) => db.roster.find((e) => e.studentNumber === where.studentNumber) ?? null,
@@ -126,8 +130,9 @@ const call = async (handler, req) => {
 }
 const clearLogs = () => { auditLogs.length = 0; emails.length = 0; approvalNotices.length = 0; reminderNotices.length = 0 }
 
-const addUser = ({ studentNumber, lastName, firstName = 'Ana', status = 'PENDING_OFFICER_APPROVAL', role = 'MEMBER' }) => {
-  const user = { id: nextId++, email: `${studentNumber}@cvsu.edu.ph`, studentNumber, status, role }
+const addUser = ({ studentNumber, lastName, firstName = 'Ana', status = 'PENDING_OFFICER_APPROVAL', role = 'MEMBER', emailType = 'CVSU' }) => {
+  const email = emailType === 'CVSU' ? `${studentNumber}@cvsu.edu.ph` : `${studentNumber}@gmail.com`
+  const user = { id: nextId++, email, emailType, studentNumber, status, role }
   db.users.push(user)
   db.members.push({ id: nextId++, userId: user.id, firstName, lastName, status: 'ACTIVE' })
   return user
@@ -224,6 +229,26 @@ test('a registrant on the roster is approved right after email verification', as
   assert.equal(auditLogs[0].actorId, null)
 })
 
+test('a personal-email registration is never approved automatically from the roster', async () => {
+  reset(); clearLogs()
+  db.roster.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
+  const impostor = addUser({ studentNumber: '2023-100-1', lastName: 'Dela Cruz', emailType: 'PERSONAL' })
+
+  // At registration time
+  assert.equal(await roster.approveFromRosterIfListed(impostor.id), false)
+  assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
+
+  // When an officer saves the roster: listed for manual review, not approved
+  const rows = [{ row: 1, studentNumber: '2023-100-1', lastName: 'Dela Cruz' }]
+  const preview = await call(rosterCtrl.previewRoster, { body: { rows, mode: 'add' } })
+  assert.deepEqual(preview.body.willApprove, [])
+  assert.deepEqual(preview.body.personalEmail.map((u) => u.userId), [impostor.id])
+  const saved = await call(rosterCtrl.applyRoster, { body: { rows, mode: 'add' } })
+  assert.equal(saved.body.approvedCount, 0)
+  assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
+  assert.equal(emails.length, 0)
+})
+
 test('roster requests are rejected when empty, too large or in an unknown mode', async () => {
   reset()
   assert.equal((await call(rosterCtrl.applyRoster, { body: { rows: [], mode: 'add' } })).statusCode, 400)
@@ -272,6 +297,19 @@ test('a payment reminder is pinned with Important Announcements for 7 days', asy
   assert.equal(pinned.kind, 'PAYMENT_REMINDER')
   assert.equal(pinned.id, 'payment-reminder-1')
   assert.equal(new Date(pinned.expiresAt).getTime() - db.notifications[0].createdAt.getTime(), 7 * DAY)
+})
+
+test('the pinned payment reminder disappears once the member has paid', async () => {
+  reset()
+  db.semesters.push({ id: 1, schoolYear: '2026-2027', semester: 'FIRST', isActive: true })
+  const member = addUser({ studentNumber: '2023-100-1', lastName: 'A', status: 'APPROVED' })
+  db.notifications.push({ id: 1, userId: member.id, type: 'PAYMENT_REMINDER', title: 'Reminder', message: 'Pay', createdAt: new Date() })
+  const asMember = { user: { id: member.id, role: 'MEMBER', effectiveRole: 'MEMBER' } }
+
+  assert.equal((await call(announcementCtrl.listImportantAnnouncements, asMember)).body.announcements.length, 1)
+  const memberId = db.members.find((m) => m.userId === member.id).id
+  db.payments.push({ memberId, semesterId: 1, obligationSemesterId: 1, isArchived: false })
+  assert.equal((await call(announcementCtrl.listImportantAnnouncements, asMember)).body.announcements.length, 0)
 })
 
 // ── Categories ───────────────────────────────────────────────────────────────

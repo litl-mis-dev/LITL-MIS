@@ -10,6 +10,36 @@ const ALLOWED_DOCUMENT_EXTENSIONS = new Set([
   'jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'rar', '7z',
 ])
 
+// The Content-Type each stored document is served with. Taken from the
+// checked extension, never from the browser's claim: a ".pdf" sent as
+// "text/html" would otherwise be served as a web page from the R2 domain.
+const DOCUMENT_CONTENT_TYPES = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain; charset=utf-8',
+  csv: 'text/csv; charset=utf-8',
+  rtf: 'application/rtf',
+  odt: 'application/vnd.oasis.opendocument.text',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  odp: 'application/vnd.oasis.opendocument.presentation',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  zip: 'application/zip',
+  rar: 'application/vnd.rar',
+  '7z': 'application/x-7z-compressed',
+}
+
+const documentContentType = (originalName) =>
+  DOCUMENT_CONTENT_TYPES[getExt(originalName)] ?? 'application/octet-stream'
+
 const MAX_DOCUMENT_SIZE_MB    = Number(process.env.DOCUMENTS_MAX_FILE_SIZE_MB) || 25
 const MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 const MAX_FILES_PER_UPLOAD    = 10
@@ -97,6 +127,7 @@ module.exports = {
   documentAssetUpload,
   uploadCertificate,
   ALLOWED_DOCUMENT_EXTENSIONS,
+  documentContentType,
   MAX_DOCUMENT_SIZE_BYTES,
   MAX_DOCUMENT_SIZE_MB,
   CERTIFICATE_MIME_TYPES,

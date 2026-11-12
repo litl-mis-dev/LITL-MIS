@@ -6,6 +6,7 @@ const { AUDIT_ACTIONS } = require('../utils/auditActions')
 const { OFFICER_ROLES, positionLabel } = require('../utils/roles')
 const crypto = require('crypto')
 const storageService = require('../services/storage.service')
+const { documentContentType } = require('../middleware/upload.middleware')
 const {
   canView,
   canEdit,
@@ -240,6 +241,9 @@ const uploadFiles = async (req, res) => {
     const parentId = req.body.parentId != null && req.body.parentId !== ''
       ? Number(req.body.parentId)
       : null
+    if (parentId != null && !(Number.isInteger(parentId) && parentId > 0)) {
+      return res.status(400).json({ message: 'Invalid destination folder.' })
+    }
 
     if (parentId != null) {
       const parent = await loadDocument(parentId)
@@ -255,7 +259,7 @@ const uploadFiles = async (req, res) => {
       const ext         = path.extname(file.originalname).toLowerCase()
       const storagePath = `documents/${crypto.randomUUID()}${ext}`
       const { path: uploadedPath, publicUrl } = await storageService.uploadFile(
-        storagePath, file.buffer, file.mimetype
+        storagePath, file.buffer, documentContentType(file.originalname)
       )
       uploadedPaths.push(uploadedPath)
       uploadResults.push({ file, storagePath: uploadedPath, publicUrl })
@@ -275,7 +279,7 @@ const uploadFiles = async (req, res) => {
             storagePath,
             publicUrl,
             originalFileName: file.originalname,
-            mimeType:         file.mimetype,
+            mimeType:         documentContentType(file.originalname),
             size:             file.size,
             fileType:         getExtensionLabel(file.originalname),
           },

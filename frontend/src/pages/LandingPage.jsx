@@ -133,6 +133,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <nav className={`landing-nav ${scrolled ? "landing-nav-scrolled" : ""}`}>
         <div className="landing-nav-inner">
           <button className="landing-brand" type="button" onClick={() => scrollTo("home")} aria-label="Go to home">
@@ -177,7 +178,7 @@ export default function LandingPage() {
         )}
       </nav>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section id="home" className="landing-hero">
           <div className="landing-shell landing-hero-grid">
             <div className="landing-hero-copy">

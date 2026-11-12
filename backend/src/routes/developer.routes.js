@@ -1,5 +1,7 @@
 const express = require('express')
 const router = express.Router()
+const { validateIdParams } = require('../middleware/request.middleware')
+validateIdParams(router, ['userId'])
 const authMiddleware = require('../middleware/auth.middleware')
 const { requireDeveloper, requireNoPresident } = require('../middleware/developer.middleware')
 const { getPendingUsers, approveUser, rejectUser } = require('../controllers/officer.controller')
