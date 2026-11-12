@@ -360,6 +360,7 @@ model Semester {
   disbursements  Disbursement[]
   returnFunds    ReturnFund[]
   membershipCertificates MembershipCertificate[] @relation("MembershipCertificateSemester")
+  certificationFolders   EventCertificationFolder[]
 
   @@unique([schoolYear, semester])
 }
@@ -648,13 +649,18 @@ model EventCertificationFolder {
   id                     Int      @id @default(autoincrement())
   eventId                Int      @unique
   certificationArchiveId Int
+  // Semester that was active when the event was created — the folder sits
+  // under it in the Certification tree. Null only when no semester existed.
+  semesterId             Int?
   createdAt              DateTime @default(now())
 
   event                Event                @relation(fields: [eventId], references: [id])
   certificationArchive CertificationArchive @relation(fields: [certificationArchiveId], references: [id])
+  semester             Semester?            @relation(fields: [semesterId], references: [id])
   certificates         Certificate[]
 
   @@index([certificationArchiveId])
+  @@index([semesterId])
 }
 
 model Certificate {

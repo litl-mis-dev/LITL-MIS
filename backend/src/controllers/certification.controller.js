@@ -14,6 +14,8 @@ const { emitToOfficers } = require('../realtime/socket')
 
 const STORAGE_FOLDER = 'certification'
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
+const SEMESTER_LABELS = { FIRST: '1st Semester', SECOND: '2nd Semester' }
+const SEMESTER_ORDER = { FIRST: 0, SECOND: 1 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,9 +66,13 @@ async function ensureCertificationArchive(schoolYear, actorId, tx = prisma) {
 // Ensures an EventCertificationFolder exists for the given event, creating its
 // parent CertificationArchive too if needed. Called automatically on event
 // creation, and defensively whenever the certification module is opened for
-// an event that predates this feature.
+// an event that predates this feature. The folder is filed under the semester
+// active at that moment (School Year → Semester → Event).
 async function ensureEventCertificationFolder(event, actorId) {
-  const existing = await prisma.eventCertificationFolder.findUnique({ where: { eventId: event.id } })
+  const existing = await prisma.eventCertificationFolder.findUnique({
+    where: { eventId: event.id },
+    include: { semester: true },
+  })
   if (existing) return existing
 
   const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
@@ -82,8 +88,28 @@ async function ensureEventCertificationFolder(event, actorId) {
   }
 
   return prisma.eventCertificationFolder.create({
-    data: { eventId: event.id, certificationArchiveId: archive.id },
+    data: { eventId: event.id, certificationArchiveId: archive.id, semesterId: activeSemester?.id ?? null },
+    include: { semester: true },
   })
+}
+
+function formatSemester(semester) {
+  return semester
+    ? { id: semester.id, semester: semester.semester, label: SEMESTER_LABELS[semester.semester], isActive: semester.isActive }
+    : null
+}
+
+function formatEventFolder(folder) {
+  return {
+    id: folder.id,
+    eventId: folder.eventId,
+    semesterId: folder.semesterId,
+    title: folder.event.title,
+    date: folder.event.date,
+    location: folder.event.location,
+    status: folder.event.status,
+    certificateCount: folder._count.certificates,
+  }
 }
 
 function formatCertificate(cert) {
@@ -110,8 +136,10 @@ function formatCertificate(cert) {
 
 // ── Archive tree (officer view) ─────────────────────────────────────────────
 // GET /api/certification/tree
-// Returns every academic year archive, with its event folders and per-folder
-// certificate counts, in one shot — the whole left-hand tree the officer sees.
+// Returns every academic year archive, its semesters, and their event folders
+// with per-folder certificate counts, in one shot — the whole tree the officer
+// sees. A semester shows once it has been activated (or already holds event
+// folders), so the 2nd Semester appears only after it is activated.
 const getTree = async (req, res) => {
   try {
     const archives = await prisma.certificationArchive.findMany({
@@ -125,24 +153,36 @@ const getTree = async (req, res) => {
         },
       },
     })
+    const semesters = await prisma.semester.findMany({
+      where: { schoolYear: { in: archives.map((archive) => archive.schoolYear) } },
+      select: { id: true, schoolYear: true, semester: true, isActive: true, hasBeenActivated: true },
+    })
 
     return res.json({
-      archives: archives.map((archive) => ({
-        id: archive.id,
-        schoolYear: archive.schoolYear,
-        createdAt: archive.createdAt,
-        eventFolders: archive.eventFolders
+      archives: archives.map((archive) => {
+        const eventFolders = archive.eventFolders
           .filter((folder) => folder.event) // guard against orphaned rows
-          .map((folder) => ({
-            id: folder.id,
-            eventId: folder.eventId,
-            title: folder.event.title,
-            date: folder.event.date,
-            location: folder.event.location,
-            status: folder.event.status,
-            certificateCount: folder._count.certificates,
+          .map(formatEventFolder)
+        const folderSemesterIds = new Set(eventFolders.map((folder) => folder.semesterId))
+        const archiveSemesters = semesters
+          .filter((s) => s.schoolYear === archive.schoolYear && (s.hasBeenActivated || folderSemesterIds.has(s.id)))
+          .sort((a, b) => SEMESTER_ORDER[a.semester] - SEMESTER_ORDER[b.semester])
+        const shownSemesterIds = new Set(archiveSemesters.map((s) => s.id))
+
+        return {
+          id: archive.id,
+          schoolYear: archive.schoolYear,
+          createdAt: archive.createdAt,
+          semesters: archiveSemesters.map((s) => ({
+            ...formatSemester(s),
+            eventFolders: eventFolders.filter((folder) => folder.semesterId === s.id),
           })),
-      })),
+          // Folders with no semester of this school year (made while no
+          // semester existed yet) — kept reachable from the school year.
+          unassignedEventFolders: eventFolders.filter((folder) => !shownSemesterIds.has(folder.semesterId)),
+          eventFolders,
+        }
+      }),
     })
   } catch (err) {
     logError('Get certification tree', err)
@@ -169,7 +209,12 @@ const getEventFolder = async (req, res) => {
     })
 
     return res.json({
-      folder: { id: folder.id, eventId: folder.eventId, certificationArchiveId: folder.certificationArchiveId },
+      folder: {
+        id: folder.id,
+        eventId: folder.eventId,
+        certificationArchiveId: folder.certificationArchiveId,
+        semester: formatSemester(folder.semester),
+      },
       event: { id: event.id, title: event.title, date: event.date, location: event.location, status: event.status },
       certificates: certificates.map(formatCertificate),
     })
@@ -229,9 +274,11 @@ const issueCertificate = async (req, res) => {
         // 2. Hash the FINAL (stamped) file — this is what gets anchored in the ledger.
         const certificateHash = sha256(stampedBuffer)
 
-        // 3. Store the final file in R2, organized by academic year → event.
+        // 3. Store the final file in R2, organized by academic year → semester → event.
+        // Files already issued keep their old path: it is anchored in the ledger.
         const ext = stampedMimeType === 'application/pdf' ? '.pdf' : path.extname(file.originalname) || '.png'
-        const storagePath = `${STORAGE_FOLDER}/${archive.schoolYear}/${slugify(event.title, 40)}-${event.id}/${publicId}${ext}`
+        const semesterSegment = folder.semester ? `${slugify(SEMESTER_LABELS[folder.semester.semester])}/` : ''
+        const storagePath = `${STORAGE_FOLDER}/${archive.schoolYear}/${semesterSegment}${slugify(event.title, 40)}-${event.id}/${publicId}${ext}`
         const { path: uploadedPath, publicUrl } = await storageService.uploadFile(storagePath, stampedBuffer, stampedMimeType)
 
         // 4. Persist the certificate record.
@@ -596,7 +643,6 @@ async function verifyMembershipCertificate(rawInput, res) {
 
   const memberName = [certificate.member.firstName, certificate.member.middleName, certificate.member.lastName, certificate.member.suffix]
     .filter(Boolean).join(' ')
-  const SEMESTER_LABELS = { FIRST: '1st Semester', SECOND: '2nd Semester' }
 
   return res.json({
     status: 'VALID',
