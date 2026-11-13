@@ -492,9 +492,8 @@ export default function UserProfile({ variant = "member" }) {
 
                             {/* Email with inline Change button */}
                             <div className="dash-form__field" style={{ flexDirection: "column" }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-                                    Email
-                                </span>
+                                {/* Same label style as the other fields (from .dash-form__field). */}
+                                <span>Email</span>
                                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                     <input
                                         type="text"

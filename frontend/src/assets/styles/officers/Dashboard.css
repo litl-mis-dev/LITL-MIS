@@ -472,6 +472,12 @@ button {
   line-height: 1.55;
 }
 
+/* The heading beside the member actions keeps its width ("All Members" on
+   one line); the action buttons wrap instead. */
+.card__header > div:first-child:has(+ .member-list-actions) {
+  flex: 0 0 auto;
+}
+
 .member-list-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2585,6 +2591,12 @@ button {
   width: 100%;
 }
 
+/* No scan button (event not happening): View fills the row instead of
+   leaving the scan button's empty slot on the right. */
+.event-card__actions > .btn:only-child {
+  grid-column: 1 / -1;
+}
+
 .event-card__actions .btn--icon-only {
   width: 36px;
   justify-self: end;
@@ -3428,8 +3440,11 @@ button {
   margin-bottom: 24px;
 }
 
+/* Content packed at the top, and the title row sized for two lines, so the
+   numbers line up across cards even when a title wraps. */
 .audit-summary__card {
   display: grid;
+  align-content: start;
   gap: 12px;
   padding: 18px;
 }
@@ -3444,6 +3459,7 @@ button {
   justify-content: space-between;
   gap: 10px;
   min-width: 0;
+  min-height: 36px;
 }
 
 .audit-summary__label {
@@ -4934,12 +4950,21 @@ button {
     gap: 14px;
   }
 
+  .audit-summary__top {
+    min-height: 0;
+  }
+
+  /* One row that scrolls sideways, instead of an uneven 2-2-1 grid. */
   .audit-filter {
     width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .audit-filter__button {
-    flex: 1 1 120px;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .dash__title {
