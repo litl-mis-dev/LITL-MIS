@@ -8,6 +8,7 @@ import { CloseIcon as ActionCloseIcon, DeleteIcon, EditIcon } from "../../../com
 import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, getEventAttendance as getAttendance } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
+import Spinner from "../../../components/ui/Spinner.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
 import {
@@ -69,6 +70,8 @@ export default function Events() {
     const [formEvent,               setFormEvent]               = useState(emptyEvent);
     const [editingEvent,            setEditingEvent]            = useState(null);
     const [isSaving,                setIsSaving]                = useState(false);
+    const [isDeleting,              setIsDeleting]              = useState(false);
+    const [deleteError,             setDeleteError]             = useState("");
     const [formError,               setFormError]               = useState("");
 
     const scannerRef               = useRef(null);
@@ -274,13 +277,23 @@ export default function Events() {
         }
     }
 
+    // Returns true when the event was deleted, so the details modal closes only
+    // then; a failure is shown in the modal instead of being swallowed.
     async function handleDeleteEvent(eventId) {
+        setIsDeleting(true);
+        setDeleteError("");
         try {
             await archiveEvent(eventId);
             await fetchEvents();
             setAttendanceRecords(prev => { const next = { ...prev }; delete next[eventId]; return next; });
             setSelectedEventId(events.find(e => e.id !== eventId)?.id ?? null);
-        } catch { }
+            return true;
+        } catch (err) {
+            setDeleteError(err?.response?.data?.message || "Could not delete the event. Please try again.");
+            return false;
+        } finally {
+            setIsDeleting(false);
+        }
     }
 
     // ── QR Scanner ────────────────────────────────────────────────────────────
@@ -412,7 +425,7 @@ export default function Events() {
                             <article
                                 key={event.id}
                                 className={`event-card ${selectedEventId === event.id ? "event-card--active" : ""}`}
-                                onDoubleClick={() => { setSelectedEventId(event.id); setIsViewModalOpen(true); }}
+                                onDoubleClick={() => { setSelectedEventId(event.id); setDeleteError(""); setIsViewModalOpen(true); }}
                             >
                                 <button type="button" className="event-card__select" onClick={() => setSelectedEventId(event.id)} aria-label={`Select ${event.title}`} />
                                 <div className="event-card__top">
@@ -431,7 +444,7 @@ export default function Events() {
                                     <div><dt>Attendance</dt><dd>{attendanceRecords[event.id]?.length ?? event.attendanceCount ?? 0}</dd></div>
                                 </dl>
                                 <div className="event-card__actions">
-                                    <button type="button" className="btn btn--outline btn--sm" onClick={() => { setSelectedEventId(event.id); setIsViewModalOpen(true); }}>View</button>
+                                    <button type="button" className="btn btn--outline btn--sm" onClick={() => { setSelectedEventId(event.id); setDeleteError(""); setIsViewModalOpen(true); }}>View</button>
                                     {canEdit && isHappeningEvent(event) && (
                                         <button type="button" className="btn btn--scan btn--icon-only btn--sm" onClick={() => openScannerModal(event.id)} aria-label={`Scan QR for ${event.title}`}>
                                             <CameraIcon />
@@ -564,15 +577,17 @@ export default function Events() {
                                 {canEdit && !isDoneEvent(selectedEvent) && (
                                     <ConfirmActionButton
                                         className="icon-btn icon-btn--danger"
-                                        onConfirm={() => { handleDeleteEvent(selectedEvent.id); setIsViewModalOpen(false); }}
+                                        busy={isDeleting}
+                                        onConfirm={async () => { if (await handleDeleteEvent(selectedEvent.id)) setIsViewModalOpen(false); }}
                                         title="Delete this event?"
                                         message={`"${selectedEvent.title}" will be archived and removed from the events list. Its recorded attendance will be kept.`}
                                         confirmLabel="Delete"
                                         cancelLabel="Cancel"
                                     >
-                                        <span aria-label={`Delete ${selectedEvent.title}`}><DeleteIcon /></span>
+                                        <span aria-label={`Delete ${selectedEvent.title}`}>{isDeleting ? <Spinner /> : <DeleteIcon />}</span>
                                     </ConfirmActionButton>
                                 )}
+                                {deleteError && <p className="event-form__error" role="alert">{deleteError}</p>}
                             </div>
                             <div className="event-details-actions__main">
                                 {canEdit && !isDoneEvent(selectedEvent) && (
