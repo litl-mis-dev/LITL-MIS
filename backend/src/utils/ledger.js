@@ -2,6 +2,7 @@ const crypto  = require('crypto')
 const prisma  = require('../lib/prisma')
 const { logError } = require('./logger')
 const { emitToHashChain } = require('../realtime/socket')
+const { AUDIT_ACTION_LABELS } = require('./auditActions')
 
 // ─── Which actions participate in the hash-chain ledger ───────────────────────
 const FINANCIAL_LEDGER_ACTIONS = new Set([
@@ -595,6 +596,7 @@ async function verifyLedger() {
     links.push({
       id:             log.id,
       action:         log.action,
+      actionLabel:    AUDIT_ACTION_LABELS[log.action] ?? log.action,
       actorName,
       actorRole:      log.actor?.role ?? null,
       createdAt:      log.createdAt,

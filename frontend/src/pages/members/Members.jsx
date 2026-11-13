@@ -6,7 +6,7 @@ import { getMemberFundSummary, getMyPaymentHistory } from "../../services/financ
 import { getSocket } from "../../services/socket.js";
 import "../../assets/styles/members/MemberDashboard.css";
 
-const SEMESTER_LABELS = { FIRST: "First", SECOND: "Second" };
+const SEMESTER_LABELS = { FIRST: "1st Semester", SECOND: "2nd Semester" };
 
 const quickLinks = [
   { id: "qr", label: "Digital ID", path: "/members/qrcode", icon: <QrIcon /> },
@@ -287,7 +287,7 @@ function getMembershipStatusSummary(record, isLoading) {
   return {
     label: isSettled ? "Settled" : "Active",
     tone: isSettled ? "settled" : "active",
-    paymentMeta: record.payment?.paidAt ? formatShortTime(record.payment.paidAt) : "Recorded",
+    paymentMeta: record.payment?.paidAt ? formatPaidDate(record.payment.paidAt) : "Recorded",
     accessMeta: "Verified",
   };
 }
@@ -331,9 +331,10 @@ function formatEventDate(value) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(new Date(`${value}T00:00:00`));
 }
 
-function formatShortTime(value) {
+// The day the fee was paid (the time of day alone said nothing useful).
+function formatPaidDate(value) {
   if (!value) return "";
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
 function formatTime(value) {

@@ -140,7 +140,7 @@ export default function HashChainMonitoring() {
                                 <div className="hash-chain-link__body">
                                     <div className="hash-chain-link__top">
                                         <div>
-                                            <h3>Log #{link.id} — {link.action}</h3>
+                                            <h3>Log #{link.id} — {link.actionLabel ?? link.action}</h3>
                                             <p style={{ fontSize: 12, marginTop: 2 }}>
                                                 {link.actorName && <><span style={{ color: "var(--color-text-secondary,#6b7280)" }}>By </span>{link.actorName} · </>}
                                                 {formatDateTime(link.createdAt)}
@@ -205,7 +205,7 @@ export default function HashChainMonitoring() {
                                 {result.tamperedLinks.map(link => (
                                     <tr key={link.id}>
                                         <td>#{link.id}</td>
-                                        <td>{link.action}</td>
+                                        <td>{link.actionLabel ?? link.action}</td>
                                         <td>{link.actorName ?? "—"}</td>
                                         <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(link.createdAt)}</td>
                                         <td>
