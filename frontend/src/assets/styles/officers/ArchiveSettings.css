@@ -4,6 +4,39 @@
     gap: 16px;
 }
 
+/* "Clear filters" sits beside the filters it resets, level with the inputs. */
+@media (min-width: 801px) {
+    .archive-filters:has(> .archive-reset) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) auto;
+    }
+}
+
+.archive-filters > .archive-reset {
+    align-self: end;
+    justify-self: start;
+    height: 42px;
+    padding: 0 4px;
+}
+
+/* Title of the selected semester, between the filters and its contents. */
+.archive-records-title {
+    margin: 28px 0 0;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    color: #111827;
+    font-size: 17px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.archive-records-title + .archive-reconciliation { margin-top: 12px; }
+
+/* The figures' bottom border already divides them from the first record list. */
+.archive-summary-grid + .archive-list-heading {
+    margin-top: 0;
+    border-top: 0;
+}
+
 .archive-field {
     display: grid;
     gap: 8px;
@@ -83,7 +116,7 @@
 .archive-summary-grid { row-gap: 20px; padding-bottom: 20px; margin-bottom: 16px; }
 .archive-summary-grid > div:nth-child(3n + 1) { padding-left: 0; }
 .archive-summary-grid > div:nth-child(3n) { border-right: 0; }
-.archive-reconciliation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 24px; color: #4b5563; font-size: 12px; line-height: 1.5; }
+.archive-reconciliation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 20px 0 4px; color: #4b5563; font-size: 12px; line-height: 1.5; }
 .archive-reconciliation ul { flex-basis: 100%; margin: 0; padding-left: 18px; color: #b91c1c; }
 .archive-summary dt { color: #6b7280; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 .archive-summary dd { margin: 0; color: #26313d; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
@@ -130,6 +163,8 @@
         grid-template-columns: minmax(0, 1fr);
   }
   .archive-summary { grid-template-columns: minmax(0, 1fr); gap: 14px; padding-top: 0; }
+  /* The figures have no top padding here, so the check needs its own gap. */
+  .archive-reconciliation { margin-bottom: 18px; }
   .archive-summary > div { border: 0; padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .archive-summary dt { margin: 0; }
   .archive-summary dd { font-size: 16px; text-align: right; }
