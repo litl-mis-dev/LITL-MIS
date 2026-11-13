@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../../assets/styles/members/MemberDashboard.css";
 import { useAuth } from "../../context/AuthContext";
 import { downloadMembershipCertificate } from "../../utils/downloadMembershipCertificate";
 import { getMyPaymentHistory } from "../../services/financial.service";
 import { getSocket } from "../../services/socket";
+import Spinner from "../../components/ui/Spinner.jsx";
 
 const SEMESTER_LABELS = { FIRST: "First", SECOND: "Second" }
 
@@ -19,6 +20,9 @@ export default function Membership() {
   const [records, setRecords]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error,   setError]     = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
+  const isDownloadingRef = useRef(false);
+  const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
     loadHistory();
@@ -64,9 +68,24 @@ export default function Membership() {
   const downloadableCount  = records.filter(canDownload).length
   const unpaidCount        = records.filter(r => r.rawStatus === "UNPAID").length
 
-  function handleDownload(record) {
-    if (!canDownload(record)) return
-    downloadMembershipCertificate(record, user)
+  // The PDF is drawn in the browser, which takes a moment: spinner on the
+  // button that started it, no second download meanwhile, and a message if
+  // it fails (it used to fail silently).
+  async function handleDownload(record) {
+    // A ref, not state: drawing the PDF keeps the browser busy, so the page
+    // may not redraw the disabled button before a second click arrives.
+    if (!canDownload(record) || isDownloadingRef.current) return
+    isDownloadingRef.current = true
+    setDownloadingId(record.id)
+    setDownloadError("")
+    try {
+      await downloadMembershipCertificate(record, user)
+    } catch {
+      setDownloadError("Could not create the certificate PDF. Please try again.")
+    } finally {
+      isDownloadingRef.current = false
+      setDownloadingId(null)
+    }
   }
 
   return (
@@ -98,16 +117,28 @@ export default function Membership() {
                   ? `${latestDownloadable.section} membership certificate is ready for download.`
                   : "A certificate will become available after a paid membership record is posted."}
             </p>
+            {downloadError && (
+              <p role="alert" style={{ marginTop: 8, color: "var(--color-danger, #dc2626)", fontSize: 13 }}>
+                {downloadError}
+              </p>
+            )}
           </div>
 
           <button
             type="button"
             className="member-membership-overview__button"
-            disabled={!latestDownloadable || loading}
+            disabled={!latestDownloadable || loading || downloadingId !== null}
+            aria-busy={downloadingId !== null && downloadingId === latestDownloadable?.id}
             onClick={() => latestDownloadable && handleDownload(latestDownloadable)}
           >
-            <DownloadIcon />
-            <span>Download PDF</span>
+            {downloadingId !== null && downloadingId === latestDownloadable?.id ? (
+              <span>Preparing PDF...</span>
+            ) : (
+              <>
+                <DownloadIcon />
+                <span>Download PDF</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -210,10 +241,11 @@ export default function Membership() {
                           ? "Certificate is available after payment"
                           : "Download certificate"
                       }
-                      disabled={!canDownload(record)}
+                      disabled={!canDownload(record) || downloadingId !== null}
+                      aria-busy={downloadingId === record.id}
                       onClick={() => handleDownload(record)}
                     >
-                      <DownloadIcon />
+                      {downloadingId === record.id ? <Spinner /> : <DownloadIcon />}
                     </button>
                   </td>
                 </tr>

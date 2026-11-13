@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getEvent, getEventAttendance } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
@@ -18,6 +18,7 @@ export default function EventAttendance() {
   const [yearFilter,    setYearFilter]    = useState("All");
   const [sectionFilter, setSectionFilter] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const isDownloadingRef = useRef(false);
   const [downloadError, setDownloadError] = useState("");
 
   const loadData = useCallback(() => {
@@ -128,7 +129,10 @@ export default function EventAttendance() {
   }, [attendance]);
 
   async function handleDownloadPdf() {
-    if (!event || isDownloading) return;
+    // A ref as well as state: drawing the PDF can delay the redraw that
+    // disables the button, so a quick second click must still be ignored.
+    if (!event || isDownloadingRef.current) return;
+    isDownloadingRef.current = true;
     setIsDownloading(true);
     setDownloadError("");
     try {
@@ -141,6 +145,7 @@ export default function EventAttendance() {
     } catch {
       setDownloadError("Failed to generate the attendance PDF. Please try again.");
     } finally {
+      isDownloadingRef.current = false;
       setIsDownloading(false);
     }
   }

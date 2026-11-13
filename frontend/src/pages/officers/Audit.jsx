@@ -236,7 +236,7 @@ export default function Audit() {
               </p>
             </div>
             <div className="member-list-actions">
-              <button type="button" className="btn btn--outline btn--sm" disabled={loading || actioningId !== null || Boolean(pendingReview)} onClick={fetchAuditItems}>Refresh</button>
+              <button type="button" className="btn btn--outline btn--sm" disabled={loading || actioningId !== null || Boolean(pendingReview)} aria-busy={loading} onClick={fetchAuditItems}>Refresh</button>
               <label className="member-search">
                 <span className="sr-only">Search audit records</span>
                 <input

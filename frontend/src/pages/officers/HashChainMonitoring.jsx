@@ -101,6 +101,7 @@ export default function HashChainMonitoring() {
                             className="btn btn--outline"
                             onClick={runVerification}
                             disabled={isVerifying}
+                            aria-busy={isVerifying}
                         >
                             {isVerifying ? (<><Spinner /> Verifying...</>) : "Re-run verification"}
                         </button>
