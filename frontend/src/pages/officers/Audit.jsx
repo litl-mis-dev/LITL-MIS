@@ -236,7 +236,7 @@ export default function Audit() {
               </p>
             </div>
             <div className="member-list-actions">
-              <button type="button" className="btn btn--outline btn--sm" disabled={loading || actioningId !== null || Boolean(pendingReview)} onClick={fetchAuditItems}>Refresh</button>
+              <button type="button" className="btn btn--outline btn--sm" disabled={loading || actioningId !== null || Boolean(pendingReview)} aria-busy={loading} onClick={fetchAuditItems}>Refresh</button>
               <label className="member-search">
                 <span className="sr-only">Search audit records</span>
                 <input
@@ -292,12 +292,12 @@ export default function Audit() {
                 {!loading &&
                   filteredItems.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.displayId}</td>
-                      <td>{formatDate(item.date)}</td>
-                      <td>{item.reference}</td>
+                      <td className="data-table__nowrap">{item.displayId}</td>
+                      <td className="data-table__nowrap">{formatDate(item.date)}</td>
+                      <td className="data-table__nowrap">{item.reference}</td>
                       <td className="audit-table__item">{item.item}</td>
                       <td>{item.category}</td>
-                      <td>{formatCurrency(item.amount)}</td>
+                      <td className="data-table__nowrap">{formatCurrency(item.amount)}</td>
                       <td>{item.preparedBy}</td>
                       <td>
                         <span className={`audit-status audit-status--${statusClass(item.status)}`}>

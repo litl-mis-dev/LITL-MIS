@@ -472,6 +472,12 @@ button {
   line-height: 1.55;
 }
 
+/* The heading beside the member actions keeps its width ("All Members" on
+   one line); the action buttons wrap instead. */
+.card__header > div:first-child:has(+ .member-list-actions) {
+  flex: 0 0 auto;
+}
+
 .member-list-actions {
   display: flex;
   flex-wrap: wrap;
@@ -884,6 +890,12 @@ button {
   padding: 12px 10px;
   border-bottom: 1px solid #eef2f7;
   vertical-align: middle;
+}
+
+/* Short values (IDs, references, dates, times, amounts) stay on one line
+   instead of breaking into a stack of fragments; long text still wraps. */
+.data-table .data-table__nowrap {
+  white-space: nowrap;
 }
 
 .member-data-table th:not(:first-child),
@@ -1924,6 +1936,33 @@ button {
   min-height: 560px;
 }
 
+/* Result of a Documents action (the page used these classes, but they had no
+   styles, so errors showed as a plain white card). Same colours as the
+   profile alerts. */
+.documents-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.documents-alert--error {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.documents-alert--success {
+  color: #15803d;
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
 .documents-toolbar {
   display: flex;
   align-items: center;
@@ -2577,6 +2616,12 @@ button {
 
 .event-card__actions .btn {
   width: 100%;
+}
+
+/* No scan button (event not happening): View fills the row instead of
+   leaving the scan button's empty slot on the right. */
+.event-card__actions > .btn:only-child {
+  grid-column: 1 / -1;
 }
 
 .event-card__actions .btn--icon-only {
@@ -3422,8 +3467,11 @@ button {
   margin-bottom: 24px;
 }
 
+/* Content packed at the top, and the title row sized for two lines, so the
+   numbers line up across cards even when a title wraps. */
 .audit-summary__card {
   display: grid;
+  align-content: start;
   gap: 12px;
   padding: 18px;
 }
@@ -3438,6 +3486,7 @@ button {
   justify-content: space-between;
   gap: 10px;
   min-width: 0;
+  min-height: 36px;
 }
 
 .audit-summary__label {
@@ -3547,8 +3596,11 @@ button {
   color: #64748b;
 }
 
+/* "Edit Remarks" drops below the status select rather than doubling the
+   Action column's width. */
 .audit-table__actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
@@ -3700,8 +3752,10 @@ button {
   background: #dcfce7;
 }
 
+/* The ledger reports a broken link as TAMPERED, so the class is --tampered. */
 .hash-chain-alert--changed,
-.hash-chain-status--changed {
+.hash-chain-status--changed,
+.hash-chain-status--tampered {
   color: #b91c1c;
   background: #fee2e2;
 }
@@ -3736,7 +3790,8 @@ button {
   border-left-color: #16a34a;
 }
 
-.hash-chain-link--changed {
+.hash-chain-link--changed,
+.hash-chain-link--tampered {
   border-left-color: #dc2626;
   background: #fff7f7;
 }
@@ -4080,11 +4135,13 @@ button {
 }
 
 .settings-nav__caret {
+  display: inline-flex;
+  align-items: center;
   margin-left: 6px;
   color: #6e7781;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 13px;
   line-height: 1;
+  vertical-align: middle;
 }
 
 .settings-nav__menu {
@@ -4920,12 +4977,21 @@ button {
     gap: 14px;
   }
 
+  .audit-summary__top {
+    min-height: 0;
+  }
+
+  /* One row that scrolls sideways, instead of an uneven 2-2-1 grid. */
   .audit-filter {
     width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .audit-filter__button {
-    flex: 1 1 120px;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .dash__title {

@@ -315,9 +315,11 @@
   gap: 16px;
 }
 
+/* The body fills the card and View sits at its bottom, so the buttons line
+   up across a row even when titles wrap to different lengths. */
 .member-event {
   display: grid;
-  align-content: start;
+  grid-template-rows: auto 1fr;
   gap: 10px;
   min-height: 180px;
   padding: 18px;
@@ -331,7 +333,8 @@
 }
 
 .member-event__body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
 
@@ -375,7 +378,8 @@
 }
 
 .member-event__actions {
-  margin-top: 10px;
+  margin-top: auto;
+  padding-top: 10px;
 }
 
 .member-events__state {
@@ -1275,7 +1279,7 @@
   align-content: center;
   gap: 8px;
   min-height: 112px;
-  padding: 18px;
+  padding: 18px 14px;
   border-right: 1px solid #e9eef6;
 }
 
@@ -1285,7 +1289,8 @@
 
 .member-membership-metric span {
   color: #64748b;
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1328,9 +1333,11 @@
   overflow-x: auto;
 }
 
+/* Fits the card on a laptop screen (1100px cut the Action column off);
+   narrower screens still scroll the table sideways. */
 .member-membership-table {
   width: 100%;
-  min-width: 1100px;
+  min-width: 900px;
   border-collapse: separate;
   border-spacing: 0;
   color: #0f172a;
@@ -1341,7 +1348,7 @@
 .member-membership-table td {
   border-bottom: 1px solid #e5ebf5;
   height: 64px;
-  padding: 0 28px;
+  padding: 0 20px;
   text-align: center;
   vertical-align: middle;
   font-size: 16px;
@@ -1561,7 +1568,7 @@
   }
 
   .member-membership-table {
-    min-width: 920px;
+    min-width: 820px;
   }
 
   .member-membership-table th,
@@ -1907,10 +1914,12 @@
   font-weight: 900;
 }
 
+/* The button sits in line with the heading instead of floating beside the
+   event list. */
 .member-events-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 18px;
   min-height: 96px;
 }
@@ -2144,13 +2153,22 @@
 
 @media (max-width: 520px) {
   .member-profile-hero__identity,
-  .member-quick-access__grid,
   .member-quick-link {
     grid-template-columns: 1fr;
   }
 
+  /* Two per row (icon above the label) instead of one tall column. */
+  .member-quick-access__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .member-status-card__header {
     display: grid;
+  }
+
+  /* Keep the status badge as wide as its text when the header stacks. */
+  .member-status-card__badge {
+    justify-self: start;
   }
 
 }

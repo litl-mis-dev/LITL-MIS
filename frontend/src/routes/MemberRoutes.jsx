@@ -6,7 +6,6 @@ const Documents = lazy(() => import("../pages/members/Documents"));
 const Events = lazy(() => import("../pages/members/Events"));
 const Membership = lazy(() => import("../pages/members/Membership"));
 const Profile = lazy(() => import("../pages/members/Profile"));
-const Settings = lazy(() => import("../pages/members/Settings"));
 
 export const memberRoutes = [
   { index: true, element: <LazyPage><Members /></LazyPage> },
@@ -15,5 +14,4 @@ export const memberRoutes = [
   { path: "events", element: <LazyPage><Events /></LazyPage> },
   { path: "membership", element: <LazyPage><Membership /></LazyPage> },
   { path: "profile", element: <LazyPage><Profile /></LazyPage> },
-  { path: "settings", element: <LazyPage><Settings /></LazyPage> },
 ];

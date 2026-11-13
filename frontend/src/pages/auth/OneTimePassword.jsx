@@ -35,6 +35,7 @@ function OneTimePassword() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const [isResending, setIsResending] = useState(false)
   const inputsRef = useRef([])
 
   useEffect(() => {
@@ -147,8 +148,9 @@ function OneTimePassword() {
   }
 
   const handleResend = async () => {
-    if (resendCooldown > 0) return
+    if (resendCooldown > 0 || isResending) return
     setError('')
+    setIsResending(true)
 
     try {
       if (purpose === 'EMAIL_VERIFICATION') {
@@ -161,6 +163,8 @@ function OneTimePassword() {
       inputsRef.current[0]?.focus()
     } catch (err) {
       setError(err.response?.data?.message || 'Could not resend code. Please try again.')
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -283,7 +287,8 @@ const descriptionText =
             <button
               type="button"
               onClick={handleResend}
-              disabled={resendCooldown > 0}
+              disabled={resendCooldown > 0 || isResending}
+              aria-busy={isResending}
               style={{
                 background: 'none',
                 border: 'none',
@@ -295,7 +300,7 @@ const descriptionText =
                 cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
               }}
             >
-              {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
+              {isResending ? 'Sending...' : resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
             </button>
           </p>
 

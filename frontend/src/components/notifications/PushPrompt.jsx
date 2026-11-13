@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNotifications } from "../../context/NotificationContext";
 
 // Shown at the top of the notifications dropdown until the user has answered
@@ -5,7 +6,18 @@ import { useNotifications } from "../../context/NotificationContext";
 // browsers ignore (Firefox, Safari) or hide (Chrome) prompts made on page load.
 export default function PushPrompt() {
   const { canEnablePush, enablePush } = useNotifications();
+  // Busy while the browser asks for permission and the device is registered.
+  const [isEnabling, setIsEnabling] = useState(false);
   if (!canEnablePush) return null;
+
+  async function handleEnable() {
+    setIsEnabling(true);
+    try {
+      await enablePush();
+    } finally {
+      setIsEnabling(false);
+    }
+  }
 
   return (
     <div className="topbar__notif-empty">
@@ -13,9 +25,11 @@ export default function PushPrompt() {
       <button
         type="button"
         className="topbar__notif-action-btn topbar__notif-action-btn--primary"
-        onClick={enablePush}
+        onClick={handleEnable}
+        disabled={isEnabling}
+        aria-busy={isEnabling}
       >
-        Turn on notifications
+        {isEnabling ? "Turning on..." : "Turn on notifications"}
       </button>
     </div>
   );

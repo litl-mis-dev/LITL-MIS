@@ -506,7 +506,7 @@ export default function MembersList({ compact = false }) {
                                     </td>
                                     <td>
                                         <span className={`status-badge status-badge--${m.memberStatus?.toLowerCase()}`}>
-                                            {m.memberStatus}
+                                            {memberStatusOpts.find((o) => o.value === m.memberStatus)?.label ?? m.memberStatus}
                                         </span>
                                     </td>
                                     {canManageMemberList && (

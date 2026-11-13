@@ -160,6 +160,7 @@ export default function UserProfile({ variant = "member" }) {
     const [otpDigits,    setOtpDigits]    = useState(["", "", "", "", "", ""]);
     const [otpErr,       setOtpErr]       = useState("");
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [isResending, setIsResending] = useState(false);
 
     useEffect(() => {
         if (emailStep === "email") {
@@ -305,8 +306,9 @@ export default function UserProfile({ variant = "member" }) {
     }
 
     async function handleResendOtp() {
-        if (resendCooldown > 0) return;
+        if (resendCooldown > 0 || isResending) return;
         setOtpErr("");
+        setIsResending(true);
         try {
             await resendEmailChangeOtp(changeToken);
             setResendCooldown(60);
@@ -314,6 +316,8 @@ export default function UserProfile({ variant = "member" }) {
             otpInputsRef.current[0]?.focus();
         } catch (err) {
             setOtpErr(err.response?.data?.message || "Could not resend code. Please try again.");
+        } finally {
+            setIsResending(false);
         }
     }
 
@@ -492,9 +496,8 @@ export default function UserProfile({ variant = "member" }) {
 
                             {/* Email with inline Change button */}
                             <div className="dash-form__field" style={{ flexDirection: "column" }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-                                    Email
-                                </span>
+                                {/* Same label style as the other fields (from .dash-form__field). */}
+                                <span>Email</span>
                                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                     <input
                                         type="text"
@@ -751,7 +754,8 @@ export default function UserProfile({ variant = "member" }) {
                                         <button
                                             type="button"
                                             onClick={handleResendOtp}
-                                            disabled={resendCooldown > 0}
+                                            disabled={resendCooldown > 0 || isResending}
+                                            aria-busy={isResending}
                                             style={{
                                                 background: "none", border: "none", padding: 0,
                                                 fontSize: 13, fontWeight: 600,
@@ -760,7 +764,7 @@ export default function UserProfile({ variant = "member" }) {
                                                 cursor: resendCooldown > 0 ? "not-allowed" : "pointer",
                                             }}
                                         >
-                                            {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
+                                            {isResending ? "Sending..." : resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
                                         </button>
                                     </p>
 

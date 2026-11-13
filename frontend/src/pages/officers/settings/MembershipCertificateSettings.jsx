@@ -6,6 +6,7 @@ import {
 } from '../../../services/documentAsset.service.js'
 import { useRole } from '../../../utils/useRole.js'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
+import ConfirmActionButton from '../../../components/officers/ConfirmActionButton.jsx'
 
 const MAX_SIZE_MB    = 10
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
@@ -170,9 +171,18 @@ function AssetSection({ assetType, title, description, inputId, asset, onUploade
                             <div className='settings-upload__preview-actions'>
                                 <span className='settings-upload__active-badge'>Active</span>
                                 {canEdit && (
-                                    <button aria-busy={removing} type='button' className='btn btn--outline btn--sm' onClick={handleRemove} disabled={isBusy}>
+                                    <ConfirmActionButton
+                                        className='btn btn--outline btn--sm'
+                                        disabled={isBusy}
+                                        busy={removing}
+                                        onConfirm={handleRemove}
+                                        title='Remove template?'
+                                        message={`The current ${title} will be removed. You can upload a new one at any time.`}
+                                        confirmLabel='Remove'
+                                        cancelLabel='Cancel'
+                                    >
                                         {removing ? 'Removing…' : 'Remove'}
-                                    </button>
+                                    </ConfirmActionButton>
                                 )}
                             </div>
                         </div>

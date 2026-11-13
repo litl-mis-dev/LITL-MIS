@@ -492,8 +492,11 @@ main.auth-page {
     font-size: 24px;
   }
 
+  /* Stacked pairs: each field already has its own bottom margin, so no
+     extra row gap (it made these fields sit further apart than the rest). */
   .auth-card .grid.grid-cols-2 {
     grid-template-columns: 1fr;
+    row-gap: 0;
   }
 
   .auth-card .flex.gap-2 {

@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react'
 import { FileDownloadIcon } from '../../../components/icons/ActionIcons.jsx'
 import { useRole } from '../../../utils/useRole'
+import Spinner from '../../../components/ui/Spinner.jsx'
 
 export function SearchIcon() {
   return (
@@ -11,6 +13,9 @@ export function SearchIcon() {
   )
 }
 
+// Reference numbers, dates and amounts stay on one line.
+const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount'])
+
 // Downloading a certificate is an action, not a view — a role with VIEW-only
 // access to Financial can see this table but must not be able to generate or
 // download the certificate/receipt for any record in it. This check lives
@@ -21,8 +26,31 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
   const { canManageFinancials } = useRole()
   const showActionsColumn = columns.some(col => col.key === 'actions') && canManageFinancials
 
+  // The certificate PDF is drawn in the browser: spinner on that row's button,
+  // one download at a time (a ref, since drawing can delay the redraw that
+  // disables the buttons), and a message if it fails.
+  const [downloadingId, setDownloadingId] = useState(null)
+  const [downloadError, setDownloadError] = useState('')
+  const isDownloadingRef = useRef(false)
+
+  async function handleDownload(row) {
+    if (isDownloadingRef.current) return
+    isDownloadingRef.current = true
+    setDownloadingId(row.id)
+    setDownloadError('')
+    try {
+      await onDownload(row)
+    } catch {
+      setDownloadError(`Could not create the certificate for ${row.id}. Please try again.`)
+    } finally {
+      isDownloadingRef.current = false
+      setDownloadingId(null)
+    }
+  }
+
   return (
     <div className="table-wrapper">
+      {downloadError && <p className="mb-3 text-sm font-semibold text-red-700" role="alert">{downloadError}</p>}
       <table className="data-table">
         <thead>
           <tr>
@@ -48,16 +76,22 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                     if (!showActionsColumn) return null
                     return (
                       <td key={col.key}>
-                        <button type="button" onClick={() => onDownload(row)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        <button type="button" onClick={() => handleDownload(row)}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          disabled={downloadingId !== null}
+                          aria-busy={downloadingId === row.id}
                           aria-label={`Download ${row.id} certificate`}
                           title="Download certificate">
-                          <FileDownloadIcon className="h-4 w-4" />
+                          {downloadingId === row.id ? <Spinner /> : <FileDownloadIcon className="h-4 w-4" />}
                         </button>
                       </td>
                     )
                   }
-                  return <td key={col.key}>{row[col.key]}</td>
+                  return (
+                    <td key={col.key} className={NOWRAP_COLUMNS.has(col.key) ? 'data-table__nowrap' : undefined}>
+                      {row[col.key]}
+                    </td>
+                  )
                 })}
               </tr>
             ))

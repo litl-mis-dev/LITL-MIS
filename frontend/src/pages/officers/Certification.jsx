@@ -11,6 +11,7 @@ import {
 } from "../../services/certification.service.js";
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
+import Spinner from "../../components/ui/Spinner.jsx";
 
 // Certification → Academic Year → Semester → Event → certificates
 const LEVEL = { ROOT: "root", ARCHIVE: "archive", SEMESTER: "semester", EVENT: "event" };
@@ -39,6 +40,8 @@ export default function Certification() {
   const [uploadError, setUploadError] = useState("");
 
   const [downloadState, setDownloadState] = useState(null);
+  // The event's "download all" (.zip) is running: spinner on its button.
+  const isZipDownloading = Boolean(downloadState && !downloadState.error && downloadState.key?.startsWith("event-"));
 
   const loadTree = useCallback(async () => {
     setIsLoadingTree(true);
@@ -321,10 +324,11 @@ export default function Certification() {
                         className="btn btn--primary btn--icon-only"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
+                        aria-busy={isUploading}
                         title="Upload finished certificates (you can select multiple)"
                         aria-label="Upload finished certificates"
                       >
-                        <UploadIcon />
+                        {isUploading ? <Spinner /> : <UploadIcon />}
                       </button>
                     </>
                   )}
@@ -333,10 +337,11 @@ export default function Certification() {
                     className="btn btn--icon-only"
                     onClick={handleDownloadAllCertificates}
                     disabled={!activeEventFolder || activeEventFolder.certificates.length === 0 || Boolean(downloadState)}
+                    aria-busy={isZipDownloading}
                     title="Download all certificates (.zip)"
                     aria-label="Download all certificates as a zip file"
                   >
-                    <DownloadIcon />
+                    {isZipDownloading ? <Spinner /> : <DownloadIcon />}
                   </button>
                 </>
               )}

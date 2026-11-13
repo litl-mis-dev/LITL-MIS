@@ -146,8 +146,10 @@ button[aria-busy="true"]::before {
     margin-inline-end: 0.45em;
 }
 
-/* Icon-only buttons swap their icon for <Spinner /> instead (no extra width). */
-button.icon-btn[aria-busy="true"]::before {
+/* Icon-only buttons swap their icon for <Spinner /> instead (no extra width);
+   any busy button already showing a <Spinner /> gets no second one. */
+button.icon-btn[aria-busy="true"]::before,
+button[aria-busy="true"]:has(.ui-spinner)::before {
     content: none;
 }
 

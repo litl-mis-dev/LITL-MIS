@@ -2,6 +2,10 @@ const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
 const { getSemesterEndingBalance, getTotalFund, getTurnoverAmount } = require('../services/calculations.service')
 const { ROLE_POSITION_LABELS, MEMBERSHIP_USER_FILTER } = require('../utils/roles')
+const { AUDIT_ACTION_LABELS } = require('../utils/auditActions')
+
+// Readable names for the dashboard lists (the raw values are database codes).
+const EVENT_STATUS_LABELS = { OPEN: 'Open', COMING_SOON: 'Coming Soon' }
 
 const getDashboardStats = async (req, res) => {
   try {
@@ -157,7 +161,7 @@ const getDashboardStats = async (req, res) => {
       return {
         title: e.title,
         desc:  `${dateStr}${e.location ? ` – ${e.location}` : ''}`,
-        meta:  e.status,
+        meta:  EVENT_STATUS_LABELS[e.status] ?? e.status,
         color: colors[i % colors.length],
       }
     })
@@ -192,7 +196,7 @@ const getDashboardStats = async (req, res) => {
         month: 'short', day: '2-digit', year: 'numeric'
       }).format(new Date(log.createdAt))
       return {
-        title: log.action ?? log.description ?? 'Activity recorded',
+        title: AUDIT_ACTION_LABELS[log.action] ?? log.action ?? 'Activity recorded',
         desc:  `${when} · ${actorName}`,
         meta:  roleLabel,
         color: logColors[i % logColors.length],
