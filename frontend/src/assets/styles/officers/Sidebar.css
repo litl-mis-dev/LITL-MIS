@@ -200,6 +200,13 @@
   margin: 0 auto;
 }
 
+/* Keyboard focus: a white ring that stays visible on the orange sidebar. */
+.sidebar__item:focus-visible,
+.sidebar__brand-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .sidebar__item:hover {
   background: var(--primary-hover);
   color: var(--text-light);
