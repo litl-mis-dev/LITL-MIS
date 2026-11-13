@@ -198,15 +198,19 @@ export default function ArchiveSettings() {
                         {RECORD_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}
                     </select>
                 </label>
+                {/* Next to the filters it resets. */}
+                {(academicYear || semester || recordGroup) && <button type="button" className="archive-reset" onClick={clearFilters}>Clear filters</button>}
             </div>
+
+            {/* Titles everything below it: the balance check, the figures and the records. */}
+            <h3 className="archive-records-title">
+                {validYear ? `Academic Year ${year}${semesterLabel ? ` - ${semesterLabel}` : ""}` : "Financial records"}
+            </h3>
 
             {data && (
                 <>
-                    <dl className="archive-summary archive-summary-grid" aria-label="Financial summary">
-                        {figures.map(([label, value, note]) => (
-                            <div key={label}><dt>{label}</dt><dd>{value}{note && <span> {note}</span>}</dd></div>
-                        ))}
-                    </dl>
+                    {/* The balance check comes before the figures it vouches for,
+                        so a discrepancy is seen before the numbers are read. */}
                     <div className="archive-reconciliation" role="status">
                         <span className={`archive-status ${failedChecks.length ? "archive-status-warn" : "archive-status-ok"}`}>
                             {failedChecks.length ? "Discrepancy found" : "Balanced"}
@@ -222,13 +226,13 @@ export default function ArchiveSettings() {
                             </ul>
                         )}
                     </div>
+                    <dl className="archive-summary archive-summary-grid" aria-label="Financial summary">
+                        {figures.map(([label, value, note]) => (
+                            <div key={label}><dt>{label}</dt><dd>{value}{note && <span> {note}</span>}</dd></div>
+                        ))}
+                    </dl>
                 </>
             )}
-
-            <div className="archive-list-heading">
-                <div><h3>{validYear ? `Academic Year ${year}${semesterLabel ? ` - ${semesterLabel}` : ""}` : "Financial records"}</h3></div>
-                {(academicYear || semester || recordGroup) && <button type="button" className="archive-reset" onClick={clearFilters}>Clear filters</button>}
-            </div>
 
             {data && showFund && renderSection("Fund Report", records.fund, (n) => `${n} categories`, (rows) => (
                 rows.length > 1 ? (
