@@ -6,6 +6,7 @@ import MembershipCertificateSettings from "./MembershipCertificateSettings.jsx";
 import ManageRolesSettings from "./ManageRolesSettings.jsx";
 import AdviserSettings from "./AdviserSettings.jsx";
 import { useRole } from "../../../utils/useRole.js";
+import { ChevronDownIcon } from "../../../components/icons/ActionIcons.jsx";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function Settings() {
@@ -72,7 +73,7 @@ export default function Settings() {
                                 aria-expanded={isDocumentsOpen}
                             >
                                 <span className="settings-nav__label">Documents</span>
-                                <span className="settings-nav__caret" aria-hidden="true">v</span>
+                                <span className="settings-nav__caret" aria-hidden="true"><ChevronDownIcon /></span>
                             </button>
 
                             {isDocumentsOpen && (

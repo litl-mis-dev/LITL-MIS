@@ -4083,11 +4083,13 @@ button {
 }
 
 .settings-nav__caret {
+  display: inline-flex;
+  align-items: center;
   margin-left: 6px;
   color: #6e7781;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: 13px;
   line-height: 1;
+  vertical-align: middle;
 }
 
 .settings-nav__menu {

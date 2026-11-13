@@ -9,6 +9,7 @@ import PushPrompt from "../../components/notifications/PushPrompt.jsx";
 import "../../assets/styles/officers/Topbar.css";
 import { useAutoCloseModal } from "../../utils/useAutoCloseModal.js";
 import ModalPortal from "../../components/ui/ModalPortal.jsx";
+import { ChevronDownIcon } from "../../components/icons/ActionIcons.jsx";
 
 export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }) {
   const [showNotif, setShowNotif] = useState(false);
@@ -237,7 +238,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
             <div className="topbar__user-info">
               <span className="topbar__user-name">{displayName}</span>
             </div>
-            <span className="topbar__caret">v</span>
+            <span className="topbar__caret"><ChevronDownIcon /></span>
           </button>
           {showUser && (
             <div className="topbar__dropdown topbar__dropdown--right">

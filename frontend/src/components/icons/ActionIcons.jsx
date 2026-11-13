@@ -19,6 +19,28 @@ export function DownloadIcon({ className, ...props }) {
     );
 }
 
+// Small down arrow for menus that open (account menu, Settings ▸ Documents).
+export function ChevronDownIcon({ className, ...props }) {
+    return (
+        <svg
+            aria-hidden="true"
+            className={className}
+            fill="none"
+            focusable="false"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.5"
+            viewBox="0 0 24 24"
+            width="1em"
+            height="1em"
+            {...props}
+        >
+            <path d="m6 9 6 6 6-6" />
+        </svg>
+    );
+}
+
 export function EditIcon({ className, ...props }) {
     return (
         <svg
