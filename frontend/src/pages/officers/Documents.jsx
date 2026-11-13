@@ -51,6 +51,21 @@ export default function Documents() {
     const [loadError, setLoadError] = useState("");
     const [actionError, setActionError] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    // The trash / restore / delete action running now ({ id, kind }), and
+    // whether the folder or rename form is saving: spinner on that button,
+    // the other actions locked until it finishes.
+    const [pendingAction, setPendingAction] = useState(null);
+    const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+    const isPending = (id, kind) => pendingAction?.id === id && pendingAction?.kind === kind;
+    // Short confirmation after an action whose result isn't obvious on screen.
+    const [actionNotice, setActionNotice] = useState("");
+    const noticeTimerRef = useRef(null);
+    function showNotice(message) {
+        setActionNotice(message);
+        window.clearTimeout(noticeTimerRef.current);
+        noticeTimerRef.current = window.setTimeout(() => setActionNotice(""), 4000);
+    }
+    useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
 
     const [currentFolderId, setCurrentFolderId] = useState(null);
     const [selectedItemId, setSelectedItemId] = useState(null);
@@ -183,9 +198,10 @@ export default function Documents() {
     async function handleCreateFolder(event) {
         event.preventDefault();
         const folderName = newFolderName.trim();
-        if (!folderName) return;
+        if (!folderName || isSubmittingForm) return;
 
         setActionError("");
+        setIsSubmittingForm(true);
         try {
             const data = await createFolderRequest(folderName, currentFolderId);
             setItems((current) => [...current, data.item]);
@@ -195,6 +211,8 @@ export default function Documents() {
             setIsFolderModalOpen(false);
         } catch (err) {
             setActionError(err.response?.data?.message || "Could not create the folder. Please try again.");
+        } finally {
+            setIsSubmittingForm(false);
         }
     }
 
@@ -323,6 +341,7 @@ async function handleSaveAccess() {
         const data = await updateDocumentAccess(accessModal.itemId, payload);
         setItems((current) => current.map((item) => item.id === data.item.id ? data.item : item));
         closeAccessModal();
+        showNotice("Sharing updated.");
     } catch (err) {
         setAccessModal((prev) => prev ? { ...prev, isSaving: false } : prev);
         setActionError(err.response?.data?.message || "Could not update sharing. Please try again.");
@@ -339,9 +358,10 @@ async function handleSaveAccess() {
     async function handleRenameItem(event) {
         event.preventDefault();
         const nextName = renameValue.trim();
-        if (!nextName || !renamingItem) return;
+        if (!nextName || !renamingItem || isSubmittingForm) return;
 
         setActionError("");
+        setIsSubmittingForm(true);
         try {
             const data = await renameDocument(renamingItem.id, nextName);
             setItems((current) => current.map((item) => (item.id === data.item.id ? data.item : item)));
@@ -349,6 +369,8 @@ async function handleSaveAccess() {
             setRenameValue("");
         } catch (err) {
             setActionError(err.response?.data?.message || "Could not rename. Please try again.");
+        } finally {
+            setIsSubmittingForm(false);
         }
     }
 
@@ -366,39 +388,51 @@ async function handleSaveAccess() {
     // ── Trash / restore / permanent delete ──────────────────────────────────
 
     async function handleDeleteItem(itemId) {
+        if (pendingAction) return;
         setActionError("");
+        setPendingAction({ id: itemId, kind: "trash" });
         try {
             await trashDocument(itemId);
             await loadAll();
+            showNotice("Moved to Temporary. You can restore it from there.");
         } catch (err) {
             setActionError(err.response?.data?.message || "Could not move to Temporary. Please try again.");
         } finally {
+            setPendingAction(null);
             setSelectedItemId(null);
             setOpenMenuId(null);
         }
     }
 
     async function handleRestoreItem(itemId) {
+        if (pendingAction) return;
         setActionError("");
+        setPendingAction({ id: itemId, kind: "restore" });
         try {
             await restoreDocument(itemId);
             await loadAll();
+            showNotice("Restored.");
         } catch (err) {
             setActionError(err.response?.data?.message || "Could not restore. Please try again.");
         } finally {
+            setPendingAction(null);
             setSelectedItemId(null);
             setOpenMenuId(null);
         }
     }
 
     async function handlePermanentDelete(itemId) {
+        if (pendingAction) return;
         setActionError("");
+        setPendingAction({ id: itemId, kind: "delete" });
         try {
             await permanentlyDeleteDocument(itemId);
             await loadAll();
+            showNotice("Deleted permanently.");
         } catch (err) {
             setActionError(err.response?.data?.message || "Could not permanently delete. Please try again.");
         } finally {
+            setPendingAction(null);
             setSelectedItemId(null);
             setOpenMenuId(null);
         }
@@ -440,6 +474,14 @@ async function handleSaveAccess() {
                 <div className="card documents-alert documents-alert--error" role="alert">
                     {actionError}
                     <button type="button" className="icon-btn icon-btn--plain" onClick={() => setActionError("")} aria-label="Dismiss">
+                        <CloseIcon />
+                    </button>
+                </div>
+            )}
+            {!actionError && actionNotice && (
+                <div className="card documents-alert documents-alert--success" role="status">
+                    {actionNotice}
+                    <button type="button" className="icon-btn icon-btn--plain" onClick={() => setActionNotice("")} aria-label="Dismiss">
                         <CloseIcon />
                     </button>
                 </div>
@@ -523,9 +565,12 @@ async function handleSaveAccess() {
                                         {isTrashOpen ? (
                                             canEditModule && (
                                                 <>
-                                                    <button type="button" onClick={() => handleRestoreItem(item.id)}>Restore</button>
+                                                    <button type="button" onClick={() => handleRestoreItem(item.id)}
+                                                        disabled={pendingAction !== null} aria-busy={isPending(item.id, "restore")}>Restore</button>
                                                     <ConfirmActionButton
                                                         className="document-action-menu__danger"
+                                                        disabled={pendingAction !== null}
+                                                        busy={isPending(item.id, "delete")}
                                                         onConfirm={() => handlePermanentDelete(item.id)}
                                                         title="Delete forever?"
                                                         message={`"${item.name}" will be permanently deleted and cannot be recovered.`}
@@ -539,6 +584,8 @@ async function handleSaveAccess() {
                                         ) : canEditModule && item.myPermission === "edit" && (
                                             <ConfirmActionButton
                                                 className="document-action-menu__danger"
+                                                disabled={pendingAction !== null}
+                                                busy={isPending(item.id, "trash")}
                                                 onConfirm={() => handleDeleteItem(item.id)}
                                                 title="Move to Temporary?"
                                                 message={`"${item.name}" will be moved to Temporary (Trash). You can restore it from there later.`}
@@ -613,11 +660,14 @@ async function handleSaveAccess() {
                         <div className="documents-details__actions">
                             {isTrashOpen ? (
                                 <>
-                                    <button type="button" className="btn btn--primary" onClick={() => handleRestoreItem(selectedItem.id)}>
+                                    <button type="button" className="btn btn--primary" onClick={() => handleRestoreItem(selectedItem.id)}
+                                        disabled={pendingAction !== null} aria-busy={isPending(selectedItem.id, "restore")}>
                                         Restore
                                     </button>
                                     <ConfirmActionButton
                                         className="btn btn--outline btn--danger"
+                                        disabled={pendingAction !== null}
+                                        busy={isPending(selectedItem.id, "delete")}
                                         onConfirm={() => handlePermanentDelete(selectedItem.id)}
                                         title="Delete forever?"
                                         message={`"${selectedItem.name}" will be permanently deleted and cannot be recovered.`}
@@ -630,6 +680,8 @@ async function handleSaveAccess() {
                             ) : selectedItem.myPermission === "edit" && (
                                 <ConfirmActionButton
                                     className="btn btn--outline btn--danger"
+                                    disabled={pendingAction !== null}
+                                    busy={isPending(selectedItem.id, "trash")}
                                     onConfirm={() => handleDeleteItem(selectedItem.id)}
                                     title="Move to Temporary?"
                                     message={`"${selectedItem.name}" will be moved to Temporary (Trash). You can restore it from there later.`}
@@ -673,7 +725,7 @@ async function handleSaveAccess() {
                                 <button type="button" className="btn btn--outline" onClick={() => setIsFolderModalOpen(false)}>
                                     Cancel
                                 </button>
-                                <button type="submit" className="btn btn--primary">
+                                <button type="submit" className="btn btn--primary" disabled={isSubmittingForm} aria-busy={isSubmittingForm}>
                                     Create
                                 </button>
                             </div>
@@ -804,7 +856,7 @@ async function handleSaveAccess() {
                                 <button type="button" className="btn btn--outline" onClick={() => setRenamingItem(null)}>
                                     Cancel
                                 </button>
-                                <button type="submit" className="btn btn--primary">
+                                <button type="submit" className="btn btn--primary" disabled={isSubmittingForm} aria-busy={isSubmittingForm}>
                                     Save
                                 </button>
                             </div>
