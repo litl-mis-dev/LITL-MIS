@@ -9,12 +9,15 @@ import PushPrompt from "../../components/notifications/PushPrompt.jsx";
 import "../../assets/styles/officers/Topbar.css";
 import { useAutoCloseModal } from "../../utils/useAutoCloseModal.js";
 import ModalPortal from "../../components/ui/ModalPortal.jsx";
+import ConfirmationDialog from "../../components/officers/ConfirmationDialog.jsx";
 import { ChevronDownIcon } from "../../components/icons/ActionIcons.jsx";
 
 export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }) {
   const [showNotif, setShowNotif] = useState(false);
   const [showUser, setShowUser] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  // Lives outside the bell menu so it stays open after the menu closes.
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isSwitchingDashboard, setIsSwitchingDashboard] = useState(false);
   const switchTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -109,7 +112,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                     </button>
                   )}
                   {notifications.length > 0 && (
-                    <button className="topbar__notif-action-btn" onClick={clearAll}>
+                    <button className="topbar__notif-action-btn" onClick={() => setIsClearConfirmOpen(true)}>
                       Clear all
                     </button>
                   )}
@@ -175,7 +178,7 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
                         </button>
                       )}
                       {notifications.length > 0 && (
-                        <button className="topbar__notif-action-btn" onClick={clearAll}>
+                        <button className="topbar__notif-action-btn" onClick={() => setIsClearConfirmOpen(true)}>
                           Clear all
                         </button>
                       )}
@@ -272,6 +275,14 @@ export default function Topbar({ onMenuToggle, onNavigate, isCollapsed = false }
           </div>
         </ModalPortal>
       )}
+      <ConfirmationDialog
+        isOpen={isClearConfirmOpen}
+        title="Clear all notifications?"
+        message="All your notifications will be removed. This can't be undone."
+        confirmLabel="Clear all"
+        onCancel={() => setIsClearConfirmOpen(false)}
+        onConfirm={() => { setIsClearConfirmOpen(false); clearAll(); }}
+      />
     </header>
   );
 }

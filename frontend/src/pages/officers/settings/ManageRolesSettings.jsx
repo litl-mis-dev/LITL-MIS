@@ -458,14 +458,18 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
 
                         {isPresident && !isLockedRole && (
                             <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-                                <button aria-busy={isSavingPerms}
-                                    type="button"
+                                <ConfirmActionButton
                                     className="btn btn--outline btn--sm"
-                                    onClick={handleSavePermissions}
-                                    disabled={!hasPermChanges || isSavingPerms || isLoadingPerms}
+                                    onConfirm={handleSavePermissions}
+                                    disabled={!hasPermChanges || isLoadingPerms}
+                                    busy={isSavingPerms}
+                                    title="Save permission changes?"
+                                    message={`Everyone with the ${ROLE_LABELS[previewRole] ?? previewRole} role will get these access levels.`}
+                                    confirmLabel="Save Permissions"
+                                    cancelLabel="Cancel"
                                 >
                                     {isSavingPerms ? "Saving..." : "Save Permissions"}
-                                </button>
+                                </ConfirmActionButton>
                             </div>
                         )}
                     </section>
@@ -489,14 +493,18 @@ function RoleEditModal({ member, draftRole, isSaving, canManageOfficers, isPresi
                         </ConfirmActionButton>
                         )}
                         {!isAdviser && (
-                        <button aria-busy={isSaving}
-                            type="button"
+                        <ConfirmActionButton
                             className="btn btn--primary"
-                            onClick={onSave}
-                            disabled={!canManageOfficers || !draftRole || !isChanged || isSaving}
+                            onConfirm={onSave}
+                            disabled={!canManageOfficers || !draftRole || !isChanged}
+                            busy={isSaving}
+                            title="Change officer role?"
+                            message={`${member.name} will be assigned the ${ROLE_LABELS[draftRole] ?? draftRole} role, with that role's access.`}
+                            confirmLabel="Save Changes"
+                            cancelLabel="Cancel"
                         >
                             {isSaving ? "Saving..." : "Save Changes"}
-                        </button>
+                        </ConfirmActionButton>
                         )}
                     </div>
                 </div>
