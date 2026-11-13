@@ -58,8 +58,10 @@
   justify-content: center;
 }
 
+/* No gap while the title is hidden, or the gap shifts the logo off-centre. */
 .sidebar--collapsed .sidebar__brand-btn {
   justify-content: center;
+  gap: 0;
 }
 
 /* ── Logo without white background, enlarged and prominent ────────────── */
@@ -186,10 +188,13 @@
   margin: 6px auto;
 }
 
+/* No gap while the label is hidden: the zero-width label still counts as a
+   flex item, so the gap pushed the icon 5px left of the active background. */
 .sidebar--collapsed .sidebar__item {
   width: 44px;
   height: 44px;
   padding: 0;
+  gap: 0;
   justify-content: center;
   border-radius: 10px;
   margin: 0 auto;
@@ -308,6 +313,7 @@
 
   .sidebar--collapsed:hover .sidebar__brand-btn {
     justify-content: flex-start;
+    gap: 12px;
   }
 
   .sidebar--collapsed:hover .sidebar__logo-img {
@@ -403,9 +409,14 @@
     width: 100%;
     height: 42px;
     padding: 0 12px;
+    gap: 10px;
     justify-content: flex-start;
     border-radius: 8px;
     margin: 0;
+  }
+
+  .sidebar--collapsed .sidebar__brand-btn {
+    gap: 12px;
   }
 }
 
