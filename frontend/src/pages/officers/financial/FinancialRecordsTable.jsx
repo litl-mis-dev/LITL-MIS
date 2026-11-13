@@ -11,6 +11,9 @@ export function SearchIcon() {
   )
 }
 
+// Reference numbers, dates and amounts stay on one line.
+const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount'])
+
 // Downloading a certificate is an action, not a view — a role with VIEW-only
 // access to Financial can see this table but must not be able to generate or
 // download the certificate/receipt for any record in it. This check lives
@@ -57,7 +60,11 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                       </td>
                     )
                   }
-                  return <td key={col.key}>{row[col.key]}</td>
+                  return (
+                    <td key={col.key} className={NOWRAP_COLUMNS.has(col.key) ? 'data-table__nowrap' : undefined}>
+                      {row[col.key]}
+                    </td>
+                  )
                 })}
               </tr>
             ))

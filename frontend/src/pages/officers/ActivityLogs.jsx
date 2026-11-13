@@ -159,8 +159,8 @@ export default function ActivityLogs() {
                                 <tbody>
                                 {!loading && filteredLogs.map(log => (
                                     <tr key={log.id}>
-                                    <td>{log.date}</td>
-                                    <td>{log.time}</td>
+                                    <td className="data-table__nowrap">{log.date}</td>
+                                    <td className="data-table__nowrap">{log.time}</td>
                                     <td>
                                         <div className="activity-logs-table__account">
                                         <span className="font-medium">{log.account}</span>

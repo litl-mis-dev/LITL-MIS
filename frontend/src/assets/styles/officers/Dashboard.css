@@ -886,6 +886,12 @@ button {
   vertical-align: middle;
 }
 
+/* Short values (IDs, references, dates, times, amounts) stay on one line
+   instead of breaking into a stack of fragments; long text still wraps. */
+.data-table .data-table__nowrap {
+  white-space: nowrap;
+}
+
 .member-data-table th:not(:first-child),
 .member-data-table td:not(:first-child) {
   text-align: center;
@@ -3547,8 +3553,11 @@ button {
   color: #64748b;
 }
 
+/* "Edit Remarks" drops below the status select rather than doubling the
+   Action column's width. */
 .audit-table__actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
