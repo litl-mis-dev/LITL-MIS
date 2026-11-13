@@ -77,7 +77,6 @@ export default function MembersLayout() {
     events: "/members/events",
     membership: "/members/membership",
     profile: "/members/profile",
-    settings: "/members/settings",
   };
 
   const pathPages = Object.fromEntries(
