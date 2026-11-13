@@ -3700,8 +3700,10 @@ button {
   background: #dcfce7;
 }
 
+/* The ledger reports a broken link as TAMPERED, so the class is --tampered. */
 .hash-chain-alert--changed,
-.hash-chain-status--changed {
+.hash-chain-status--changed,
+.hash-chain-status--tampered {
   color: #b91c1c;
   background: #fee2e2;
 }
@@ -3736,7 +3738,8 @@ button {
   border-left-color: #16a34a;
 }
 
-.hash-chain-link--changed {
+.hash-chain-link--changed,
+.hash-chain-link--tampered {
   border-left-color: #dc2626;
   background: #fff7f7;
 }
