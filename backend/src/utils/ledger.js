@@ -14,6 +14,7 @@ const FINANCIAL_LEDGER_ACTIONS = new Set([
   'DISBURSEMENT_CREATED',
   'DISBURSEMENT_ARCHIVED',
   'RETURN_FUND_CREATED',
+  'RETURN_FUND_UPDATED',
   'RETURN_FUND_ARCHIVED',
   'NEXT_SEMESTER_ACTIVATED',
   'SCHOOL_YEAR_ADVANCED',
@@ -291,9 +292,19 @@ const CHECKS = {
 
     const reasons = []
 
+    // Recording the amount spent changes an automatic Return Fund's amount
+    // through the app; its newest RETURN_FUND_UPDATED entry checks it then.
+    const updatedLater = await prisma.auditLog.findFirst({
+      where: {
+        action:  'RETURN_FUND_UPDATED',
+        details: { contains: `"returnFundId":${record.id},` },
+      },
+      select: { id: true }
+    })
+
     const loggedAmt  = parseFloat(snap.amount)
     const currentAmt = parseFloat(record.amount.toString())
-    if (Math.abs(loggedAmt - currentAmt) > 0.001) {
+    if (!updatedLater && Math.abs(loggedAmt - currentAmt) > 0.001) {
       reasons.push(`Return Fund ${snap.reference} amount was changed from ${peso(snap.amount)} to ${peso(record.amount)} directly in the database.`)
     }
 
@@ -317,6 +328,46 @@ const CHECKS = {
       }
     }
 
+    return reasons.length ? { ok: false, reasons } : { ok: true }
+  },
+
+  async RETURN_FUND_UPDATED(details, log) {
+    const snap = details?.snapshot
+    if (!snap?.id) return { ok: true, skipped: true }
+
+    const record = await prisma.returnFund.findUnique({
+      where:   { id: snap.id },
+      include: { disbursement: { select: { amount: true } } }
+    })
+    if (!record) {
+      return {
+        ok: false,
+        reasons: [`Return Fund ${snap.reference} was permanently deleted from the database. Financial records must not be hard-deleted.`]
+      }
+    }
+
+    // Only the newest update of a Return Fund says what it should be now.
+    const laterUpdate = await prisma.auditLog.findFirst({
+      where: {
+        action:  'RETURN_FUND_UPDATED',
+        id:      { gt: log.id },
+        details: { contains: `"returnFundId":${snap.id},` },
+      },
+      select: { id: true }
+    })
+    if (laterUpdate) return { ok: true }
+
+    const reasons = []
+    if (Math.abs(parseFloat(snap.amount) - parseFloat(record.amount.toString())) > 0.001) {
+      reasons.push(`Return Fund ${snap.reference} amount was changed from ${peso(snap.amount)} to ${peso(record.amount)} directly in the database.`)
+    }
+    // The disbursement never changes: released = spent + returned.
+    if (snap.released && Math.abs(parseFloat(snap.released) - parseFloat(record.disbursement.amount.toString())) > 0.001) {
+      reasons.push(`The disbursement behind Return Fund ${snap.reference} was changed from ${peso(snap.released)} to ${peso(record.disbursement.amount)} directly in the database.`)
+    }
+    if (snap.disbursementId && snap.disbursementId !== record.disbursementId) {
+      reasons.push(`Return Fund ${snap.reference} was re-linked to a different disbursement (ID ${snap.disbursementId} → ${record.disbursementId}) directly in the database.`)
+    }
     return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 

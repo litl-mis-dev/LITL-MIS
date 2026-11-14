@@ -85,6 +85,33 @@ const getDisbursementRemainingAmount = async (disbursementId) => {
   return new Decimal(disbursement.amount).minus(totalReturned)
 }
 
+// Prisma `include` for summarizeReturns: the disbursement's active returns.
+const RETURNS_SUMMARY_INCLUDE = {
+  returnFunds: {
+    where: { isArchived: false },
+    select: { id: true, reference: true, amount: true, revisedAt: true, autoForDisbursementId: true },
+  },
+}
+
+// The amount released never changes; what was spent is that minus what came
+// back. `disbursement.returnFunds` must hold its active returns only.
+const summarizeReturns = (disbursement) => {
+  const returns = disbursement.returnFunds ?? []
+  const totalReturned = returns.reduce((sum, rf) => sum.plus(rf.amount), new Decimal(0))
+  const autoReturn = returns.find((rf) => rf.autoForDisbursementId != null) ?? null
+  return {
+    totalReturned: totalReturned.toFixed(2),
+    amountSpent: new Decimal(disbursement.amount).minus(totalReturned).toFixed(2),
+    autoReturn: autoReturn && {
+      id: autoReturn.id,
+      reference: autoReturn.reference,
+      amount: new Decimal(autoReturn.amount).toFixed(2),
+      revisedAt: autoReturn.revisedAt,
+    },
+    hasManualReturns: returns.some((rf) => rf.autoForDisbursementId == null),
+  }
+}
+
 // Excludes turnover categories from the 100% check automatically — they're
 // stored with percentage: 0, so they contribute nothing to this sum.
 const getTotalCategoryPercentage = async (semesterId, excludeCategoryId = null) => {
@@ -257,7 +284,7 @@ const generateReference = async (type) => {
 
 module.exports = {
   getTotalFund, getTurnoverAmount, getTotalDisbursed, getTotalReturnedByCategory,
-  getCategoryFinancials, getDisbursementRemainingAmount,
+  getCategoryFinancials, getDisbursementRemainingAmount, RETURNS_SUMMARY_INCLUDE, summarizeReturns,
   getTotalCategoryPercentage, getSemesterEndingBalance, getSemesterFlows, getFundReport,
   parseAmount, generateReference,
   MEMBERSHIP_FEE

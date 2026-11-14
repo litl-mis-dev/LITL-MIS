@@ -256,9 +256,16 @@ function buildDescription(action, details, targetName) {
       return `Archived disbursement record ${d.reference ?? ''}.`
 
     case 'RETURN_FUND_CREATED':
+      // Created automatically with its disbursement, at ₱0.
+      if (Number(d.snapshot?.amount) === 0) {
+        return `Opened return fund ${d.reference ?? ''}${d.disbursementReference ? ` for ${d.disbursementReference}` : ''}. Nothing returned yet.`
+      }
       return `Returned ${fmt(d.snapshot?.amount) ?? 'N/A'} to the organization fund${d.disbursementReference ? ` (ref: ${d.disbursementReference})` : ''}.`
 
     case 'RETURN_FUND_UPDATED': {
+      if (d.amountSpent && d.disbursementReference) {
+        return `Recorded ${fmt(d.amountSpent)} spent on ${d.disbursementReference}; return fund ${d.reference ?? ''} updated from ${fmt(d.previousAmount)} to ${fmt(d.newAmount)}.`
+      }
       if (d.previousAmount && d.newAmount && d.previousAmount !== d.newAmount) {
         return `Updated return fund ${d.reference ?? ''} amount from ${fmt(d.previousAmount)} to ${fmt(d.newAmount)}.`
       }

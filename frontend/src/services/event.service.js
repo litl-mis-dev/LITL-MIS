@@ -7,3 +7,5 @@ export const updateEvent     = (id, data)   => api.put(`/events/${id}`, data).th
 export const archiveEvent    = (id)         => api.delete(`/events/${id}`).then(r => r.data)
 export const recordAttendance = (eventId, qrCode) => api.post(`/events/${eventId}/attendance`, { qrCode }).then(r => r.data)
 export const getEventAttendance = (id) => api.get(`/events/${id}/attendance`).then(r => r.data)
+// Disbursements the Budget dropdown can offer (plus this event's own one).
+export const listAvailableDisbursements = (eventId) => api.get('/events/available-disbursements', { params: eventId ? { eventId } : {} }).then(r => r.data)

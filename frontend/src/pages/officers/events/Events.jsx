@@ -5,7 +5,7 @@ import DashboardHeader from "../../../components/officers/DashboardHeader.jsx";
 import { useRole } from "../../../utils/useRole.js";
 import SuccessDialog from "../../../components/officers/SuccessDialog.jsx";
 import { CloseIcon as ActionCloseIcon, DeleteIcon, EditIcon } from "../../../components/icons/ActionIcons.jsx";
-import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, getEventAttendance as getAttendance } from "../../../services/event.service.js";
+import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, getEventAttendance as getAttendance, listAvailableDisbursements } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 import Spinner from "../../../components/ui/Spinner.jsx";
@@ -33,8 +33,21 @@ const monthOptions = [
 const emptyEvent = {
     title: "", date: "", time: "", location: "", Proponent: "",
     description: "", status: "Coming soon", access: ["Officers"],
-    hasGoogleForm: false, googleFormUrl: "", budget: "",
+    hasGoogleForm: false, googleFormUrl: "", disbursementId: "",
 };
+
+// The budget comes from the chosen disbursement, so it isn't sent: the
+// server works it out (and keeps an older event's typed budget).
+function toEventPayload(form) {
+    const payload = {
+        ...form,
+        googleFormUrl: form.hasGoogleForm ? form.googleFormUrl : "",
+        disbursementId: form.disbursementId === "" ? null : Number(form.disbursementId),
+    };
+    delete payload.budget;
+    delete payload.disbursement;
+    return payload;
+}
 
 // Events are shown by status in this order, then by date and time.
 const STATUS_SORT_ORDER = { "Open": 0, "Coming soon": 1, "Closed": 2, "Cancelled": 3 };
@@ -73,6 +86,9 @@ export default function Events() {
     const [isDeleting,              setIsDeleting]              = useState(false);
     const [deleteError,             setDeleteError]             = useState("");
     const [formError,               setFormError]               = useState("");
+    // Disbursements the Budget dropdown offers: null while loading.
+    const [budgetOptions,           setBudgetOptions]           = useState(null);
+    const [budgetOptionsError,      setBudgetOptionsError]      = useState("");
 
     const scannerRef               = useRef(null);
     const scannerRestartTimeoutRef = useRef(null);
@@ -211,10 +227,7 @@ export default function Events() {
         setFormError("");
         setIsSaving(true);
         try {
-            const data = await createEvent({
-                ...formEvent,
-                googleFormUrl: formEvent.hasGoogleForm ? formEvent.googleFormUrl : "",
-            });
+            const data = await createEvent(toEventPayload(formEvent));
             await fetchEvents();
             setSelectedEventId(data.event.id);
             setFormEvent(emptyEvent);
@@ -235,13 +248,22 @@ export default function Events() {
         if (field === "hasGoogleForm" && !value) setFormEvent(prev => ({ ...prev, googleFormUrl: "" }));
     }
 
-    function openAddEventModal() { setFormEvent(emptyEvent); setAccessError(""); setFormError(""); setIsAddModalOpen(true); }
+    function loadBudgetOptions(eventId) {
+        setBudgetOptions(null);
+        setBudgetOptionsError("");
+        listAvailableDisbursements(eventId)
+            .then(data => setBudgetOptions(data.disbursements ?? []))
+            .catch(() => { setBudgetOptions([]); setBudgetOptionsError("Couldn't load disbursements. Close and reopen the form to try again."); });
+    }
+
+    function openAddEventModal() { setFormEvent(emptyEvent); setAccessError(""); setFormError(""); loadBudgetOptions(); setIsAddModalOpen(true); }
 
     function openEditEventModal() {
         if (!selectedEvent) return;
-        setEditingEvent({ ...selectedEvent, budget: selectedEvent.budget ?? "" });
+        setEditingEvent({ ...selectedEvent, disbursementId: selectedEvent.disbursementId ? String(selectedEvent.disbursementId) : "" });
         setAccessError("");
         setFormError("");
+        loadBudgetOptions(selectedEvent.id);
         setIsAccessModalOpen(true);
     }
 
@@ -264,10 +286,7 @@ export default function Events() {
         setFormError("");
         setIsSaving(true);
         try {
-            await updateEvent(editingEvent.id, {
-                ...editingEvent,
-                googleFormUrl: editingEvent.hasGoogleForm ? editingEvent.googleFormUrl : "",
-            });
+            await updateEvent(editingEvent.id, toEventPayload(editingEvent));
             await fetchEvents();
             closeEditEventModal();
         } catch (err) {
@@ -480,14 +499,12 @@ export default function Events() {
                             </label>
                             <label className="dash-form__field"><span>Time<RequiredMark /></span>
                                 <input type="time" value={formEvent.time} min={CLASS_HOURS_START} max={CLASS_HOURS_END} onChange={e => handleFormChange("time", e.target.value)} required />
-                                <span className="event-form__hint">Class hours: 7:00 AM to 10:00 PM</span>
                             </label>
                             <label className="dash-form__field"><span>Location<RequiredMark /></span>
                                 <input value={formEvent.location} onChange={e => handleFormChange("location", e.target.value)} maxLength={50} required />
                             </label>
-                            <label className="dash-form__field"><span>Budget (PHP)<RequiredMark /></span>
-                                <input type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" value={formEvent.budget} onChange={e => handleFormChange("budget", e.target.value)} placeholder="0.00" required />
-                            </label>
+                            <BudgetFields value={formEvent.disbursementId} onChange={v => handleFormChange("disbursementId", v)}
+                                options={budgetOptions} error={budgetOptionsError} />
                             <label className="dash-form__field">Status
                                 <select value={formEvent.status} onChange={e => handleFormChange("status", e.target.value)}>
                                     {addStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -548,7 +565,7 @@ export default function Events() {
                                 <div><dt>Date and time</dt><dd>{formatDate(selectedEvent.date)} | {formatTime(selectedEvent.time)}</dd></div>
                                 <div><dt>Location</dt><dd>{selectedEvent.location}</dd></div>
                                 <div><dt>Proponent</dt><dd>{selectedEvent.Proponent}</dd></div>
-                                <div><dt>Budget</dt><dd>{formatBudget(selectedEvent.budget)}</dd></div>
+                                <div><dt>Budget</dt><dd>{formatBudget(selectedEvent.budget)}{selectedEvent.disbursement && ` · ${selectedEvent.disbursement.reference}`}</dd></div>
                                 <div><dt>Access</dt><dd>{selectedEvent.access.join(", ")}</dd></div>
                                 <div><dt>Attendees</dt><dd>{selectedAttendance.length}</dd></div>
                                 {selectedEvent.googleFormUrl && (
@@ -629,14 +646,13 @@ export default function Events() {
                             </label>
                             <label className="dash-form__field"><span>Time<RequiredMark /></span>
                                 <input type="time" value={editingEvent.time} {...(editingEvent.time !== selectedEvent?.time && { min: CLASS_HOURS_START, max: CLASS_HOURS_END })} onChange={e => handleEditField("time", e.target.value)} required />
-                                <span className="event-form__hint">Class hours: 7:00 AM to 10:00 PM</span>
                             </label>
                             <label className="dash-form__field"><span>Location<RequiredMark /></span>
                                 <input value={editingEvent.location} onChange={e => handleEditField("location", e.target.value)} maxLength={50} required />
                             </label>
-                            <label className="dash-form__field"><span>Budget (PHP)<RequiredMark /></span>
-                                <input type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" value={editingEvent.budget} onChange={e => handleEditField("budget", e.target.value)} placeholder="0.00" required />
-                            </label>
+                            <BudgetFields value={editingEvent.disbursementId} onChange={v => handleEditField("disbursementId", v)}
+                                options={budgetOptions} error={budgetOptionsError}
+                                fallbackBudget={selectedEvent?.disbursementId ? null : selectedEvent?.budget} />
                             <label className="dash-form__field">Status
                                 <select value={editingEvent.status} onChange={e => handleEditField("status", e.target.value)}>
                                     {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -796,6 +812,33 @@ function ModalHeader({ eyebrow, title, onClose }) {
 function formatDate(v) {
     if (!v) return "Date to be set";
     return new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(`${v}T00:00:00`));
+}
+
+// The Budget dropdown: pick the disbursement that funds the event, and its
+// amount spent fills in Budget (PHP). Disbursements already funding another
+// event aren't offered. `fallbackBudget` is an older event's typed budget,
+// kept while no disbursement is chosen.
+function BudgetFields({ value, onChange, options, error, fallbackBudget = null }) {
+    const selected = options?.find(o => String(o.id) === String(value));
+    const budget = selected ? selected.amountSpent : (value === "" ? fallbackBudget : null);
+    return (
+        <>
+            <label className="dash-form__field"><span>Disbursement</span>
+                <select value={value} onChange={e => onChange(e.target.value)} disabled={options === null}>
+                    <option value="">{options === null ? "Loading disbursements…" : "No disbursement yet"}</option>
+                    {(options ?? []).map(o => (
+                        <option key={o.id} value={o.id}>{o.reference} · {o.title} · {formatBudget(o.amountSpent)}</option>
+                    ))}
+                </select>
+                {error && <span className="event-form__error">{error}</span>}
+            </label>
+            <label className="dash-form__field"><span>Budget (PHP)</span>
+                <input value={budget == null || budget === "" ? "" : formatBudget(budget)} placeholder="Not set" readOnly
+                    className="event-form__readonly" />
+                <span className="event-form__hint">Filled in from the disbursement.</span>
+            </label>
+        </>
+    );
 }
 
 function formatBudget(v) {

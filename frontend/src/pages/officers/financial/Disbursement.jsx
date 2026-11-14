@@ -2,68 +2,23 @@ import { useState, useEffect, useCallback } from 'react'
 import DashboardHeader from '../../../components/officers/DashboardHeader.jsx'
 import AddDisbursement from './AddEditDisbursement.jsx'
 import FinancialRecordsTable, { SearchIcon } from './FinancialRecordsTable.jsx'
+import AmountSpentDialog from './AmountSpentDialog.jsx'
 import { downloadDisbursementCertificate } from '../../../utils/downloadDisbursementCertificate.js'
+import { mapDisbursementRow, disbursementColumns } from '../../../utils/financialRecordRows.js'
 import { listDisbursements, listCategories } from '../../../services/financial.service'
 import { useRole } from '../../../utils/useRole'
 import { getSocket } from '../../../services/socket'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
-
-function formatCurrency(value) {
-  const n = parseFloat(value) || 0
-  return `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(isoString) {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-    .format(new Date(isoString))
-}
-
-function mapApiToRow(d) {
-  return {
-    id: d.reference,
-    date: formatDate(d.createdAt),
-    recipient: d.name,
-    purpose: d.purposeOfFund,
-    titleOfActivities: d.titleOfActivities,
-    amount: formatCurrency(d.amount),
-    sourceOfFund: d.fundCategory?.name ?? '',
-    details: {
-      _id: d.id,
-      name: d.name,
-      amount: formatCurrency(d.amount),
-      purposeOfFund: d.purposeOfFund,
-      titleOfActivities: d.titleOfActivities,
-      sourceOfFundName: d.fundCategory?.name ?? '',
-      fundCategoryId: d.fundCategory?.id ?? '',
-      disbursedBy: d.disbursedBy,
-      disbursedByPosition: d.disbursedByPosition,
-      approvedBy: d.approvedBy,
-      approvedByPosition: d.approvedByPosition,
-      receivedBy: d.receivedBy,
-      receivedByPosition: d.receivedByPosition,
-    },
-  }
-}
+import { EditIcon } from '../../../components/icons/ActionIcons.jsx'
 
 function recordMatchesSearch(record, searchTerm) {
   const q = searchTerm.trim().toLowerCase()
   if (!q) return true
   return [
     record.id, record.date, record.recipient, record.purpose,
-    record.titleOfActivities, record.amount, record.sourceOfFund,
+    record.titleOfActivities, record.amount, record.amountSpent, record.sourceOfFund,
   ].some(v => String(v ?? '').toLowerCase().includes(q))
 }
-
-const columns = [
-  { key: 'id', label: 'Reference' },
-  { key: 'date', label: 'Date' },
-  { key: 'recipient', label: 'Recipient' },
-  { key: 'purpose', label: 'Purpose of Fund' },
-  { key: 'titleOfActivities', label: 'Title of Activities' },
-  { key: 'amount', label: 'Amount' },
-  { key: 'sourceOfFund', label: 'Source of Fund' },
-  { key: 'actions', label: 'Action' },
-]
 
 export default function Disbursement({ showHeader = true }) {
   const { canManageFinancials } = useRole()
@@ -71,6 +26,8 @@ export default function Disbursement({ showHeader = true }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [amountSpentRow, setAmountSpentRow] = useState(null)
+  const [savedMessage, setSavedMessage] = useState('')
   // Disbursements are drawn from a finalized fund category, so the action
   // must stay disabled until at least one has been created for the active
   // semester — mirrors categoriesLocked from GET /financial/categories,
@@ -98,7 +55,7 @@ export default function Disbursement({ showHeader = true }) {
     try {
       setError('')
       const data = await listDisbursements()
-      setRecords((data.disbursements || []).map(mapApiToRow))
+      setRecords((data.disbursements || []).map(mapDisbursementRow))
     } catch {
       setError('Failed to load disbursements. Please refresh.')
     } finally {
@@ -162,17 +119,41 @@ export default function Disbursement({ showHeader = true }) {
           </p>
         )}
 
+        {savedMessage && (
+          <p className="mx-4 mt-3 rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800" role="status">{savedMessage}</p>
+        )}
+
         {loading && <LoadingState label="Loading disbursements…" />}
         {error && <p className="px-4 py-8 text-center text-sm text-red-600">{error}</p>}
         {!loading && !error && (
           <FinancialRecordsTable
-            columns={columns}
+            columns={disbursementColumns}
             rows={filteredRecords}
             emptyMessage="No disbursement records found."
             onDownload={downloadDisbursementCertificate}
+            renderRowActions={(row) => row.details.canRecordAmountSpent && (
+              <button type="button" onClick={() => { setSavedMessage(''); setAmountSpentRow(row) }}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                aria-label={`Update amount spent for ${row.id}`}
+                title="Update amount spent">
+                <EditIcon className="h-4 w-4" />
+              </button>
+            )}
           />
         )}
       </div>
+
+      {amountSpentRow && (
+        <AmountSpentDialog
+          row={amountSpentRow}
+          onClose={() => setAmountSpentRow(null)}
+          onSaved={(message) => {
+            setAmountSpentRow(null)
+            setSavedMessage(message)
+            fetchDisbursements()
+          }}
+        />
+      )}
     </>
   )
 }

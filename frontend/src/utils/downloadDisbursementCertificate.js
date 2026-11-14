@@ -11,12 +11,24 @@ import {
     loadActiveDocumentAssets,
 } from "./certificatePdf";
 
+function formatRevisedDate(iso) {
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(iso));
+}
+
+// Once the amount spent is recorded, the receipt shows that (the latest
+// amount), with what was released and returned so the paper still adds up.
 function getDisbursementCertificateData(record) {
     const details = record.details ?? {};
+    const returned = details.totalReturned;
 
     return {
         name: details.name ?? record.recipient,
-        amount: details.amount ?? record.amount,
+        amount: returned ? details.amountSpent : (details.amount ?? record.amount),
+        breakdown: returned
+            ? `${details.amount} was released and ${returned} was returned` +
+              `${details.returnReference ? ` (${details.returnReference})` : ""}.` +
+              `${details.revisedAt ? ` Revised ${formatRevisedDate(details.revisedAt)}.` : ""}`
+            : "",
         fund: details.fund ?? details.purposeOfFund ?? record.purpose,
         activity: details.activity ?? details.titleOfActivities ?? record.titleOfActivities,
         sourceOfFund: details.sourceOfFund ?? details.sourceOfFundName ?? record.sourceOfFund,
@@ -51,7 +63,8 @@ function renderCertificateCanvas(record, assets = {}) {
     const bodyText =
         `This is to certify that ${getValue(certificate.name)} has received the total amount of ` +
         `${getValue(certificate.amount)} as ${getValue(certificate.fund)} for/in ${getValue(certificate.activity)}, ` +
-        `sourced from ${getValue(certificate.sourceOfFund)}.`;
+        `sourced from ${getValue(certificate.sourceOfFund)}.` +
+        (certificate.breakdown ? ` ${certificate.breakdown}` : "");
 
     const nextY = Math.max(drawCertificateBody(context, bodyText), 840);
 

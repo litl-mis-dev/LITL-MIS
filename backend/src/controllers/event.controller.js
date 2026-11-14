@@ -10,6 +10,7 @@ const {
 } = require('../services/notification.service')
 const { emitToAll, emitToOfficers } = require('../realtime/socket')
 const { validateScheduleDate, validateScheduleTime } = require('../utils/schedule')
+const { RETURNS_SUMMARY_INCLUDE, summarizeReturns } = require('../services/calculations.service')
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,24 @@ const LABEL_TO_STATUS = {
   'Cancelled':   'CANCELLED',
 }
 
-function formatEvent(event) {
+// The disbursement funding an event, with what is needed for its budget.
+const EVENT_INCLUDE = {
+  _count: { select: { attendances: true } },
+  disbursement: {
+    select: { id: true, reference: true, titleOfActivities: true, amount: true, ...RETURNS_SUMMARY_INCLUDE },
+  },
+}
+
+// An event funded by a disbursement shows that disbursement's amount spent as
+// its budget, so recording the amount spent updates it too. Events from
+// before budgets were linked keep the amount typed in.
+function eventBudget(event) {
+  if (event.disbursement) return summarizeReturns(event.disbursement).amountSpent
+  return event.budget == null ? null : event.budget.toFixed(2)
+}
+
+// Only officers see which disbursement funds an event; members see the budget.
+function formatEvent(event, { withDisbursement = false } = {}) {
   return {
     id:           event.id,
     title:        event.title,
@@ -41,10 +59,50 @@ function formatEvent(event) {
     hasGoogleForm: event.hasGoogleForm,
     googleFormUrl: event.googleFormUrl ?? '',
     createdAt:    event.createdAt,
-    budget:       event.budget == null ? null : event.budget.toFixed(2),
+    budget:       eventBudget(event),
     attendanceCount: event._count?.attendances ?? 0,
+    ...(withDisbursement && {
+      disbursementId: event.disbursementId ?? null,
+      disbursement: event.disbursement && {
+        id:          event.disbursement.id,
+        reference:   event.disbursement.reference,
+        title:       event.disbursement.titleOfActivities,
+        amountSpent: summarizeReturns(event.disbursement).amountSpent,
+      },
+    }),
   }
 }
+
+// Returns { absent: true } when the request leaves the link alone, { value }
+// with the disbursement ID or null (no disbursement yet), or { error }.
+function parseDisbursementId(raw) {
+  if (raw === undefined) return { absent: true }
+  if (raw === null || raw === '') return { value: null }
+  const id = Number(raw)
+  if (!Number.isInteger(id) || id <= 0) return { error: 'Choose a valid disbursement.' }
+  return { value: id }
+}
+
+// A disbursement funds one event, and only one from the current school year
+// can be newly chosen. Returns an error message, or null when it's allowed.
+async function disbursementUnavailableReason(disbursementId, eventId = null) {
+  const disbursement = await prisma.disbursement.findUnique({
+    where: { id: disbursementId },
+    include: { semester: { select: { schoolYear: true } }, event: { select: { id: true, title: true } } },
+  })
+  if (!disbursement || disbursement.isArchived) return 'That disbursement is not available.'
+  if (disbursement.event && disbursement.event.id !== eventId) {
+    return `That disbursement already funds the event "${disbursement.event.title}".`
+  }
+  if (disbursement.event) return null // already this event's
+  const activeSemester = await prisma.semester.findFirst({ where: { isActive: true }, select: { schoolYear: true } })
+  if (!activeSemester || disbursement.semester.schoolYear !== activeSemester.schoolYear) {
+    return 'Only disbursements from the current school year can be chosen.'
+  }
+  return null
+}
+
+const isDisbursementTaken = (err) => err?.code === 'P2002' && String(err.meta?.target ?? '').includes('disbursementId')
 
 // Events are listed by status — Open, Coming soon, Closed, Cancelled — and
 // by date and time (soonest first) within the same status.
@@ -93,10 +151,11 @@ const listEvents = async (req, res) => {
       where: tier === 'OFFICER'
         ? { isArchived: false }
         : { isArchived: false, access: { contains: '"Members"' } },
-      include: { _count: { select: { attendances: true } } },
+      include: EVENT_INCLUDE,
     })
 
-    return res.json({ events: events.sort(compareEvents).map(formatEvent) })
+    const withDisbursement = tier === 'OFFICER'
+    return res.json({ events: events.sort(compareEvents).map((e) => formatEvent(e, { withDisbursement })) })
   } catch (err) {
     logError('List events', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -110,7 +169,7 @@ const getEvent = async (req, res) => {
 
     const event = await prisma.event.findUnique({
       where: { id },
-      include: { _count: { select: { attendances: true } } }
+      include: EVENT_INCLUDE
     })
 
     if (!event || event.isArchived) {
@@ -124,7 +183,7 @@ const getEvent = async (req, res) => {
       }
     }
 
-    return res.json({ event: formatEvent(event) })
+    return res.json({ event: formatEvent(event, { withDisbursement: tier === 'OFFICER' }) })
   } catch (err) {
     logError('Get event', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -138,19 +197,30 @@ const createEvent = async (req, res) => {
     const {
       title, date, time, location,
       Proponent: proponent,
-      description, status, access, hasGoogleForm, googleFormUrl, budget
+      description, status, access, hasGoogleForm, googleFormUrl, budget, disbursementId
     } = req.body
 
-    if (!title?.trim() || !date || !time || !location?.trim() || !proponent?.trim() || !description?.trim()
-      || budget === undefined || budget === null || budget === '') {
+    if (!title?.trim() || !date || !time || !location?.trim() || !proponent?.trim() || !description?.trim()) {
       return res.status(400).json({ message: 'All required fields must be filled.' })
     }
 
     const scheduleError = validateScheduleDate(date) || validateScheduleTime(time)
     if (scheduleError) return res.status(400).json({ message: scheduleError })
 
-    const parsedBudget = parseBudget(budget)
-    if (parsedBudget.error) return res.status(400).json({ message: parsedBudget.error })
+    // The budget comes from the chosen disbursement, or is "Not set" until
+    // one is chosen. A typed budget is still accepted from older clients.
+    const parsedDisbursement = parseDisbursementId(disbursementId)
+    if (parsedDisbursement.error) return res.status(400).json({ message: parsedDisbursement.error })
+    const linkedDisbursementId = parsedDisbursement.value ?? null
+    if (linkedDisbursementId) {
+      const reason = await disbursementUnavailableReason(linkedDisbursementId)
+      if (reason) return res.status(400).json({ message: reason })
+    }
+    let parsedBudget = { value: null }
+    if (!linkedDisbursementId && budget !== undefined && budget !== null && budget !== '') {
+      parsedBudget = parseBudget(budget)
+      if (parsedBudget.error) return res.status(400).json({ message: parsedBudget.error })
+    }
 
     if (!Array.isArray(access) || access.length === 0) {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
@@ -169,9 +239,10 @@ const createEvent = async (req, res) => {
         hasGoogleForm: Boolean(hasGoogleForm),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
         budget:        parsedBudget.value,
+        disbursementId: linkedDisbursementId,
         createdById:   req.user.id,
       },
-      include: { _count: { select: { attendances: true } } }
+      include: EVENT_INCLUDE
     })
 
     await writeAuditLog({
@@ -190,8 +261,11 @@ const createEvent = async (req, res) => {
 
     emitToAll('event:changed', { eventId: event.id, action: 'created' })
 
-    return res.status(201).json({ message: 'Event created.', event: formatEvent(event) })
+    return res.status(201).json({ message: 'Event created.', event: formatEvent(event, { withDisbursement: true }) })
   } catch (err) {
+    if (isDisbursementTaken(err)) {
+      return res.status(409).json({ message: 'That disbursement was just chosen for another event. Choose another.' })
+    }
     logError('Create event', err)
     return res.status(500).json({ message: 'Something went wrong.' })
   }
@@ -209,7 +283,7 @@ const updateEvent = async (req, res) => {
     const {
       title, date, time, location,
       Proponent: proponent,
-      description, status, access, hasGoogleForm, googleFormUrl, budget
+      description, status, access, hasGoogleForm, googleFormUrl, budget, disbursementId
     } = req.body
 
     if (Array.isArray(access) && access.length === 0) {
@@ -236,6 +310,13 @@ const updateEvent = async (req, res) => {
       return res.status(400).json({ message: 'Budget is required.' })
     }
 
+    const parsedDisbursement = parseDisbursementId(disbursementId)
+    if (parsedDisbursement.error) return res.status(400).json({ message: parsedDisbursement.error })
+    if (parsedDisbursement.value) {
+      const reason = await disbursementUnavailableReason(parsedDisbursement.value, id)
+      if (reason) return res.status(400).json({ message: reason })
+    }
+
     const updated = await prisma.event.update({
       where: { id },
       data: {
@@ -250,8 +331,9 @@ const updateEvent = async (req, res) => {
         ...(hasGoogleForm !== undefined && { hasGoogleForm: Boolean(hasGoogleForm) }),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
         ...(budgetValue !== undefined && { budget: budgetValue }),
+        ...(!parsedDisbursement.absent && { disbursementId: parsedDisbursement.value }),
       },
-      include: { _count: { select: { attendances: true } } }
+      include: EVENT_INCLUDE
     })
 
     await writeAuditLog({
@@ -296,9 +378,51 @@ const updateEvent = async (req, res) => {
 
     emitToAll('event:changed', { eventId: id, action: 'updated' })
 
-    return res.json({ message: 'Event updated.', event: formatEvent(updated) })
+    return res.json({ message: 'Event updated.', event: formatEvent(updated, { withDisbursement: true }) })
   } catch (err) {
+    if (isDisbursementTaken(err)) {
+      return res.status(409).json({ message: 'That disbursement was just chosen for another event. Choose another.' })
+    }
     logError('Update event', err)
+    return res.status(500).json({ message: 'Something went wrong.' })
+  }
+}
+
+// ── Disbursements an event can be funded by ──────────────────────────────────
+// GET /events/available-disbursements?eventId=… — for the Budget dropdown.
+// Needs Event EDIT, not Financial access, so it returns only what the
+// dropdown shows: no signatories or other financial details.
+const listAvailableDisbursements = async (req, res) => {
+  try {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : null
+    if (eventId !== null && (!Number.isInteger(eventId) || eventId <= 0)) {
+      return res.status(400).json({ message: 'Invalid event.' })
+    }
+    const activeSemester = await prisma.semester.findFirst({ where: { isActive: true }, select: { schoolYear: true } })
+    if (!activeSemester) return res.json({ disbursements: [] })
+
+    const disbursements = await prisma.disbursement.findMany({
+      where: {
+        isArchived: false,
+        OR: [
+          { semester: { schoolYear: activeSemester.schoolYear }, event: { is: null } },
+          ...(eventId ? [{ event: { is: { id: eventId } } }] : []),
+        ],
+      },
+      select: { id: true, reference: true, titleOfActivities: true, amount: true, ...RETURNS_SUMMARY_INCLUDE },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return res.json({
+      disbursements: disbursements.map((d) => ({
+        id:          d.id,
+        reference:   d.reference,
+        title:       d.titleOfActivities,
+        amountSpent: summarizeReturns(d).amountSpent,
+      })),
+    })
+  } catch (err) {
+    logError('List available disbursements', err)
     return res.status(500).json({ message: 'Something went wrong.' })
   }
 }
@@ -465,4 +589,4 @@ const getAttendance = async (req, res) => {
   }
 }
 
-module.exports = { listEvents, getEvent, createEvent, updateEvent, archiveEvent, recordAttendance, getAttendance }
+module.exports = { listEvents, getEvent, createEvent, updateEvent, archiveEvent, recordAttendance, getAttendance, listAvailableDisbursements }

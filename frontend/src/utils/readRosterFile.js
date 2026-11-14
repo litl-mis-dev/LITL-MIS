@@ -6,8 +6,6 @@
 // the browser's own DecompressionStream and DOMParser, so no spreadsheet
 // library (and its dependencies) is added to the app.
 
-export const ROSTER_TEMPLATE_CSV = "Student Number,Last Name\n2023-100-123,Dela Cruz\n";
-
 const STUDENT_NUMBER_HEADER = /^(student\s*(no\.?|number|num|#|id)|stud(ent)?\s*no\.?)$/i;
 const LAST_NAME_HEADER = /^(last\s*name|surname|family\s*name)$/i;
 
@@ -40,7 +38,7 @@ function rowsFromTable(table) {
             }))
             .filter((r) => r.studentNumber || r.lastName);
     }
-    throw new Error('Couldn\'t find the "Student Number" and "Last Name" columns. Use the template\'s headings.');
+    throw new Error('Couldn\'t find the "Student Number" and "Last Name" columns. Add a header row with those two headings.');
 }
 
 // ── CSV ──────────────────────────────────────────────────────────────────────

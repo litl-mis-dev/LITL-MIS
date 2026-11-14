@@ -27,7 +27,11 @@ function renderCertificateCanvas(record, assets = {}) {
     const bodyText =
         `This is to certify that ${getValue(details.receivedFrom)} has returned the total amount of ` +
         `${getValue(details.amount)} as ${getValue(details.fund ?? details.purposeOfFund)} for/in ${getValue(details.activity ?? details.titleOfActivities)}, ` +
-        `sourced from ${getValue(details.sourceOfFund ?? details.sourceOfFundName)}.`;
+        `sourced from ${getValue(details.sourceOfFund ?? details.sourceOfFundName)}.` +
+        (details.disbursementReference ? ` Returned from disbursement ${details.disbursementReference}.` : "") +
+        (details.revisedAt
+            ? ` Revised ${new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(details.revisedAt))}.`
+            : "");
 
     const nextY = Math.max(drawCertificateBody(context, bodyText), 840);
 

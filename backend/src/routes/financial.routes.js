@@ -41,6 +41,7 @@ router.delete('/categories/:id', requireModule('FINANCIAL', 'EDIT'), categoryCtr
 router.get('/disbursements',        requireModule('FINANCIAL', 'VIEW'), disbursementCtrl.listDisbursements)
 router.get('/disbursements/:id',    requireModule('FINANCIAL', 'VIEW'), disbursementCtrl.getDisbursement)
 router.post('/disbursements',       requireModule('FINANCIAL', 'EDIT'), disbursementCtrl.createDisbursement)
+router.patch('/disbursements/:id/amount-spent', requireModule('FINANCIAL', 'EDIT'), disbursementCtrl.recordAmountSpent)
 router.delete('/disbursements/:id', requireModule('FINANCIAL', 'EDIT'), disbursementCtrl.archiveDisbursement)
 
 // Return Funds

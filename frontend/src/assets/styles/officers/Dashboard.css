@@ -2712,6 +2712,13 @@ button {
   text-align: right;
 }
 
+/* Budget (PHP) is filled in from the chosen disbursement, not typed. */
+.dash-form__field input.event-form__readonly {
+  background: #f3f4f6;
+  color: #374151;
+  cursor: default;
+}
+
 .qr-scanner-layout,
 .member-lookup__grid {
   display: grid;
