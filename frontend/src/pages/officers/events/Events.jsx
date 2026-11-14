@@ -835,7 +835,6 @@ function BudgetFields({ value, onChange, options, error, fallbackBudget = null }
             <label className="dash-form__field"><span>Budget (PHP)</span>
                 <input value={budget == null || budget === "" ? "" : formatBudget(budget)} placeholder="Not set" readOnly
                     className="event-form__readonly" />
-                <span className="event-form__hint">Filled in from the disbursement.</span>
             </label>
         </>
     );

@@ -93,10 +93,10 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
                     <p className="card__sub">
                         {loadError || (entries === null
                             ? "Loading members list…"
-                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the members list. Registrations with a CvSU email that match a student number and last name are approved automatically. Upload an .xlsx or .csv file with Student Number and Last Name columns.`)}
+                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the members list.`)}
                     </p>
                 </div>
-                <div className="member-list-actions">
+                <div className="member-list-actions roster-card__actions">
                     <input ref={fileInputRef} type="file" accept=".xlsx,.csv" className="sr-only" onChange={handleFileChosen} />
                     <button type="button" className="btn btn--primary" onClick={() => fileInputRef.current?.click()}
                         disabled={isReading} aria-busy={isReading}>
@@ -110,6 +110,12 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
                     </button>
                 </div>
             </div>
+
+            {/* Below the header, full width, so the buttons keep one line. */}
+            <p className="roster-card__note">
+                Registrations with a CvSU email that match a student number and last name are approved automatically.
+                Upload an .xlsx or .csv file with <strong>Student Number</strong> and <strong>Last Name</strong> columns.
+            </p>
 
             {(message || fileError) && (
                 <p className={`members-download-status ${fileError ? "members-download-status--error" : ""}`} role="status">
