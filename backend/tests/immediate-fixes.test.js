@@ -305,6 +305,23 @@ test('AR5: in production the login cookie is SameSite=Lax, Secure and httpOnly',
   }
 })
 
+test('AR5: an unknown account spends the same password-check time as a real one', async () => {
+  const user = await addUser()
+  const original = bcrypt.compare
+  let compares = 0
+  bcrypt.compare = (...args) => { compares += 1; return original(...args) }
+  try {
+    await call(auth.login, { body: { identifier: 'ghost@cvsu.edu.ph', password: 'Wrong#Pass1' } })
+    assert.equal(compares, 1, 'unknown account')
+    for (let i = 0; i < 5; i++) await call(auth.login, { body: { identifier: user.email, password: 'Wrong#Pass1' } })
+    compares = 0
+    await call(auth.login, { body: { identifier: user.email, password: PASSWORD } })
+    assert.equal(compares, 1, 'paused sign-in')
+  } finally {
+    bcrypt.compare = original
+  }
+})
+
 // ── RES-01 · email failure rollback ──────────────────────────────────────────
 const registration = {
   firstName: 'Juan', lastName: 'Cruz', sex: 'MALE', studentNumber: '2024-100-77',

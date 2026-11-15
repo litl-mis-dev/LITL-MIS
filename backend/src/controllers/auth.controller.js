@@ -55,6 +55,11 @@ const LOGIN_PAIR_LOCK_THRESHOLD = 5
 const LOGIN_ACCOUNT_LOCK_THRESHOLD = 20
 const INVALID_LOGIN_MESSAGE = `Invalid credentials. After ${LOGIN_PAIR_LOCK_THRESHOLD} failed attempts, sign-in is paused for ${LOGIN_LOCKOUT_MINUTES} minutes.`
 
+// Checked against when the account doesn't exist (or sign-in is paused), so
+// every failed login spends the same bcrypt time and the response time can't
+// reveal which accounts exist. A hash of a throwaway string, same cost (12).
+const TIMING_EQUALISER_HASH = '$2b$12$DULfmApJMTnLmgNzURwk/.tgZo8TzIxAwrJ6XjHlY5fdFhvqaRDDm'
+
 // The website (litltrece.me) and the API (api.litltrece.me) are the same
 // site, so Lax still sends the cookie with the app's own requests while
 // keeping it off requests started by other sites.
@@ -800,6 +805,7 @@ const login = async (req, res) => {
     // Unknown account, wrong password and paused sign-in all get the same
     // answer, so the response never reveals whether an account exists.
     if (!user) {
+      await bcrypt.compare(password, TIMING_EQUALISER_HASH)
       return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
@@ -809,6 +815,7 @@ const login = async (req, res) => {
     const pairLocked = (getLoginPair(pairKey, now)?.lockedUntil ?? 0) > now
 
     if (accountLocked || pairLocked) {
+      await bcrypt.compare(password, TIMING_EQUALISER_HASH)
       return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
