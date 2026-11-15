@@ -289,6 +289,21 @@ test('SEC-05: members, stale tokens and garbage cookies still log out cleanly wi
 })
 
 // ── Audit round 5 · sessions and login ───────────────────────────────────────
+const authMiddleware = require(path.join(backend, 'src/middleware/auth.middleware'))
+const passesAuth = async (token) => {
+  let passed = false
+  await authMiddleware({ cookies: { 'LITL-MIS': token }, headers: {} }, { status() { return { json() {} } } }, () => { passed = true })
+  return passed
+}
+
+test('AR5: logging out ends the session on the server, not just in the browser', async () => {
+  const member = await addUser()
+  const token = cookieFor(member)
+  assert.equal(await passesAuth(token), true)
+  await call(auth.logout, { cookies: { 'LITL-MIS': token } })
+  assert.equal(await passesAuth(token), false, 'a copy of the old token no longer works')
+})
+
 test('AR5: in production the login cookie is SameSite=Lax, Secure and httpOnly', async () => {
   const user = await addUser()
   const previous = process.env.NODE_ENV

@@ -19,7 +19,7 @@ const {
 const { syncMemberApprovalNotifications } = require('../services/notification.service')
 const { approveFromRosterIfListed } = require('../services/memberRoster.service')
 const { hasAccess } = require('../services/permissions.service')
-const { emitToOfficers } = require('../realtime/socket')
+const { emitToOfficers, disconnectUser } = require('../realtime/socket')
 
 const {
   isValidStudentNumber,
@@ -899,8 +899,18 @@ const logout = async (req, res) => {
   // The route has no authMiddleware (a stale cookie must still be cleared),
   // so identify the caller from the cookie for the audit trail.
   const actor = await getUserFromAuthCookie(req)
-  if (actor && actor.role !== 'MEMBER') {
-    await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
+  if (actor) {
+    // Ends the session on the server too: a copy of the token stops working.
+    // Every device of this account is signed out, like a password change.
+    try {
+      await prisma.user.update({ where: { id: actor.id }, data: { tokenVersion: { increment: 1 } } })
+      disconnectUser(actor.id)
+    } catch (err) {
+      logError('Logout session revoke failed', err)
+    }
+    if (actor.role !== 'MEMBER') {
+      await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
+    }
   }
   res.clearCookie('LITL-MIS', authCookieOptions())
   return res.json({ message: 'Logged out successfully' })
