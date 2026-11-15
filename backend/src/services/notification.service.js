@@ -14,21 +14,38 @@ function pushTag(notification) {
   return notification.groupKey ? `group:${notification.groupKey}` : `notification:${notification.id}`
 }
 
-async function createNotification({ userId, type, title, message, link = null, groupKey = null }) {
+// `awaitPush` waits for the push to be sent, so a batch of users finishes
+// (database work included) before the next one starts.
+async function createNotification({ userId, type, title, message, link = null, groupKey = null }, { awaitPush = false } = {}) {
   const notification = await prisma.notification.create({
     data: { userId, type, title, message, link, groupKey },
   })
 
   emitToUser(userId, 'notification:new', notification)
-  sendPushToUser(userId, { title, message, link, tag: pushTag(notification) }).catch((err) =>
+  const push = sendPushToUser(userId, { title, message, link, tag: pushTag(notification) }).catch((err) =>
     logError('Push dispatch', err)
   )
+  if (awaitPush) await push
 
   return notification
 }
 
+// Users are notified this many at a time. Notifying everyone at once (a write
+// and a push lookup per user, all in parallel) ran the database out of
+// connections and lost notifications for the rest.
+const NOTIFY_BATCH_SIZE = 25
+
 async function createNotificationForUsers(userIds, data) {
-  await Promise.all(userIds.map((userId) => createNotification({ ...data, userId })))
+  for (let i = 0; i < userIds.length; i += NOTIFY_BATCH_SIZE) {
+    const batch = userIds.slice(i, i + NOTIFY_BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map((userId) => createNotification({ ...data, userId }, { awaitPush: true }))
+    )
+    // One user's failure must not stop everyone after them.
+    results.forEach((result, j) => {
+      if (result.status === 'rejected') logError('Create notification', result.reason, { userId: batch[j] })
+    })
+  }
 }
 
 async function getUserIdsWithModuleAccess(module, level = 'EDIT') {
