@@ -11,7 +11,7 @@ const baseOptions = () => {
   const isProduction = process.env.NODE_ENV === 'production'
   return {
     httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
+    sameSite: 'lax', // website and API are the same site
     secure: isProduction,
     path: '/api/auth'
   }

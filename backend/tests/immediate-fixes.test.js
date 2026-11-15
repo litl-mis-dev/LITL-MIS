@@ -107,11 +107,11 @@ const { listAuditLogs } = require(path.join(backend, 'src/controllers/auditLog.c
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const call = async (fn, req) => {
-  const out = { status: 200, body: undefined, cookies: {}, cleared: [] }
+  const out = { status: 200, body: undefined, cookies: {}, cookieOptions: {}, cleared: [] }
   const res = {
     status(s) { out.status = s; return this },
     json(b) { out.body = b; return this },
-    cookie(name, value) { out.cookies[name] = value; return this },
+    cookie(name, value, options) { out.cookies[name] = value; out.cookieOptions[name] = options; return this },
     clearCookie(name) { out.cleared.push(name); return this },
     set() { return this },
   }
@@ -286,6 +286,55 @@ test('SEC-05: members, stale tokens and garbage cookies still log out cleanly wi
     assert.ok(r.cleared.includes('LITL-MIS'))
   }
   assert.equal(audit.length, 0)
+})
+
+// ── Audit round 5 · sessions and login ───────────────────────────────────────
+const authMiddleware = require(path.join(backend, 'src/middleware/auth.middleware'))
+const passesAuth = async (token) => {
+  let passed = false
+  await authMiddleware({ cookies: { 'LITL-MIS': token }, headers: {} }, { status() { return { json() {} } } }, () => { passed = true })
+  return passed
+}
+
+test('AR5: logging out ends the session on the server, not just in the browser', async () => {
+  const member = await addUser()
+  const token = cookieFor(member)
+  assert.equal(await passesAuth(token), true)
+  await call(auth.logout, { cookies: { 'LITL-MIS': token } })
+  assert.equal(await passesAuth(token), false, 'a copy of the old token no longer works')
+})
+
+test('AR5: in production the login cookie is SameSite=Lax, Secure and httpOnly', async () => {
+  const user = await addUser()
+  const previous = process.env.NODE_ENV
+  process.env.NODE_ENV = 'production'
+  try {
+    const r = await call(auth.login, { body: { identifier: user.email, password: PASSWORD } })
+    assert.equal(r.status, 200)
+    assert.deepEqual(
+      [r.cookieOptions['LITL-MIS'].sameSite, r.cookieOptions['LITL-MIS'].secure, r.cookieOptions['LITL-MIS'].httpOnly],
+      ['lax', true, true]
+    )
+  } finally {
+    process.env.NODE_ENV = previous
+  }
+})
+
+test('AR5: an unknown account spends the same password-check time as a real one', async () => {
+  const user = await addUser()
+  const original = bcrypt.compare
+  let compares = 0
+  bcrypt.compare = (...args) => { compares += 1; return original(...args) }
+  try {
+    await call(auth.login, { body: { identifier: 'ghost@cvsu.edu.ph', password: 'Wrong#Pass1' } })
+    assert.equal(compares, 1, 'unknown account')
+    for (let i = 0; i < 5; i++) await call(auth.login, { body: { identifier: user.email, password: 'Wrong#Pass1' } })
+    compares = 0
+    await call(auth.login, { body: { identifier: user.email, password: PASSWORD } })
+    assert.equal(compares, 1, 'paused sign-in')
+  } finally {
+    bcrypt.compare = original
+  }
 })
 
 // ── RES-01 · email failure rollback ──────────────────────────────────────────

@@ -3,7 +3,7 @@ import { getSocket } from "../../../services/socket.js";
 import {
     getMemberRoster, previewMemberRoster, saveMemberRoster, removeMemberRosterEntry,
 } from "../../../services/officer.service.js";
-import { readRosterFile, ROSTER_TEMPLATE_CSV } from "../../../utils/readRosterFile.js";
+import { readRosterFile } from "../../../utils/readRosterFile.js";
 import { formatPersonName } from "../../../utils/formInputs.js";
 import ModalPortal from "../../../components/ui/ModalPortal.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
@@ -18,7 +18,7 @@ const ACCOUNT_STATUS_LABELS = {
     DEACTIVATED: "Deactivated",
 };
 
-// Member Approval ▸ Member Roster. Officers upload the list of students who
+// Member Approval ▸ Members List. Officers upload the list of students who
 // may join (Student Number + Last Name). Pending registrations that match are
 // approved automatically, and so is anyone on the list who registers later.
 // Non-matches stay pending for manual review; nobody is rejected automatically.
@@ -40,7 +40,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
             setEntries(data.entries ?? []);
             setLoadError("");
         } catch {
-            setLoadError("Couldn't load the member roster.");
+            setLoadError("Couldn't load the members list.");
         }
     }, []);
 
@@ -48,7 +48,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
         let active = true;
         getMemberRoster()
             .then((data) => { if (active) setEntries(data.entries ?? []); })
-            .catch(() => { if (active) setLoadError("Couldn't load the member roster."); });
+            .catch(() => { if (active) setLoadError("Couldn't load the members list."); });
         return () => { active = false; };
     }, []);
 
@@ -77,15 +77,6 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
         }
     }
 
-    function downloadTemplate() {
-        const url = URL.createObjectURL(new Blob([ROSTER_TEMPLATE_CSV], { type: "text/csv" }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "member-roster-template.csv";
-        link.click();
-        URL.revokeObjectURL(url);
-    }
-
     function handleSaved(result) {
         setPendingRows(null);
         setIsAddOpen(false);
@@ -98,30 +89,33 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
         <div className="card roster-card">
             <div className="card__header">
                 <div>
-                    <h2 className="card__title">Member Roster</h2>
+                    <h2 className="card__title">Members List</h2>
                     <p className="card__sub">
                         {loadError || (entries === null
-                            ? "Loading roster…"
-                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the roster. Registrations with a CvSU email that match a student number and last name are approved automatically.`)}
+                            ? "Loading members list…"
+                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the members list.`)}
                     </p>
                 </div>
-                <div className="member-list-actions">
+                <div className="member-list-actions roster-card__actions">
                     <input ref={fileInputRef} type="file" accept=".xlsx,.csv" className="sr-only" onChange={handleFileChosen} />
                     <button type="button" className="btn btn--primary" onClick={() => fileInputRef.current?.click()}
                         disabled={isReading} aria-busy={isReading}>
-                        {isReading ? "Reading file…" : "Upload Roster"}
+                        {isReading ? "Reading file…" : "Upload Members List"}
                     </button>
                     <button type="button" className="btn btn--outline" onClick={() => { setMessage(""); setIsAddOpen(true); }}>
                         Add Student
                     </button>
                     <button type="button" className="btn btn--outline" onClick={() => setIsListOpen(true)} disabled={!entries?.length}>
-                        View Roster
-                    </button>
-                    <button type="button" className="btn btn--outline" onClick={downloadTemplate}>
-                        Download Template
+                        View Members List
                     </button>
                 </div>
             </div>
+
+            {/* Below the header, full width, so the buttons keep one line. */}
+            <p className="roster-card__note">
+                Registrations with a CvSU email that match a student number and last name are approved automatically.
+                Upload an .xlsx or .csv file with <strong>Student Number</strong> and <strong>Last Name</strong> columns.
+            </p>
 
             {(message || fileError) && (
                 <p className={`members-download-status ${fileError ? "members-download-status--error" : ""}`} role="status">
@@ -151,7 +145,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
                     entries={entries ?? []}
                     onRemoved={(studentNumber) => {
                         setEntries((list) => (list ?? []).filter((e) => e.studentNumber !== studentNumber));
-                        setMessage(`${studentNumber} was removed from the roster. Members already approved stay approved.`);
+                        setMessage(`${studentNumber} was removed from the members list. Members already approved stay approved.`);
                     }}
                     onClose={() => setIsListOpen(false)}
                 />
@@ -192,7 +186,7 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
         try {
             onSaved(await saveMemberRoster(rows, mode));
         } catch (err) {
-            setError(err.response?.data?.message ?? "Couldn't save the roster. Please try again.");
+            setError(err.response?.data?.message ?? "Couldn't save the members list. Please try again.");
             setIsSaving(false);
         }
     }
@@ -205,7 +199,7 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                 <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="roster-preview-title">
                     <div className="member-modal__header">
                         <div>
-                            <p className="member-modal__eyebrow">Member Roster</p>
+                            <p className="member-modal__eyebrow">Members List</p>
                             <h2 id="roster-preview-title" className="member-modal__title">Review before saving</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} disabled={isSaving} aria-label="Close">×</button>
@@ -219,11 +213,11 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                                 <legend>How to save this list</legend>
                                 <label className="feature-checklist__item">
                                     <input type="radio" name="roster-mode" checked={mode === "add"} onChange={() => changeMode("add")} disabled={isSaving} />
-                                    <span>Add to the roster: new students are added, changed last names are updated</span>
+                                    <span>Add to the list: new students are added, changed last names are updated</span>
                                 </label>
                                 <label className="feature-checklist__item">
                                     <input type="radio" name="roster-mode" checked={mode === "replace"} onChange={() => changeMode("replace")} disabled={isSaving} />
-                                    <span>Replace the roster: the roster becomes exactly this list</span>
+                                    <span>Replace the list: the members list becomes exactly this file</span>
                                 </label>
                             </fieldset>
                         )}
@@ -235,21 +229,21 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                             <>
                                 <dl className="roster-summary">
                                     <div><dt>Will be approved now</dt><dd>{preview.willApprove.length}</dd></div>
-                                    <div><dt>New on the roster</dt><dd>{preview.added}</dd></div>
+                                    <div><dt>New on the list</dt><dd>{preview.added}</dd></div>
                                     <div><dt>Last name updated</dt><dd>{preview.updated}</dd></div>
-                                    {mode === "replace" && <div><dt>Removed from the roster</dt><dd>{preview.removed}</dd></div>}
+                                    {mode === "replace" && <div><dt>Removed from the list</dt><dd>{preview.removed}</dd></div>}
                                     <div><dt>Not registered yet</dt><dd>{preview.notRegisteredYet}</dd></div>
                                     <div><dt>Pending, not on the list</dt><dd>{preview.pendingNotListed}</dd></div>
-                                    <div><dt>Roster size after saving</dt><dd>{preview.rosterSizeAfter}</dd></div>
+                                    <div><dt>List size after saving</dt><dd>{preview.rosterSizeAfter}</dd></div>
                                 </dl>
                                 <p className="card__sub">
-                                    Students who register later are approved automatically if they&apos;re on the roster.
-                                    {mode === "replace" && preview.removed > 0 && " Removing someone from the roster doesn't undo an approval already given."}
+                                    Students who register later are approved automatically if they&apos;re on the members list.
+                                    {mode === "replace" && preview.removed > 0 && " Removing someone from the list doesn't undo an approval already given."}
                                 </p>
                                 <RosterList title="Will be approved now" items={preview.willApprove}
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber}</span></>} />
                                 <RosterList title="Name doesn't match — stays pending for manual review" items={preview.nameMismatch}
-                                    render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · roster says &quot;{u.rosterLastName}&quot;</span></>} />
+                                    render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · list says &quot;{u.rosterLastName}&quot;</span></>} />
                                 <RosterList title="Registered with a personal email — stays pending for manual review" items={preview.personalEmail}
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · confirm it&apos;s really this student before approving</span></>} />
                             </>
@@ -270,17 +264,17 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                                 className="btn btn--primary"
                                 disabled={!canSave}
                                 busy={isSaving}
-                                title="Replace the member roster?"
-                                message={`The roster will become exactly this list of ${preview?.validRows ?? 0} student${preview?.validRows === 1 ? "" : "s"}${preview?.removed ? `, and ${preview.removed} student${preview.removed === 1 ? "" : "s"} not on it will be removed` : ""}.`}
+                                title="Replace the members list?"
+                                message={`The members list will become exactly this list of ${preview?.validRows ?? 0} student${preview?.validRows === 1 ? "" : "s"}${preview?.removed ? `, and ${preview.removed} student${preview.removed === 1 ? "" : "s"} not on it will be removed` : ""}.`}
                                 confirmLabel="Replace"
                                 cancelLabel="Cancel"
                                 onConfirm={handleSave}
                             >
-                                {isSaving ? "Saving…" : "Replace Roster"}
+                                {isSaving ? "Saving…" : "Replace List"}
                             </ConfirmActionButton>
                         ) : (
                             <button type="button" className="btn btn--primary" onClick={handleSave} disabled={!canSave} aria-busy={isSaving}>
-                                {isSaving ? "Saving…" : "Save to Roster"}
+                                {isSaving ? "Saving…" : "Save to List"}
                             </button>
                         )}
                     </div>
@@ -320,7 +314,7 @@ function AddStudentModal({ onNext, onClose }) {
                 <div className="member-modal__panel member-modal__panel--approval" role="dialog" aria-modal="true" aria-labelledby="roster-add-title">
                     <div className="member-modal__header">
                         <div>
-                            <p className="member-modal__eyebrow">Member Roster</p>
+                            <p className="member-modal__eyebrow">Members List</p>
                             <h2 id="roster-add-title" className="member-modal__title">Add Student</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} aria-label="Close">×</button>
@@ -336,7 +330,7 @@ function AddStudentModal({ onNext, onClose }) {
                             <input value={lastName} onChange={(e) => setLastName(formatPersonName(e.target.value))}
                                 placeholder="e.g. Dela Cruz" maxLength={60} required />
                         </label>
-                        <p className="card__sub">If the student number is already on the roster, its last name is updated.</p>
+                        <p className="card__sub">If the student number is already on the list, its last name is updated.</p>
                         <div className="member-modal__actions">
                             <button type="button" className="btn btn--outline" onClick={onClose}>Cancel</button>
                             <button type="submit" className="btn btn--primary">Review</button>
@@ -380,14 +374,14 @@ function RosterListModal({ entries, onRemoved, onClose }) {
                 <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="roster-list-title">
                     <div className="member-modal__header">
                         <div>
-                            <p className="member-modal__eyebrow">Member Roster</p>
-                            <h2 id="roster-list-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the roster</h2>
+                            <p className="member-modal__eyebrow">Members List</p>
+                            <h2 id="roster-list-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the members list</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} aria-label="Close">×</button>
                     </div>
                     <div className="filter-modal__body">
                         <label className="member-search card-picker__search">
-                            <span className="sr-only">Search the roster</span>
+                            <span className="sr-only">Search the members list</span>
                             <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search student no. or last name" />
                         </label>
                         {error && <p className="members-download-status members-download-status--error" role="alert">{error}</p>}
@@ -400,7 +394,7 @@ function RosterListModal({ entries, onRemoved, onClose }) {
                                         className="btn btn--outline btn--sm"
                                         busy={removing === e.studentNumber}
                                         disabled={Boolean(removing)}
-                                        title="Remove from the roster?"
+                                        title="Remove from the members list?"
                                         message={`${e.studentNumber} (${e.lastName}) won't be approved automatically anymore. If already approved, they stay approved.`}
                                         confirmLabel="Remove"
                                         cancelLabel="Cancel"

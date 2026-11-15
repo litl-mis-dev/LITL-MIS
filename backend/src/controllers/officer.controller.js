@@ -1,10 +1,11 @@
 const prisma = require('../lib/prisma')
-const { ROLE_POSITION_LABELS, SIGNATORY_ROLES, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
+const { ROLE_POSITION_LABELS, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
 const { VALID_MEMBER_STATUSES } = require('../utils/validators')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
 const { notifyRegistrationRejected, syncMemberApprovalNotifications } = require('../services/notification.service')
 const { approvePendingUser } = require('../services/memberApproval.service')
+const { resolveSignatories } = require('../services/signatory.service')
 const { emitToOfficers } = require('../realtime/socket')
 const { sendRegistrationStatusEmail } = require('../utils/email')
 
@@ -121,36 +122,10 @@ const rejectUser = async (req, res) => {
   }
 }
 
-// Resolves a signatory's full name and position label from their role.
-async function resolveSignatory(role) {
-  const user = await prisma.user.findFirst({
-    where: { role, status: 'APPROVED' },
-    select: {
-      member: { select: { firstName: true, middleName: true, lastName: true, suffix: true } }
-    }
-  })
-
-  if (!user?.member) return null
-
-  const { firstName, middleName, lastName, suffix } = user.member
-  const parts = [firstName, middleName, lastName, suffix].filter(Boolean)
-
-  return {
-    name: parts.join(' '),
-    position: ROLE_POSITION_LABELS[role] ?? role,
-  }
-}
-
 // GET /api/officer/signatories
 const getSignatories = async (req, res) => {
   try {
-    const [president, senFinance, senAudit] = await Promise.all([
-      resolveSignatory(SIGNATORY_ROLES.president),
-      resolveSignatory(SIGNATORY_ROLES.senFinance),
-      resolveSignatory(SIGNATORY_ROLES.senAudit),
-    ])
-
-    return res.json({ signatories: { president, senFinance, senAudit } })
+    return res.json({ signatories: await resolveSignatories() })
   } catch (err) {
     console.error('Get signatories error:', err)
     return res.status(500).json({ message: 'Something went wrong. Please try again.' })

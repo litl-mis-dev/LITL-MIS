@@ -258,7 +258,7 @@ export default function ArchiveSettings() {
                 <FinancialRecordsTable columns={disbursementColumns} rows={rows} emptyMessage="No disbursement records for this semester." onDownload={downloadDisbursementCertificate} />
             ))}
             {data && showReturns && renderSection("Return Fund Records", records.returnFunds, (n) => `${n} records`, (rows) => (
-                <FinancialRecordsTable columns={returnFundColumns} rows={rows} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} />
+                <FinancialRecordsTable columns={returnFundColumns} rows={rows} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} canDownloadRow={(row) => !row.details.nothingReturnedYet} />
             ))}
             <p className="archive-footer" role="status">{footer}</p>
         </div>

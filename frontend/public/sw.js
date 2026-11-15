@@ -6,10 +6,13 @@ self.addEventListener('push', function (event) {
     data = { title: 'LITL-MIS', message: event.data ? event.data.text() : '' }
   }
 
+  // The same notification (same tag) replaces its earlier popup instead of
+  // stacking a duplicate; renotify still alerts when a grouped one changes.
   const options = {
     body: data.message || '',
     icon: '/Logo.png',
     data: { link: data.link || '/' },
+    ...(data.tag && { tag: data.tag, renotify: true }),
   }
 
   event.waitUntil(self.registration.showNotification(data.title || 'LITL-MIS', options))

@@ -2,7 +2,8 @@ const Decimal = require('decimal.js')
 const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
 const {
-  getSemesterFlows, getSemesterEndingBalance, getTurnoverAmount, getFundReport
+  getSemesterFlows, getSemesterEndingBalance, getTurnoverAmount, getFundReport,
+  RETURNS_SUMMARY_INCLUDE, summarizeReturns
 } = require('../services/calculations.service')
 const { compareSemestersOldestFirst } = require('../services/membershipPayment.service')
 const { hasAccess } = require('../services/permissions.service')
@@ -31,7 +32,7 @@ const RETURN_FUND_SIGNATORY_FIELDS = [
 
 // Same shapes the Financial module's own list endpoints return, so the
 // existing row mappers and certificate generators work on archive records.
-const DISBURSEMENT_INCLUDE = { fundCategory: { select: { id: true, name: true } } }
+const DISBURSEMENT_INCLUDE = { fundCategory: { select: { id: true, name: true } }, ...RETURNS_SUMMARY_INCLUDE }
 const RETURN_FUND_INCLUDE = {
   disbursement: {
     select: {
@@ -339,9 +340,10 @@ const listArchiveDisbursements = async (req, res) => {
       hasAccess(req.user.role, 'FINANCIAL', 'EDIT')
     ])
 
+    const withSummary = records.map(({ returnFunds, ...r }) => ({ ...r, ...summarizeReturns({ ...r, returnFunds }) }))
     return res.json({
       canDownload,
-      disbursements: canDownload ? records : records.map((r) => withoutFields(r, DISBURSEMENT_SIGNATORY_FIELDS))
+      disbursements: canDownload ? withSummary : withSummary.map((r) => withoutFields(r, DISBURSEMENT_SIGNATORY_FIELDS))
     })
   } catch (err) {
     logError('Archive disbursements', err)

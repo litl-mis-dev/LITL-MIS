@@ -41,8 +41,21 @@ function validateScheduleTime(value) {
   return null
 }
 
+// The calendar day after `date` ("YYYY-MM-DD").
+function nextDateString(date) {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
+}
+
+// The hour (0–23) in the organization's timezone.
+function hourInOrgTimezone(now = new Date()) {
+  return Number(new Intl.DateTimeFormat('en-US', {
+    timeZone: ORG_TIMEZONE, hour: 'numeric', hourCycle: 'h23',
+  }).format(now))
+}
+
 module.exports = {
   CLASS_HOURS_START, CLASS_HOURS_END,
-  todayInOrgTimezone, isValidDateString, isWithinClassHours,
+  todayInOrgTimezone, nextDateString, hourInOrgTimezone, isValidDateString, isWithinClassHours,
   validateScheduleDate, validateScheduleTime,
 }

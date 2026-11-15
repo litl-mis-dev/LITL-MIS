@@ -147,6 +147,15 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
     setErrors(err => ({ ...err, [name]: '' }))
   }
 
+  // Checked as the amount is typed: more than the selected fund has can't be
+  // submitted (the server refuses it too).
+  const formCategory = categories.find(c => String(c.id) === String(formData.fundCategoryId))
+  const typedAmount = parseFloat(stripCurrencyFormatting(formData.amount)) || 0
+  const exceedsAvailable = Boolean(formCategory) && typedAmount > Number(formCategory.availableFund)
+  const exceedsMessage = exceedsAvailable
+    ? `Exceeds the available ${formatCurrencyDisplay(formCategory.availableFund)} in ${formCategory.name}.`
+    : ''
+
   function validateForm() {
     const nextErrors = {}
     const amountVal = parseFloat(stripCurrencyFormatting(formData.amount)) || 0
@@ -158,6 +167,7 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
     if (!formData.amount.trim()) nextErrors.amount = 'Amount is required.'
     else if (amountVal <= 0) nextErrors.amount = 'Amount must be greater than ₱0.00.'
     else if (amountVal > MAX_AMOUNT) nextErrors.amount = `Amount cannot exceed ₱${MAX_AMOUNT.toLocaleString('en-PH')}.`
+    else if (exceedsAvailable) nextErrors.amount = exceedsMessage
 
     if (!formData.purposeOfFund.trim()) nextErrors.purposeOfFund = 'Purpose of fund is required.'
     else if (!TEXT_ONLY_REGEX.test(formData.purposeOfFund.trim())) nextErrors.purposeOfFund = 'Letters only — no numbers or special characters.'
@@ -293,9 +303,11 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                     <label className="block text-sm font-medium text-gray-700" htmlFor="dis-amount">Amount<RequiredMark /></label>
                     <input id="dis-amount" name="amount" type="text" value={formData.amount}
                       onChange={handleAmountChange}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                      aria-invalid={exceedsAvailable || Boolean(errors.amount)}
+                      aria-describedby="dis-amount-error"
+                      className={`mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 ${exceedsAvailable ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-200'}`}
                       placeholder="₱0.00" />
-                    {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount}</p>}
+                    <p id="dis-amount-error" className={`text-sm text-red-600 ${errors.amount || exceedsMessage ? 'mt-1' : ''}`} aria-live="polite">{errors.amount || exceedsMessage}</p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -346,8 +358,8 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                       className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                       Cancel
                     </button>
-                    <button type="submit"
-                      className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover)">
+                    <button type="submit" disabled={exceedsAvailable}
+                      className="rounded-md bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:bg-(--primary-hover) disabled:cursor-not-allowed disabled:opacity-50">
                       Review & Submit
                     </button>
                   </div>

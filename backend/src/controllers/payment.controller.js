@@ -334,66 +334,6 @@ const recordPayment = async (req, res) => {
 }
 
 
-// Soft-archives a payment. Financial records are never hard-deleted — this
-// preserves the record for audit purposes while removing it from active
-// totals and freeing the member to be paid again for the semester.
-const archivePayment = async (req, res) => {
-  try {
-    const id = Number(req.params.id)
-    const payment = await prisma.payment.findUnique({ where: { id } })
-    if (!payment || payment.isArchived) return res.status(404).json({ message: 'Payment not found.' })
-
-    const paymentWithMember = await prisma.payment.findUnique({
-      where: { id },
-      include: {
-        member: { select: { firstName: true, middleName: true, lastName: true, suffix: true, userId: true } },
-        obligationSemester: { select: { schoolYear: true, semester: true } }
-      }
-    })
-    const memberName = [
-      paymentWithMember?.member?.firstName,
-      paymentWithMember?.member?.middleName,
-      paymentWithMember?.member?.lastName,
-      paymentWithMember?.member?.suffix
-    ].filter(Boolean).join(' ')
-    const LABELS = { FIRST: '1st Semester', SECOND: '2nd Semester' }
-    const semLabel = paymentWithMember?.obligationSemester
-      ? `${paymentWithMember.obligationSemester.schoolYear} ${LABELS[paymentWithMember.obligationSemester.semester]}`
-      : '—'
-
-    await prisma.payment.update({ where: { id }, data: { isArchived: true } })
-
-    await writeAuditLog({
-      actorId: req.user.id,
-      action: AUDIT_ACTIONS.PAYMENT_ARCHIVED,
-      details: {
-        paymentId: id,
-        memberName,
-        semesterLabel: semLabel,
-        amount: payment.amount.toString(),
-        snapshot: {
-          id,
-          memberId:             payment.memberId,
-          semesterId:           payment.semesterId,
-          obligationSemesterId: payment.obligationSemesterId,
-          amount:               payment.amount.toString(),
-          isArchived:           true, // what it will become
-        }
-      }
-    })
-
-    emitToOfficers('payment:changed', { paymentId: id, memberId: payment.memberId, action: 'archived' })
-    if (paymentWithMember?.member?.userId) {
-      emitToUser(paymentWithMember.member.userId, 'payment:self-changed', { paymentId: id })
-    }
-
-    return res.json({ message: 'Payment archived.' })
-  } catch (err) {
-    logError('Archive payment', err)
-    return res.status(500).json({ message: 'Something went wrong.' })
-  }
-}
-
 const SEMESTER_LABELS_H = { FIRST: '1st Semester', SECOND: '2nd Semester' }
 
 const getMemberPaymentHistory = async (req, res) => {
@@ -672,6 +612,6 @@ const sendBulkPaymentReminders = async (req, res) => {
 }
 
 module.exports = {
-  listPayments, recordPayment, previewPayment, getMemberPaymentHistory, archivePayment, getMyPaymentHistory,
+  listPayments, recordPayment, previewPayment, getMemberPaymentHistory, getMyPaymentHistory,
   sendBulkPaymentReminders
 }

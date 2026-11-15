@@ -19,7 +19,7 @@ const {
 const { syncMemberApprovalNotifications } = require('../services/notification.service')
 const { approveFromRosterIfListed } = require('../services/memberRoster.service')
 const { hasAccess } = require('../services/permissions.service')
-const { emitToOfficers } = require('../realtime/socket')
+const { emitToOfficers, disconnectUser } = require('../realtime/socket')
 
 const {
   isValidStudentNumber,
@@ -54,6 +54,20 @@ const RESET_OTP_MAX_FAILED_PER_WINDOW = 10
 const LOGIN_PAIR_LOCK_THRESHOLD = 5
 const LOGIN_ACCOUNT_LOCK_THRESHOLD = 20
 const INVALID_LOGIN_MESSAGE = `Invalid credentials. After ${LOGIN_PAIR_LOCK_THRESHOLD} failed attempts, sign-in is paused for ${LOGIN_LOCKOUT_MINUTES} minutes.`
+
+// Checked against when the account doesn't exist (or sign-in is paused), so
+// every failed login spends the same bcrypt time and the response time can't
+// reveal which accounts exist. A hash of a throwaway string, same cost (12).
+const TIMING_EQUALISER_HASH = '$2b$12$DULfmApJMTnLmgNzURwk/.tgZo8TzIxAwrJ6XjHlY5fdFhvqaRDDm'
+
+// The website (litltrece.me) and the API (api.litltrece.me) are the same
+// site, so Lax still sends the cookie with the app's own requests while
+// keeping it off requests started by other sites.
+const authCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+})
 
 // In-memory, like the route rate limiters: resets on restart and is per
 // process. The account-wide lock in the database is the durable backstop.
@@ -791,6 +805,7 @@ const login = async (req, res) => {
     // Unknown account, wrong password and paused sign-in all get the same
     // answer, so the response never reveals whether an account exists.
     if (!user) {
+      await bcrypt.compare(password, TIMING_EQUALISER_HASH)
       return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
@@ -800,6 +815,7 @@ const login = async (req, res) => {
     const pairLocked = (getLoginPair(pairKey, now)?.lockedUntil ?? 0) > now
 
     if (accountLocked || pairLocked) {
+      await bcrypt.compare(password, TIMING_EQUALISER_HASH)
       return res.status(401).json({ message: INVALID_LOGIN_MESSAGE })
     }
 
@@ -850,12 +866,9 @@ const login = async (req, res) => {
     }
 
     const token = signAuthToken(user)
-    const isProduction = process.env.NODE_ENV === 'production'
 
     res.cookie('LITL-MIS', token, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
+      ...authCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
@@ -883,18 +896,23 @@ const login = async (req, res) => {
 // LOGOUT
 // ---------------------------------------------
 const logout = async (req, res) => {
-  const isProduction = process.env.NODE_ENV === 'production'
   // The route has no authMiddleware (a stale cookie must still be cleared),
   // so identify the caller from the cookie for the audit trail.
   const actor = await getUserFromAuthCookie(req)
-  if (actor && actor.role !== 'MEMBER') {
-    await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
+  if (actor) {
+    // Ends the session on the server too: a copy of the token stops working.
+    // Every device of this account is signed out, like a password change.
+    try {
+      await prisma.user.update({ where: { id: actor.id }, data: { tokenVersion: { increment: 1 } } })
+      disconnectUser(actor.id)
+    } catch (err) {
+      logError('Logout session revoke failed', err)
+    }
+    if (actor.role !== 'MEMBER') {
+      await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
+    }
   }
-  res.clearCookie('LITL-MIS', {
-    httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction
-  })
+  res.clearCookie('LITL-MIS', authCookieOptions())
   return res.json({ message: 'Logged out successfully' })
 }
 

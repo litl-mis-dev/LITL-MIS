@@ -4,24 +4,48 @@ const { emitToUser } = require('../realtime/socket')
 const { sendPushToUser } = require('./push.service')
 const { loadPermissions } = require('./permissions.service')
 const { OFFICER_ROLES } = require('../utils/roles')
+const { todayInOrgTimezone, nextDateString, hourInOrgTimezone } = require('../utils/schedule')
 
 // ── Low-level helpers ───────────────────────────────────────────────────────
 
-async function createNotification({ userId, type, title, message, link = null, groupKey = null }) {
+// Identifies a notification's popup on the device: one per notification, or
+// one per group for grouped ones, so a repeat replaces it instead of stacking.
+function pushTag(notification) {
+  return notification.groupKey ? `group:${notification.groupKey}` : `notification:${notification.id}`
+}
+
+// `awaitPush` waits for the push to be sent, so a batch of users finishes
+// (database work included) before the next one starts.
+async function createNotification({ userId, type, title, message, link = null, groupKey = null }, { awaitPush = false } = {}) {
   const notification = await prisma.notification.create({
     data: { userId, type, title, message, link, groupKey },
   })
 
   emitToUser(userId, 'notification:new', notification)
-  sendPushToUser(userId, { title, message, link }).catch((err) =>
+  const push = sendPushToUser(userId, { title, message, link, tag: pushTag(notification) }).catch((err) =>
     logError('Push dispatch', err)
   )
+  if (awaitPush) await push
 
   return notification
 }
 
+// Users are notified this many at a time. Notifying everyone at once (a write
+// and a push lookup per user, all in parallel) ran the database out of
+// connections and lost notifications for the rest.
+const NOTIFY_BATCH_SIZE = 25
+
 async function createNotificationForUsers(userIds, data) {
-  await Promise.all(userIds.map((userId) => createNotification({ ...data, userId })))
+  for (let i = 0; i < userIds.length; i += NOTIFY_BATCH_SIZE) {
+    const batch = userIds.slice(i, i + NOTIFY_BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map((userId) => createNotification({ ...data, userId }, { awaitPush: true }))
+    )
+    // One user's failure must not stop everyone after them.
+    results.forEach((result, j) => {
+      if (result.status === 'rejected') logError('Create notification', result.reason, { userId: batch[j] })
+    })
+  }
 }
 
 async function getUserIdsWithModuleAccess(module, level = 'EDIT') {
@@ -334,7 +358,7 @@ async function syncMemberApprovalNotifications() {
       }
 
       emitToUser(userId, 'notification:new', notification)
-      sendPushToUser(userId, { title: notification.title, message, link: notification.link }).catch(
+      sendPushToUser(userId, { title: notification.title, message, link: notification.link, tag: pushTag(notification) }).catch(
         (err) => logError('Push dispatch (member approval)', err)
       )
     })
@@ -378,6 +402,57 @@ async function notifyPaymentReminder(userId, semesterLabel) {
   })
 }
 
+// ── Event reminders ─────────────────────────────────────────────────────────
+// The day before an event that is still Coming soon or Open, everyone who
+// would get its other notifications is reminded once: officers always,
+// members when they can view it. The groupKey holds the event's date, so
+// each person gets one reminder per date — a rescheduled event reminds
+// again for its new date. Sent only between 8 AM and 9 PM (Philippine time)
+// so phones aren't buzzed overnight.
+const EVENT_REMINDER_START_HOUR = 8
+const EVENT_REMINDER_END_HOUR = 21
+
+async function notifyEventReminders(now = new Date()) {
+  const hour = hourInOrgTimezone(now)
+  if (hour < EVENT_REMINDER_START_HOUR || hour >= EVENT_REMINDER_END_HOUR) return 0
+
+  const tomorrow = nextDateString(todayInOrgTimezone(now))
+  const events = await prisma.event.findMany({
+    where: { isArchived: false, date: tomorrow, status: { in: ['COMING_SOON', 'OPEN'] } },
+  })
+  if (!events.length) return 0
+
+  const [officerIds, memberIds] = await Promise.all([getApprovedOfficerIds(), getApprovedMemberIds()])
+  let sent = 0
+  for (const event of events) {
+    const groupKey = `event-reminder:${event.id}:${event.date}`
+    const alreadyReminded = new Set((await prisma.notification.findMany({
+      where: { groupKey },
+      select: { userId: true },
+    })).map((n) => n.userId))
+
+    const when = `${formatDateLabel(event.date)} at ${formatTimeLabel(event.time)}`
+    const audiences = [
+      { ids: officerIds, link: '/officers/events' },
+      ...(parseAccess(event.access).includes('Members') ? [{ ids: memberIds, link: '/members/events' }] : []),
+    ]
+    for (const { ids, link } of audiences) {
+      const recipients = ids.filter((id) => !alreadyReminded.has(id))
+      if (!recipients.length) continue
+      await createNotificationForUsers(recipients, {
+        type: 'EVENT_REMINDER',
+        title: `Reminder: ${event.title} is tomorrow`,
+        message: `${event.title} is tomorrow, ${when}, at ${event.location}.`,
+        link,
+        groupKey,
+      })
+      recipients.forEach((id) => alreadyReminded.add(id))
+      sent += recipients.length
+    }
+  }
+  return sent
+}
+
 // ── Custom announcements ────────────────────────────────────────────────────
 // Only the selected recipient group is notified (and pushed to). The link
 // opens the announcement's details on that group's own dashboard.
@@ -418,6 +493,7 @@ module.exports = {
   notifyEventAccessGrantedToMembers,
   notifyEventStatusChanged,
   notifyEventUpdated,
+  notifyEventReminders,
   notifyAuditStatusChanged,
   syncMemberApprovalNotifications,
   notifyAnnouncement,

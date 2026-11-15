@@ -14,7 +14,7 @@ export function SearchIcon() {
 }
 
 // Reference numbers, dates and amounts stay on one line.
-const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount'])
+const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount', 'amountSpent'])
 
 // Downloading a certificate is an action, not a view — a role with VIEW-only
 // access to Financial can see this table but must not be able to generate or
@@ -22,7 +22,9 @@ const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount'])
 // here (the single shared table used by both Disbursement and Returning) so
 // every caller is covered, rather than relying on each page to remember to
 // hide the button itself.
-export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload }) {
+// `renderRowActions(row)` adds buttons before a row's download button, and
+// `canDownloadRow(row)` hides the download for rows with nothing to download.
+export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload, renderRowActions, canDownloadRow = () => true }) {
   const { canManageFinancials } = useRole()
   const showActionsColumn = columns.some(col => col.key === 'actions') && canManageFinancials
 
@@ -76,14 +78,19 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                     if (!showActionsColumn) return null
                     return (
                       <td key={col.key}>
-                        <button type="button" onClick={() => handleDownload(row)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                          disabled={downloadingId !== null}
-                          aria-busy={downloadingId === row.id}
-                          aria-label={`Download ${row.id} certificate`}
-                          title="Download certificate">
-                          {downloadingId === row.id ? <Spinner /> : <FileDownloadIcon className="h-4 w-4" />}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {renderRowActions?.(row)}
+                          {canDownloadRow(row) && (
+                            <button type="button" onClick={() => handleDownload(row)}
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                              disabled={downloadingId !== null}
+                              aria-busy={downloadingId === row.id}
+                              aria-label={`Download ${row.id} certificate`}
+                              title="Download certificate">
+                              {downloadingId === row.id ? <Spinner /> : <FileDownloadIcon className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )
                   }

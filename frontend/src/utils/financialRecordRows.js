@@ -12,7 +12,11 @@ function formatDate(isoString) {
     .format(new Date(isoString))
 }
 
+// The amount released never changes; the amount spent is that minus what was
+// returned (recorded with "Update amount spent").
 export function mapDisbursementRow(d) {
+  const amountSpent = d.amountSpent ?? d.amount
+  const totalReturned = parseFloat(d.totalReturned) || 0
   return {
     id: d.reference,
     date: formatDate(d.createdAt),
@@ -20,11 +24,19 @@ export function mapDisbursementRow(d) {
     purpose: d.purposeOfFund,
     titleOfActivities: d.titleOfActivities,
     amount: formatCurrency(d.amount),
+    amountSpent: formatCurrency(amountSpent),
     sourceOfFund: d.fundCategory?.name ?? '',
     details: {
       _id: d.id,
       name: d.name,
       amount: formatCurrency(d.amount),
+      released: parseFloat(d.amount) || 0,
+      amountSpentValue: parseFloat(amountSpent) || 0,
+      amountSpent: formatCurrency(amountSpent),
+      totalReturned: totalReturned > 0 ? formatCurrency(totalReturned) : null,
+      returnReference: d.autoReturn?.reference ?? null,
+      revisedAt: d.autoReturn?.revisedAt ?? null,
+      canRecordAmountSpent: Boolean(d.canRecordAmountSpent),
       purposeOfFund: d.purposeOfFund,
       titleOfActivities: d.titleOfActivities,
       sourceOfFundName: d.fundCategory?.name ?? '',
@@ -46,22 +58,29 @@ export const disbursementColumns = [
   { key: 'purpose', label: 'Purpose of Fund' },
   { key: 'titleOfActivities', label: 'Title of Activities' },
   { key: 'amount', label: 'Amount' },
+  { key: 'amountSpent', label: 'Amount Spent' },
   { key: 'sourceOfFund', label: 'Source of Fund' },
   { key: 'actions', label: 'Action' },
 ]
 
+// A Return Fund created with its disbursement stays at ₱0 until the amount
+// spent is recorded; there's no receipt to download for it until then.
 export function mapReturnFundRow(rf) {
+  const nothingReturnedYet = rf.autoForDisbursementId != null && !(parseFloat(rf.amount) > 0)
   return {
     id:               rf.reference,
     date:             formatDate(rf.createdAt),
     returnedBy:       rf.receivedFrom,
     reason:           rf.disbursement?.purposeOfFund ?? '',
     titleOfActivities: rf.disbursement?.titleOfActivities ?? '',
-    amount:           formatCurrency(rf.amount),
+    amount:           nothingReturnedYet ? 'Nothing returned yet' : formatCurrency(rf.amount),
     sourceOfFund:     rf.disbursement?.fundCategory?.name ?? '',
     details: {
       _id:            rf.id,
       disbursementId: rf.disbursementId,
+      disbursementReference: rf.disbursement?.reference ?? '',
+      nothingReturnedYet,
+      revisedAt:      rf.revisedAt ?? null,
       receivedFrom:   rf.receivedFrom,
       amount:         formatCurrency(rf.amount),
       purposeOfFund:  rf.disbursement?.purposeOfFund ?? '',

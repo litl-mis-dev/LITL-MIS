@@ -105,7 +105,7 @@ const applyRoster = async (req, res) => {
       ...planResponse(plan, request.invalid, req.body.rows.length),
       approvedCount: approved.length,
       approved,
-      message: `Roster saved (${plan.summary.rosterSizeAfter} student${plan.summary.rosterSizeAfter === 1 ? '' : 's'}). `
+      message: `Members list saved (${plan.summary.rosterSizeAfter} student${plan.summary.rosterSizeAfter === 1 ? '' : 's'}). `
         + `${approved.length} pending member${approved.length === 1 ? ' was' : 's were'} approved automatically.`,
     })
   } catch (err) {
@@ -120,7 +120,7 @@ const removeRosterEntry = async (req, res) => {
   try {
     const studentNumber = String(req.params.studentNumber || '').trim()
     const { count } = await prisma.memberRoster.deleteMany({ where: { studentNumber } })
-    if (count === 0) return res.status(404).json({ message: 'That student is not on the roster.' })
+    if (count === 0) return res.status(404).json({ message: 'That student is not on the members list.' })
 
     await writeAuditLog({
       actorId: req.user.id,
@@ -129,7 +129,7 @@ const removeRosterEntry = async (req, res) => {
     })
     emitToOfficers('memberRoster:changed', {})
 
-    return res.json({ message: 'Removed from the roster.' })
+    return res.json({ message: 'Removed from the members list.' })
   } catch (err) {
     logError('Remove roster entry', err)
     return res.status(500).json({ message: 'Something went wrong.' })

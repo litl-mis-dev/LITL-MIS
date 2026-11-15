@@ -376,9 +376,7 @@ export default function MembersList({ compact = false }) {
                 <div className="card__header">
                     <div>
                         <h2 className="card__title">{compact ? "Recent Members" : "All Members"}</h2>
-                        <p className="card__sub">
-                            {loading ? "Loading..." : error ? error : `${members.length} approved member${members.length !== 1 ? "s" : ""}`}
-                        </p>
+                        {(loading || error) && <p className="card__sub">{loading ? "Loading..." : error}</p>}
                     </div>
                     {!compact && (
                         <div className="member-list-actions">

@@ -50,10 +50,11 @@ export const listDisbursements = () => api.get('/financial/disbursements').then(
 
 export const createDisbursement = (data) => api.post('/financial/disbursements', data).then(r => r.data)
 
+// Lowers the amount spent; its Return Fund becomes released − spent.
+export const recordAmountSpent = (id, amountSpent, confirmText) => api.patch(`/financial/disbursements/${id}/amount-spent`, { amountSpent, confirmText }).then(r => r.data)
+
 // Return Funds
 export const listReturnFunds = () => api.get('/financial/return-funds').then(r => r.data)
-
-export const createReturnFund = (data) => api.post('/financial/return-funds', data).then(r => r.data)
 
 export const getMyPaymentHistory = () => api.get('/auth/my-payment-history').then(r => r.data)
 

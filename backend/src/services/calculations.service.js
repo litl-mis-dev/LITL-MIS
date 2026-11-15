@@ -73,16 +73,31 @@ const getCategoryFinancials = async (category, semesterId, semesterIds = null) =
   }
 }
 
-const getDisbursementRemainingAmount = async (disbursementId) => {
-  const disbursement = await prisma.disbursement.findUnique({ where: { id: disbursementId } })
-  if (!disbursement) throw new Error('Disbursement not found')
+// Prisma `include` for summarizeReturns: the disbursement's active returns.
+const RETURNS_SUMMARY_INCLUDE = {
+  returnFunds: {
+    where: { isArchived: false },
+    select: { id: true, reference: true, amount: true, revisedAt: true, autoForDisbursementId: true },
+  },
+}
 
-  const result = await prisma.returnFund.aggregate({
-    where: { disbursementId, isArchived: false },
-    _sum: { amount: true }
-  })
-  const totalReturned = new Decimal(result._sum.amount || 0)
-  return new Decimal(disbursement.amount).minus(totalReturned)
+// The amount released never changes; what was spent is that minus what came
+// back. `disbursement.returnFunds` must hold its active returns only.
+const summarizeReturns = (disbursement) => {
+  const returns = disbursement.returnFunds ?? []
+  const totalReturned = returns.reduce((sum, rf) => sum.plus(rf.amount), new Decimal(0))
+  const autoReturn = returns.find((rf) => rf.autoForDisbursementId != null) ?? null
+  return {
+    totalReturned: totalReturned.toFixed(2),
+    amountSpent: new Decimal(disbursement.amount).minus(totalReturned).toFixed(2),
+    autoReturn: autoReturn && {
+      id: autoReturn.id,
+      reference: autoReturn.reference,
+      amount: new Decimal(autoReturn.amount).toFixed(2),
+      revisedAt: autoReturn.revisedAt,
+    },
+    hasManualReturns: returns.some((rf) => rf.autoForDisbursementId == null),
+  }
 }
 
 // Excludes turnover categories from the 100% check automatically — they're
@@ -257,7 +272,7 @@ const generateReference = async (type) => {
 
 module.exports = {
   getTotalFund, getTurnoverAmount, getTotalDisbursed, getTotalReturnedByCategory,
-  getCategoryFinancials, getDisbursementRemainingAmount,
+  getCategoryFinancials, RETURNS_SUMMARY_INCLUDE, summarizeReturns,
   getTotalCategoryPercentage, getSemesterEndingBalance, getSemesterFlows, getFundReport,
   parseAmount, generateReference,
   MEMBERSHIP_FEE

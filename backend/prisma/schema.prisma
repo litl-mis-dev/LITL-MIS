@@ -150,6 +150,7 @@ enum NotificationType {
   ANNOUNCEMENT
   AUDIT_STATUS_CHANGED
   PAYMENT_REMINDER
+  EVENT_REMINDER
 }
 
 enum AnnouncementRecipient {
@@ -434,6 +435,7 @@ model Disbursement {
   semester     Semester     @relation(fields: [semesterId], references: [id])
   createdBy    User         @relation("DisbursementCreatedBy", fields: [createdById], references: [id])
   returnFunds  ReturnFund[]
+  event        Event?
 
   audit Audit?
 
@@ -456,6 +458,13 @@ model ReturnFund {
   auditedByPosition  String
   approvedBy         String
   approvedByPosition String
+
+  // Set (to disbursementId) only on the return created automatically with its
+  // disbursement; unique, so a disbursement can never get a second one.
+  // Returns recorded by hand before that keep it null.
+  autoForDisbursementId Int?      @unique
+  // When the amount spent was last recorded, which changed this return.
+  revisedAt             DateTime?
 
   isArchived  Boolean  @default(false)
   semesterId  Int
@@ -509,13 +518,17 @@ model Event {
   // Dedicated budget shown to viewers. Null only for events created before
   // budgets existed; every new event must have one.
   budget        Decimal?    @db.Decimal(10, 2)
+  // The disbursement that funds this event. When set, the budget shown is
+  // that disbursement's amount spent; one disbursement funds one event.
+  disbursementId Int?       @unique
   createdById   Int
   isArchived    Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  createdBy   User              @relation("EventCreatedBy", fields: [createdById], references: [id])
-  attendances EventAttendance[]
+  createdBy    User              @relation("EventCreatedBy", fields: [createdById], references: [id])
+  disbursement Disbursement?     @relation(fields: [disbursementId], references: [id])
+  attendances  EventAttendance[]
 
   certificationFolder EventCertificationFolder?
   certificates        Certificate[]

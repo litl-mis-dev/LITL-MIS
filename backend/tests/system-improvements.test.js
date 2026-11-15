@@ -140,7 +140,6 @@ test('creating an event checks the date, the time and the budget', async () => {
   reset()
   assert.equal((await call(eventCtrl.createEvent, { body: eventBody({ date: manilaDate(-1) }) })).statusCode, 400)
   assert.equal((await call(eventCtrl.createEvent, { body: eventBody({ time: '23:00' }) })).statusCode, 400)
-  assert.equal((await call(eventCtrl.createEvent, { body: eventBody({ budget: '' }) })).statusCode, 400)
   assert.equal((await call(eventCtrl.createEvent, { body: eventBody({ budget: '-5' }) })).statusCode, 400)
   assert.equal((await call(eventCtrl.createEvent, { body: eventBody({ budget: '12.345' }) })).statusCode, 400)
   assert.equal(db.events.length, 0)
@@ -148,6 +147,11 @@ test('creating an event checks the date, the time and the budget', async () => {
   const res = await call(eventCtrl.createEvent, { body: eventBody() })
   assert.equal(res.statusCode, 201)
   assert.equal(res.body.event.budget, '1500.00')
+
+  // The budget now comes from a disbursement, which can be chosen later.
+  const notSet = await call(eventCtrl.createEvent, { body: eventBody({ budget: '' }) })
+  assert.equal(notSet.statusCode, 201)
+  assert.equal(notSet.body.event.budget, null)
 })
 
 test('events are listed Open, Coming soon, Closed, Cancelled, then by date and time', async () => {

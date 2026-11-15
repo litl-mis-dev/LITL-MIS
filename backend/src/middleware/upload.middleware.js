@@ -73,16 +73,30 @@ const uploadDocuments = (req, res, next) => {
 
 // ── Document asset upload (templates, logos, avatars when sent via multipart) ─
 
+// Raster images only. An SVG can carry scripts, and these files are stored
+// and served back as uploaded.
+const ASSET_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+
 const documentAssetUpload = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed.'))
+    if (!ASSET_IMAGE_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error('Upload a PNG, JPEG, WebP or GIF image.'))
     }
     cb(null, true)
   },
 })
+
+// A rejected file is answered with its reason (400), not left to the generic
+// 500 handler.
+const uploadDocumentAsset = (req, res, next) => {
+  documentAssetUpload.single('file')(req, res, (err) => {
+    if (!err) return next()
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ message: 'The image must be smaller than 5MB.' })
+    return res.status(400).json({ message: err.message || 'File upload failed.' })
+  })
+}
 
 // ── Certificate upload (finished certificates — image or PDF) ─────────────────
 
@@ -125,6 +139,7 @@ const uploadCertificate = (req, res, next) => {
 module.exports = {
   uploadDocuments,
   documentAssetUpload,
+  uploadDocumentAsset,
   uploadCertificate,
   ALLOWED_DOCUMENT_EXTENSIONS,
   documentContentType,

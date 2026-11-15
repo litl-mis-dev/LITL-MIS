@@ -2712,6 +2712,13 @@ button {
   text-align: right;
 }
 
+/* Budget (PHP) is filled in from the chosen disbursement, not typed. */
+.dash-form__field input.event-form__readonly {
+  background: #f3f4f6;
+  color: #374151;
+  cursor: default;
+}
+
 .qr-scanner-layout,
 .member-lookup__grid {
   display: grid;
@@ -5901,6 +5908,46 @@ button {
 /* ── Member roster (members-list/MemberRosterPanel.jsx) ───────────────────── */
 .roster-card {
   margin-bottom: 16px;
+}
+
+/* Upload / Add / View stay on one line beside the title. */
+.roster-card .roster-card__actions {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.roster-card__actions .btn {
+  white-space: nowrap;
+}
+
+.roster-card__note {
+  margin: -8px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.roster-card__note strong {
+  color: #334155;
+  font-weight: 700;
+}
+
+/* Too narrow for one line: Upload on top, Add and View side by side. */
+@media (max-width: 720px) {
+  .roster-card .card__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .roster-card .roster-card__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .roster-card__actions .btn:first-of-type {
+    grid-column: 1 / -1;
+  }
 }
 
 .roster-summary {

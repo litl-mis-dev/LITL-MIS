@@ -8,6 +8,8 @@ const eventCtrl = require('../controllers/event.controller')
 
 // Viewing — both members and officers (access filtering happens in controller)
 router.get('/',    authMiddleware, eventCtrl.listEvents)
+// Before /:id, which would otherwise match it. Budget dropdown in the event form.
+router.get('/available-disbursements', authMiddleware, requireModule('EVENT', 'EDIT'), eventCtrl.listAvailableDisbursements)
 router.get('/:id', authMiddleware, eventCtrl.getEvent)
 
 // Managing — requires EDIT on the Event module

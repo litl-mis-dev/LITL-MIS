@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { listEvents } from "../../services/event.service.js";
 import { getMemberFundSummary, getMyPaymentHistory } from "../../services/financial.service.js";
 import { getSocket } from "../../services/socket.js";
+import MemberNotices from "./MemberNotices.jsx";
 import "../../assets/styles/members/MemberDashboard.css";
 
 const SEMESTER_LABELS = { FIRST: "1st Semester", SECOND: "2nd Semester" };
@@ -100,6 +101,12 @@ export default function Members() {
           </p>
         </div>
       </div>
+
+      <MemberNotices
+        semesterLabel={activeSemester ? formatSemester(activeSemester, false) : ""}
+        isFeeUnpaid={!isLoading && membershipStatus.tone === "pending"}
+        events={events}
+      />
 
       <div className="member-home__top">
           <section className="member-profile-hero" aria-label="Member profile summary">

@@ -1,0 +1,11 @@
+# Only the public pages belong in search results. Member and officer pages
+# need a sign-in, and a certificate's verification page shows the holder's
+# name, so neither should be indexed.
+User-agent: *
+Disallow: /officers
+Disallow: /members
+Disallow: /developer
+Disallow: /otp
+Disallow: /reset-password
+Disallow: /adviser-invite
+Disallow: /verify/

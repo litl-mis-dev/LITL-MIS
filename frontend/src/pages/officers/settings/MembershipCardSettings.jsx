@@ -129,7 +129,7 @@ function AssetSection({ assetType, title, description, inputId, asset, onUploade
                         ref={inputRef}
                         id={inputId}
                         type='file'
-                        accept='image/*'
+                        accept='image/png,image/jpeg,image/webp,image/gif'
                         disabled={isBusy}
                         onChange={(e) => handleFile(e.target.files?.[0])}
                     />
