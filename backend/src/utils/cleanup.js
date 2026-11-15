@@ -58,19 +58,49 @@ const cleanupOldOtps = async () => {
   }
 }
 
+// Notifications already read and untouched for this long are deleted, so the
+// table doesn't grow forever. Unread ones are never deleted. Once a day is
+// enough; the 15-minute job skips it in between.
+const NOTIFICATION_RETENTION_DAYS = 90
+const NOTIFICATION_CLEANUP_EVERY_MS = 24 * 60 * 60 * 1000
+let lastNotificationCleanupAt = 0
+
+const cleanupOldReadNotifications = async (now = Date.now()) => {
+  if (now - lastNotificationCleanupAt < NOTIFICATION_CLEANUP_EVERY_MS) return
+  lastNotificationCleanupAt = now
+  try {
+    const cutoff = new Date(now - NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+    // updatedAt, not createdAt: a grouped notification (pending approvals)
+    // is updated in place and counts as new each time.
+    const result = await prisma.notification.deleteMany({
+      where: { isRead: true, updatedAt: { lt: cutoff } }
+    })
+    if (result.count > 0) {
+      logInfo('Cleanup: removed old read notifications', { count: result.count })
+    }
+  } catch (err) {
+    logError('Cleanup: old notifications failed', err)
+  }
+}
+
 const startCleanupJob = () => {
   // Run once on startup, then on the configured interval
   cleanupExpiredPendingRegistrations()
   cleanupOldOtps()
   cleanupExpiredTrashedDocuments()
+  cleanupOldReadNotifications()
 
   setInterval(() => {
     cleanupExpiredPendingRegistrations()
     cleanupOldOtps()
     cleanupExpiredTrashedDocuments()
+    cleanupOldReadNotifications()
   }, CLEANUP_INTERVAL_MS)
 
   logInfo('Cleanup job started', { intervalMinutes: CLEANUP_INTERVAL_MS / 60000 })
 }
 
-module.exports = { startCleanupJob, cleanupExpiredPendingRegistrations, cleanupOldOtps,cleanupExpiredTrashedDocuments }
+module.exports = {
+  startCleanupJob, cleanupExpiredPendingRegistrations, cleanupOldOtps, cleanupExpiredTrashedDocuments,
+  cleanupOldReadNotifications, NOTIFICATION_RETENTION_DAYS,
+}
