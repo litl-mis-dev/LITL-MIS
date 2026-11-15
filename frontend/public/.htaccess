@@ -7,12 +7,16 @@
   RewriteRule . /index.html [L]
 </IfModule>
 
-# Security headers. Kept to ones that cannot break the app: the framing rules
-# stop clickjacking, and the camera stays allowed for the member QR scanner.
+# Security headers. The framing rules stop clickjacking, and the camera stays
+# allowed for the member QR scanner. The Content-Security-Policy only lets the
+# page run its own scripts and talk to its own API, the file storage (R2) and
+# the Facebook page embed on the landing page. Inline styles stay allowed
+# (React style props and the boot screen use them). Adding a new outside
+# service means adding its address here.
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
   Header always set X-Frame-Options "SAMEORIGIN"
-  Header always set Content-Security-Policy "frame-ancestors 'self'; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.litltrece.me https://*.r2.dev https://*.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' https://api.litltrece.me wss://api.litltrece.me https://*.r2.dev https://*.r2.cloudflarestorage.com; frame-src 'self' blob: https://api.litltrece.me https://*.r2.dev https://*.r2.cloudflarestorage.com https://www.facebook.com; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
