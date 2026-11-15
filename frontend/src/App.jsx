@@ -4,6 +4,7 @@ import './App.css'
 import DashboardLayout from './pages/officers/DashboardLayout'
 import MembersLayout from './pages/members/MembersLayout'
 import DeveloperPanel from './pages/developer/DeveloperPanel'
+import PageTitle from './components/PageTitle'
 
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
@@ -15,6 +16,8 @@ import { OFFICER_ROLES, MEMBER_SIDE_ROLES, DEVELOPER_ROLE } from './utils/roles'
 
 function App() {
   return (
+    <>
+    <PageTitle />
     <Routes>
       {/* Public routes — redirect to home if already logged in */}
       {authRoutes.map((route) => (
@@ -83,6 +86,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 
