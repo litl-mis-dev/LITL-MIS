@@ -73,18 +73,6 @@ const getCategoryFinancials = async (category, semesterId, semesterIds = null) =
   }
 }
 
-const getDisbursementRemainingAmount = async (disbursementId) => {
-  const disbursement = await prisma.disbursement.findUnique({ where: { id: disbursementId } })
-  if (!disbursement) throw new Error('Disbursement not found')
-
-  const result = await prisma.returnFund.aggregate({
-    where: { disbursementId, isArchived: false },
-    _sum: { amount: true }
-  })
-  const totalReturned = new Decimal(result._sum.amount || 0)
-  return new Decimal(disbursement.amount).minus(totalReturned)
-}
-
 // Prisma `include` for summarizeReturns: the disbursement's active returns.
 const RETURNS_SUMMARY_INCLUDE = {
   returnFunds: {
@@ -284,7 +272,7 @@ const generateReference = async (type) => {
 
 module.exports = {
   getTotalFund, getTurnoverAmount, getTotalDisbursed, getTotalReturnedByCategory,
-  getCategoryFinancials, getDisbursementRemainingAmount, RETURNS_SUMMARY_INCLUDE, summarizeReturns,
+  getCategoryFinancials, RETURNS_SUMMARY_INCLUDE, summarizeReturns,
   getTotalCategoryPercentage, getSemesterEndingBalance, getSemesterFlows, getFundReport,
   parseAmount, generateReference,
   MEMBERSHIP_FEE
