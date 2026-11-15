@@ -107,11 +107,11 @@ const { listAuditLogs } = require(path.join(backend, 'src/controllers/auditLog.c
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const call = async (fn, req) => {
-  const out = { status: 200, body: undefined, cookies: {}, cleared: [] }
+  const out = { status: 200, body: undefined, cookies: {}, cookieOptions: {}, cleared: [] }
   const res = {
     status(s) { out.status = s; return this },
     json(b) { out.body = b; return this },
-    cookie(name, value) { out.cookies[name] = value; return this },
+    cookie(name, value, options) { out.cookies[name] = value; out.cookieOptions[name] = options; return this },
     clearCookie(name) { out.cleared.push(name); return this },
     set() { return this },
   }
@@ -286,6 +286,23 @@ test('SEC-05: members, stale tokens and garbage cookies still log out cleanly wi
     assert.ok(r.cleared.includes('LITL-MIS'))
   }
   assert.equal(audit.length, 0)
+})
+
+// ── Audit round 5 · sessions and login ───────────────────────────────────────
+test('AR5: in production the login cookie is SameSite=Lax, Secure and httpOnly', async () => {
+  const user = await addUser()
+  const previous = process.env.NODE_ENV
+  process.env.NODE_ENV = 'production'
+  try {
+    const r = await call(auth.login, { body: { identifier: user.email, password: PASSWORD } })
+    assert.equal(r.status, 200)
+    assert.deepEqual(
+      [r.cookieOptions['LITL-MIS'].sameSite, r.cookieOptions['LITL-MIS'].secure, r.cookieOptions['LITL-MIS'].httpOnly],
+      ['lax', true, true]
+    )
+  } finally {
+    process.env.NODE_ENV = previous
+  }
 })
 
 // ── RES-01 · email failure rollback ──────────────────────────────────────────

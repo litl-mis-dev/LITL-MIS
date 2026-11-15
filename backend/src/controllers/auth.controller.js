@@ -55,6 +55,15 @@ const LOGIN_PAIR_LOCK_THRESHOLD = 5
 const LOGIN_ACCOUNT_LOCK_THRESHOLD = 20
 const INVALID_LOGIN_MESSAGE = `Invalid credentials. After ${LOGIN_PAIR_LOCK_THRESHOLD} failed attempts, sign-in is paused for ${LOGIN_LOCKOUT_MINUTES} minutes.`
 
+// The website (litltrece.me) and the API (api.litltrece.me) are the same
+// site, so Lax still sends the cookie with the app's own requests while
+// keeping it off requests started by other sites.
+const authCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+})
+
 // In-memory, like the route rate limiters: resets on restart and is per
 // process. The account-wide lock in the database is the durable backstop.
 const failedLoginsByPair = new Map() // `${userId}:${ip}` -> { count, firstAt, lockedUntil }
@@ -850,12 +859,9 @@ const login = async (req, res) => {
     }
 
     const token = signAuthToken(user)
-    const isProduction = process.env.NODE_ENV === 'production'
 
     res.cookie('LITL-MIS', token, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
+      ...authCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
@@ -883,18 +889,13 @@ const login = async (req, res) => {
 // LOGOUT
 // ---------------------------------------------
 const logout = async (req, res) => {
-  const isProduction = process.env.NODE_ENV === 'production'
   // The route has no authMiddleware (a stale cookie must still be cleared),
   // so identify the caller from the cookie for the audit trail.
   const actor = await getUserFromAuthCookie(req)
   if (actor && actor.role !== 'MEMBER') {
     await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
   }
-  res.clearCookie('LITL-MIS', {
-    httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction
-  })
+  res.clearCookie('LITL-MIS', authCookieOptions())
   return res.json({ message: 'Logged out successfully' })
 }
 
