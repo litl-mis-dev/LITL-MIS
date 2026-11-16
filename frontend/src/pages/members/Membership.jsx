@@ -146,7 +146,7 @@ export default function Membership() {
           <SummaryMetric label="Records"      value={loading ? "—" : records.length} />
           <SummaryMetric label="Downloadable" value={loading ? "—" : downloadableCount} tone="success" />
           <SummaryMetric
-            label="Pending"
+            label="Unpaid"
             value={loading ? "—" : unpaidCount}
             tone={unpaidCount > 0 ? "warning" : "muted"}
           />

@@ -32,8 +32,8 @@ export default function MemberNotices({ semesterLabel, isFeeUnpaid, events }) {
     ...(isFeeUnpaid && semesterLabel && !hasPinnedPaymentReminder ? [{
       key: "fee-unpaid",
       kind: "reminder",
-      title: "Membership fee not yet recorded",
-      message: `Your membership fee for ${semesterLabel} hasn't been recorded yet.`,
+      title: "Membership Fee Not Yet Paid",
+      message: `Your membership fee for the ${semesterLabel} is still unpaid.`,
       onClick: () => navigate("/members/membership"),
     }] : []),
     ...eventsToday(events).map((event) => ({

@@ -103,7 +103,7 @@ export default function Members() {
       </div>
 
       <MemberNotices
-        semesterLabel={activeSemester ? formatSemester(activeSemester, false) : ""}
+        semesterLabel={activeSemester ? `${activeSemester.schoolYear} ${SEMESTER_LABELS[activeSemester.semester] ?? activeSemester.semester}` : ""}
         isFeeUnpaid={!isLoading && membershipStatus.tone === "pending"}
         events={events}
       />
@@ -282,9 +282,9 @@ function getMembershipStatusSummary(record, isLoading) {
 
   if (!record || record.status === "UNPAID") {
     return {
-      label: "Pending",
+      label: "Unpaid",
       tone: "pending",
-      paymentMeta: "Pending",
+      paymentMeta: "Not yet paid",
       accessMeta: "Available after payment",
     };
   }
@@ -294,7 +294,7 @@ function getMembershipStatusSummary(record, isLoading) {
   return {
     label: isSettled ? "Settled" : "Active",
     tone: isSettled ? "settled" : "active",
-    paymentMeta: record.payment?.paidAt ? formatPaidDate(record.payment.paidAt) : "Recorded",
+    paymentMeta: record.payment?.paidAt ? formatPaidDate(record.payment.paidAt) : "Paid",
     accessMeta: "Verified",
   };
 }

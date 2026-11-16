@@ -148,6 +148,11 @@ function capitalize(str) {
 // "Members", since a member notification is meaningless if they can't open
 // the event.
 
+// "November 20, 2026, 9:00 AM at Gym" — when and where, for messages.
+function eventSchedule(event) {
+  return `${formatDateLabel(event.date)}, ${formatTimeLabel(event.time)} at ${event.location}`
+}
+
 async function notifyEventCreated(event) {
   const access = parseAccess(event.access)
 
@@ -155,8 +160,8 @@ async function notifyEventCreated(event) {
   if (officerIds.length) {
     await createNotificationForUsers(officerIds, {
       type: 'EVENT_CREATED',
-      title: 'New Event Created',
-      message: `A new event, "${event.title}," has been created and added to the system.`,
+      title: 'New Event Added',
+      message: `"${event.title}" has been added to Events. It is scheduled for ${eventSchedule(event)}.`,
       link: '/officers/events',
     })
   }
@@ -167,7 +172,7 @@ async function notifyEventCreated(event) {
       await createNotificationForUsers(memberIds, {
         type: 'EVENT_CREATED',
         title: 'New Event Announced',
-        message: `A new event, "${event.title}," has been announced. Please view the event details for more information.`,
+        message: `"${event.title}" is scheduled for ${eventSchedule(event)}. Open Events for the full details.`,
         link: '/members/events',
       })
     }
@@ -184,7 +189,7 @@ async function notifyEventAccessGrantedToMembers(event) {
   await createNotificationForUsers(memberIds, {
     type: 'EVENT_CREATED',
     title: 'Event Now Available',
-    message: `The event "${event.title}" is now available to members. Please view the event details for more information.`,
+    message: `"${event.title}" is now open to members. It is scheduled for ${eventSchedule(event)}.`,
     link: '/members/events',
   })
 }
@@ -385,7 +390,7 @@ async function notifyAuditStatusChanged(subjectLabel, previousStatus, newStatus,
   await createNotificationForUsers(officerIds, {
     type: 'AUDIT_STATUS_CHANGED',
     title: 'Audit Status Updated',
-    message: `${subjectLabel}: ${previousLabel} → ${newLabel}`,
+    message: `The audit status of "${subjectLabel}" changed from ${previousLabel} to ${newLabel}.`,
     link,
   })
 }
@@ -396,8 +401,8 @@ async function notifyPaymentReminder(userId, semesterLabel) {
   return createNotification({
     userId,
     type: 'PAYMENT_REMINDER',
-    title: 'Membership Payment Reminder',
-    message: `Our records show an unpaid membership fee for ${semesterLabel}. Kindly settle your payment at your earliest convenience to keep your membership active.`,
+    title: 'Membership Fee Not Yet Paid',
+    message: `Your membership fee for the ${semesterLabel} is still unpaid. Please pay it to an LITL officer to keep your membership active.`,
     link: '/members/membership',
   })
 }

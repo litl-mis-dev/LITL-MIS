@@ -69,14 +69,13 @@ const sendPaymentReminderEmail = async (toEmail, memberName, semesterLabel) => {
   const semester = escapeHtml(semesterLabel)
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #1a1a1a;">Membership Payment Reminder</h2>
+      <h2 style="color: #1a1a1a;">Membership Fee Not Yet Paid</h2>
       <p style="color: #444; font-size: 14px;">
         Hello ${name},
       </p>
       <p style="color: #444; font-size: 14px;">
-        Our records show that you have an <strong>unpaid / unsettled membership fee</strong>
-        for <strong>${semester}</strong>. Kindly settle your payment at your earliest
-        convenience to keep your membership active and in good standing.
+        Your membership fee for the <strong>${semester}</strong> is <strong>still unpaid</strong>.
+        Please pay it to an LITL officer to keep your membership active and in good standing.
       </p>
       <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 14px 16px; border-radius: 8px; margin: 20px 0;">
         <span style="font-size: 14px; color: #b91c1c; font-weight: 600;">
@@ -84,15 +83,15 @@ const sendPaymentReminderEmail = async (toEmail, memberName, semesterLabel) => {
         </span>
       </div>
       <p style="color: #888; font-size: 12px;">
-        If you have already settled this payment, please disregard this email or reach out
-        to the organization officers for confirmation.
+        Already paid? Your payment may not have been recorded yet. Please contact an LITL
+        officer so they can record it.
       </p>
     </div>
   `
 
   await sendMail({
     to: toEmail,
-    subject: `Membership Payment Reminder — ${semesterLabel}`,
+    subject: `Membership Fee Not Yet Paid — ${semesterLabel}`,
     html,
   })
 }
