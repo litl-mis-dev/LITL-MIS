@@ -170,3 +170,17 @@ test('advisers and the Developer are still refused with their own reason', async
   assert.match((await scan(event.id, 'Adviser\n2020-000-001')).body.message, /Advisers are not members/)
   assert.match((await scan(event.id, 'Dev\n2020-000-002')).body.message, /Developer account/)
 })
+
+// ── Member fund summary ──────────────────────────────────────────────────────
+test('the member fund summary does not list every active member', async () => {
+  reset()
+  db.semesters.push({
+    id: 3, schoolYear: '2026-2027', semester: 'FIRST', isActive: true,
+    activeMemberIds: [11, 12, 13], beginningBalance: '900.00', endingBalance: null,
+  })
+  const res = await call(semesterCtrl.getActiveSemesterMemberSummary, { user: { id: 9, effectiveRole: 'MEMBER' } })
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body.semester, { id: 3, schoolYear: '2026-2027', semester: 'FIRST', isActive: true })
+  assert.equal(res.body.totalFund, '2000.00')
+  assert.equal(res.body.remainingFund, '1200.00')
+})

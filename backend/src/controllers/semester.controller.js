@@ -59,7 +59,12 @@ const getActiveSemester = async (req, res) => {
 // to raw, non-authoritative Semester fields.
 const getActiveSemesterMemberSummary = async (req, res) => {
   try {
-    const semester = await prisma.semester.findFirst({ where: { isActive: true } })
+    // Any signed-in user can read this, so only what the member dashboard
+    // shows: not the IDs of every active member or the stored balances.
+    const semester = await prisma.semester.findFirst({
+      where: { isActive: true },
+      select: { id: true, schoolYear: true, semester: true, isActive: true },
+    })
     if (!semester) {
       return res.json({ semester: null, totalFund: '0.00', remainingFund: '0.00' })
     }
