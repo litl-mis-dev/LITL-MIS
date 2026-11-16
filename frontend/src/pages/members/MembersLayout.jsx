@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import MemberSidebar from "./MembersSidebar";
 import MemberTopbar from "./MembersTopbar";
+import PushBanner from "../../components/notifications/PushBanner.jsx";
 import "../../assets/styles/officers/Dashboard.css";
 import { setViewAsRole, clearViewAsRole } from '../../services/api.js'
 
@@ -133,6 +134,7 @@ export default function MembersLayout() {
       <main className={`dash member-dashboard ${isSidebarCollapsed ? "dash--collapsed" : ""}`}>
         {/* Pages show immediately (with a short fade-in, see App.css);
             each page shows its own loading state while its data loads. */}
+        <PushBanner />
         <Outlet />
       </main>
     </>
