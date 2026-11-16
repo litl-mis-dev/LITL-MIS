@@ -41,6 +41,19 @@ button {
   margin-left: 72px;
 }
 
+/* A minimized sidebar opens on hover (Sidebar.css). The page and the top bar
+   move over with it instead of being covered, with the same timing as the
+   menu button's minimize/expand. */
+@media (min-width: 1024px) {
+  .sidebar--collapsed:hover ~ .dash--collapsed {
+    margin-left: 240px;
+  }
+
+  .sidebar--collapsed:hover ~ .topbar--collapsed {
+    left: 240px;
+  }
+}
+
 .dash__header,
 .dash__stats,
 .dash__middle,
