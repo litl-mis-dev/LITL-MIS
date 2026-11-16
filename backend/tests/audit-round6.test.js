@@ -126,3 +126,47 @@ test('deleting an event without a disbursement logs no disbursement', async () =
   await call(eventCtrl.archiveEvent, { params: { id: String(event.id) } })
   assert.equal('disbursementId' in db.auditLogs[0].details, false)
 })
+
+// ── Attendance counts each registered member once ────────────────────────────
+test('a QR code that is not a member card is refused with a reason', async () => {
+  reset()
+  const event = addEvent()
+  const res = await scan(event.id, 'https://example.com/some-other-qr')
+  assert.equal(res.statusCode, 400)
+  assert.match(res.body.message, /doesn't belong to a registered member/)
+  assert.equal(db.attendances.length, 0, 'nothing is counted')
+})
+
+test('a member is checked in once even when their card shows an older name', async () => {
+  reset()
+  db.users.push({ id: 1, studentNumber: '2023-100-123', role: 'MEMBER', hasMember: true })
+  const event = addEvent()
+
+  const first = await scan(event.id, 'Juan Dela Cruz\n2023-100-123')
+  assert.equal(first.statusCode, 201)
+
+  const renamed = await scan(event.id, 'Juan P. Dela Cruz\n2023-100-123')
+  assert.equal(renamed.statusCode, 409, 'same student number, different name text')
+  assert.equal(db.attendances.length, 1)
+
+  const sameCard = await scan(event.id, 'Juan Dela Cruz\n2023-100-123')
+  assert.equal(sameCard.statusCode, 409)
+})
+
+test('another member with a similar student number still checks in', async () => {
+  reset()
+  db.users.push({ id: 1, studentNumber: '2023-100-123', role: 'MEMBER', hasMember: true })
+  db.users.push({ id: 2, studentNumber: '2023-100-1234', role: 'MEMBER', hasMember: true })
+  const event = addEvent()
+  assert.equal((await scan(event.id, 'Ana Cruz\n2023-100-1234')).statusCode, 201)
+  assert.equal((await scan(event.id, 'Juan Cruz\n2023-100-123')).statusCode, 201)
+})
+
+test('advisers and the Developer are still refused with their own reason', async () => {
+  reset()
+  db.users.push({ id: 1, studentNumber: '2020-000-001', role: 'ADVISER_DEPT_CHAIR', hasMember: false })
+  db.users.push({ id: 2, studentNumber: '2020-000-002', role: 'DEVELOPER', hasMember: false })
+  const event = addEvent()
+  assert.match((await scan(event.id, 'Adviser\n2020-000-001')).body.message, /Advisers are not members/)
+  assert.match((await scan(event.id, 'Dev\n2020-000-002')).body.message, /Developer account/)
+})
