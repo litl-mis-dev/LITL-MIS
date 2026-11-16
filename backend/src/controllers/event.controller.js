@@ -102,6 +102,39 @@ async function disbursementUnavailableReason(disbursementId, eventId = null) {
   return null
 }
 
+// A funded event's title is also its disbursement's Title of Activity, so it
+// follows the same length rule as on the disbursement form.
+function linkedTitleError(title) {
+  const length = title.trim().length
+  if (length < 2) return 'Event title must be at least 2 characters.'
+  if (length > 50) return 'Event title must not exceed 50 characters.'
+  return null
+}
+
+// An event and the disbursement funding it share one title: when they
+// differ after a save, the event's title becomes the disbursement's Title of
+// Activity. The rename is its own ledger entry, so the hash chain knows it
+// came from here and not from a direct database edit.
+async function syncDisbursementTitle(event, actorId) {
+  const disbursement = event.disbursement
+  if (!disbursement || disbursement.titleOfActivities === event.title) return event
+
+  await prisma.disbursement.update({ where: { id: disbursement.id }, data: { titleOfActivities: event.title } })
+  await writeAuditLog({
+    actorId,
+    action: AUDIT_ACTIONS.DISBURSEMENT_TITLE_UPDATED,
+    details: {
+      disbursementId: disbursement.id,
+      reference: disbursement.reference,
+      eventId: event.id,
+      from: disbursement.titleOfActivities,
+      to: event.title,
+    },
+  })
+  emitToOfficers('disbursement:changed', { disbursementId: disbursement.id, action: 'updated' })
+  return { ...event, disbursement: { ...disbursement, titleOfActivities: event.title } }
+}
+
 const isDisbursementTaken = (err) => err?.code === 'P2002' && String(err.meta?.target ?? '').includes('disbursementId')
 
 // Events are listed by status — Open, Coming soon, Closed, Cancelled — and
@@ -213,7 +246,7 @@ const createEvent = async (req, res) => {
     if (parsedDisbursement.error) return res.status(400).json({ message: parsedDisbursement.error })
     const linkedDisbursementId = parsedDisbursement.value ?? null
     if (linkedDisbursementId) {
-      const reason = await disbursementUnavailableReason(linkedDisbursementId)
+      const reason = await disbursementUnavailableReason(linkedDisbursementId) || linkedTitleError(title)
       if (reason) return res.status(400).json({ message: reason })
     }
     let parsedBudget = { value: null }
@@ -226,7 +259,7 @@ const createEvent = async (req, res) => {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
     }
 
-    const event = await prisma.event.create({
+    const created = await prisma.event.create({
       data: {
         title:        title.trim(),
         date,
@@ -244,6 +277,7 @@ const createEvent = async (req, res) => {
       },
       include: EVENT_INCLUDE
     })
+    const event = await syncDisbursementTitle(created, req.user.id)
 
     await writeAuditLog({
       actorId: req.user.id,
@@ -316,8 +350,13 @@ const updateEvent = async (req, res) => {
       const reason = await disbursementUnavailableReason(parsedDisbursement.value, id)
       if (reason) return res.status(400).json({ message: reason })
     }
+    const staysLinked = parsedDisbursement.absent ? existing.disbursementId : parsedDisbursement.value
+    if (staysLinked) {
+      const titleError = linkedTitleError(title?.trim() || existing.title)
+      if (titleError) return res.status(400).json({ message: titleError })
+    }
 
-    const updated = await prisma.event.update({
+    const saved = await prisma.event.update({
       where: { id },
       data: {
         ...(title        && { title: title.trim() }),
@@ -335,6 +374,7 @@ const updateEvent = async (req, res) => {
       },
       include: EVENT_INCLUDE
     })
+    const updated = await syncDisbursementTitle(saved, req.user.id)
 
     await writeAuditLog({
       actorId: req.user.id,

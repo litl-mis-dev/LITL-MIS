@@ -252,6 +252,9 @@ function buildDescription(action, details, targetName) {
       return `Updated disbursement record ${d.reference ?? ''}.`
     }
 
+    case 'DISBURSEMENT_TITLE_UPDATED':
+      return `Renamed disbursement ${d.reference ?? ''} from "${d.from ?? 'N/A'}" to "${d.to ?? 'N/A'}" to match its event.`
+
     case 'DISBURSEMENT_ARCHIVED':
       return `Archived disbursement record ${d.reference ?? ''}.`
 

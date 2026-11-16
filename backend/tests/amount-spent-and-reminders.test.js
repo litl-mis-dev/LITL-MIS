@@ -152,6 +152,14 @@ const fakePrisma = {
       return eventWithIncludes(row)
     },
     findUnique: async ({ where }) => { const e = byId(db.events, where.id); return e && eventWithIncludes(e) },
+    update: async ({ where, data }) => {
+      if (data.disbursementId && db.events.some((e) => e.id !== where.id && e.disbursementId === data.disbursementId)) {
+        throw uniqueError('Event_disbursementId_key')
+      }
+      const e = byId(db.events, where.id)
+      Object.assign(e, data)
+      return eventWithIncludes(e)
+    },
     findMany: async ({ where }) => db.events.filter((e) => matches(e, where)).map(eventWithIncludes),
   },
   notification: {
@@ -415,6 +423,58 @@ test('an event shows its disbursement\'s amount spent as its budget, one event p
   res = await call(disbursementCtrl.archiveDisbursement, { params: { id: String(id) } })
   assert.equal(res.statusCode, 400)
   assert.match(res.body.message, /funds the event/)
+})
+
+test('an event and its disbursement keep the same title when either is saved', async () => {
+  const { category } = setup()
+  await createDisbursement(category)
+  const disbursement = db.disbursements[0]
+  const renames = () => db.auditLogs.filter((l) => l.action === 'DISBURSEMENT_TITLE_UPDATED')
+
+  // Choosing the disbursement fills the event title with its Title of Activity.
+  let res = await call(eventCtrl.createEvent, { body: eventBody({ title: 'IT Week booth', disbursementId: disbursement.id }) })
+  assert.equal(res.statusCode, 201, res.body.message)
+  assert.equal(renames().length, 0, 'same title: nothing to rename')
+
+  const eventId = String(db.events[0].id)
+  res = await call(eventCtrl.updateEvent, { params: { id: eventId }, body: { title: 'IT Week 2026' } })
+  assert.equal(res.statusCode, 200, res.body.message)
+  assert.equal(disbursement.titleOfActivities, 'IT Week 2026')
+  assert.equal(res.body.event.disbursement.title, 'IT Week 2026')
+  assert.deepEqual(JSON.parse(renames()[0].details), {
+    disbursementId: disbursement.id, reference: disbursement.reference, eventId: db.events[0].id,
+    from: 'IT Week booth', to: 'IT Week 2026',
+  })
+
+  res = await call(eventCtrl.updateEvent, { params: { id: eventId }, body: { location: 'Court' } })
+  assert.equal(renames().length, 1, 'saving without a title change renames nothing')
+  await call(eventCtrl.updateEvent, { params: { id: eventId }, body: { title: 'IT Week Finale' } })
+  assert.equal(disbursement.titleOfActivities, 'IT Week Finale')
+
+  let result = await verifyLedger()
+  assert.equal(result.status, 'INTACT', JSON.stringify(result.tamperedLinks.map((l) => l.reasons)))
+
+  disbursement.titleOfActivities = 'Something else' // edited outside the app
+  result = await verifyLedger()
+  assert.equal(result.status, 'TAMPERED')
+  assert.ok(result.tamperedLinks.some((l) => l.action === 'DISBURSEMENT_TITLE_UPDATED'
+    && l.reasons.some((r) => r.includes('changed from "IT Week Finale" to "Something else" directly in the database'))))
+})
+
+test('a funded event title follows the disbursement title length rule', async () => {
+  const { category } = setup()
+  await createDisbursement(category)
+  const long = 'A'.repeat(51)
+
+  let res = await call(eventCtrl.createEvent, { body: eventBody({ title: long, disbursementId: db.disbursements[0].id }) })
+  assert.equal(res.statusCode, 400)
+  assert.equal(res.body.message, 'Event title must not exceed 50 characters.')
+  assert.equal(db.events.length, 0)
+
+  res = await call(eventCtrl.createEvent, { body: eventBody({ disbursementId: db.disbursements[0].id }) })
+  res = await call(eventCtrl.updateEvent, { params: { id: String(db.events[0].id) }, body: { title: long } })
+  assert.equal(res.statusCode, 400)
+  assert.equal(db.disbursements[0].titleOfActivities, 'IT Week')
 })
 
 test('an event can be created before its disbursement exists', async () => {
