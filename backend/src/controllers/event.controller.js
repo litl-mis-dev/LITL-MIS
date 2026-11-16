@@ -477,15 +477,18 @@ const archiveEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found.' })
     }
 
-    await prisma.event.update({ where: { id }, data: { isArchived: true } })
+    // A deleted event lets go of its disbursement, so another event can be
+    // funded by it. The Activity Log keeps which one it was.
+    await prisma.event.update({ where: { id }, data: { isArchived: true, disbursementId: null } })
 
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.EVENT_ARCHIVED,
-      details: { eventId: id, title: event.title }
+      details: { eventId: id, title: event.title, ...(event.disbursementId && { disbursementId: event.disbursementId }) }
     })
 
     emitToAll('event:changed', { eventId: id, action: 'archived' })
+    if (event.disbursementId) emitToOfficers('disbursement:changed', { disbursementId: event.disbursementId, action: 'updated' })
 
     return res.json({ message: 'Event archived.' })
   } catch (err) {
