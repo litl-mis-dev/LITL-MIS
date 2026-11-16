@@ -1,0 +1,13 @@
+{
+  "name": "LITL MIS",
+  "short_name": "LITL MIS",
+  "description": "League of Information Technology Leaders — CvSU Trece Martires",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ef8315",
+  "icons": [
+    { "src": "/Logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

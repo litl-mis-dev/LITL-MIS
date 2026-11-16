@@ -252,6 +252,9 @@ function buildDescription(action, details, targetName) {
       return `Updated disbursement record ${d.reference ?? ''}.`
     }
 
+    case 'DISBURSEMENT_TITLE_UPDATED':
+      return `Renamed disbursement ${d.reference ?? ''} from "${d.from ?? 'N/A'}" to "${d.to ?? 'N/A'}" to match its event.`
+
     case 'DISBURSEMENT_ARCHIVED':
       return `Archived disbursement record ${d.reference ?? ''}.`
 
@@ -287,16 +290,16 @@ function buildDescription(action, details, targetName) {
     }
 
     case 'USER_APPROVED':
-      return `Approved member registration${d.memberName ? ` for ${d.memberName}` : targetName ? ` for ${targetName}` : ''}${d.via === 'ROSTER' ? ' automatically (on the member roster)' : ''}.`
+      return `Approved member registration${d.memberName ? ` for ${d.memberName}` : targetName ? ` for ${targetName}` : ''}${d.via === 'MEMBERS_LIST' ? ' automatically (on the Members List)' : ''}.`
 
-    case 'MEMBER_ROSTER_UPDATED': {
-      if (d.mode === 'remove') return 'Removed a student from the member roster.'
+    case 'MEMBERS_LIST_UPDATED': {
+      if (d.mode === 'remove') return 'Removed a student from the Members List.'
       const parts = [
         d.added ? `${d.added} added` : null,
         d.updated ? `${d.updated} updated` : null,
         d.removed ? `${d.removed} removed` : null,
       ].filter(Boolean).join(', ')
-      return `${d.mode === 'replace' ? 'Replaced' : 'Updated'} the member roster${parts ? ` (${parts})` : ''}; ${d.approvedCount ?? 0} pending member${d.approvedCount === 1 ? '' : 's'} approved automatically.`
+      return `${d.mode === 'replace' ? 'Replaced' : 'Updated'} the Members List${parts ? ` (${parts})` : ''}; ${d.approvedCount ?? 0} pending member${d.approvedCount === 1 ? '' : 's'} approved automatically.`
     }
 
     case 'USER_REJECTED':

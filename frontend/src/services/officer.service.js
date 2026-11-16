@@ -1,7 +1,7 @@
 import api from './api'
 
-export const getPublicOfficerRoster = () => {
-  return api.get('/officer/public-roster').then(res => res.data)
+export const getPublicOfficers = () => {
+  return api.get('/officer/public-officers').then(res => res.data)
 }
 
 export const getPendingUsers = () => {
@@ -45,21 +45,21 @@ export const updateMemberStatus = (memberId, status) => {
   return api.put(`/officer/members/${memberId}/status`, { status }).then(res => res.data)
 }
 
-// ─── Member roster (automatic approval) ──────────────────────────────────────
+// ─── Members List (automatic approval) ──────────────────────────────────────
 
-export const getMemberRoster = () => {
-  return api.get('/officer/member-roster').then(res => res.data)
+export const getMembersList = () => {
+  return api.get('/officer/members-list').then(res => res.data)
 }
 
 // rows: [{ row, studentNumber, lastName }]; mode: 'add' | 'replace'
-export const previewMemberRoster = (rows, mode) => {
-  return api.post('/officer/member-roster/preview', { rows, mode }).then(res => res.data)
+export const previewMembersList = (rows, mode) => {
+  return api.post('/officer/members-list/preview', { rows, mode }).then(res => res.data)
 }
 
-export const saveMemberRoster = (rows, mode) => {
-  return api.post('/officer/member-roster', { rows, mode }).then(res => res.data)
+export const saveMembersList = (rows, mode) => {
+  return api.post('/officer/members-list', { rows, mode }).then(res => res.data)
 }
 
-export const removeMemberRosterEntry = (studentNumber) => {
-  return api.delete(`/officer/member-roster/${encodeURIComponent(studentNumber)}`).then(res => res.data)
+export const removeMembersListEntry = (studentNumber) => {
+  return api.delete(`/officer/members-list/${encodeURIComponent(studentNumber)}`).then(res => res.data)
 }

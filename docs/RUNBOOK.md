@@ -62,6 +62,10 @@ was already up to date.
 
 ## Fresh start (deletes ALL data)
 
+The migrations were squashed into one (`20261116130000_initial_schema`) on
+2026-11-16. A database created before that must go through this fresh start
+once: `migrate deploy` on it fails because its tables already exist.
+
 1. **Back up first** unless the data is disposable: phpMyAdmin → Export.
 2. Note the current highest user ID: `SELECT MAX(id) FROM User;`
 3. In the maintenance copy:

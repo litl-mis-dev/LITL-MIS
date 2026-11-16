@@ -7,7 +7,7 @@ import {
   getVapidPublicKey, subscribePush, deleteNotification, clearAllNotifications,
 } from '../services/notification.service'
 import { getImportantAnnouncements } from '../services/announcement.service'
-import { enablePushNotifications, getPushPermission } from '../utils/push'
+import { enablePushNotifications, getPushPermission, needsHomeScreenForPush } from '../utils/push'
 import AnnouncementDetailsModal from '../components/notifications/AnnouncementDetailsModal.jsx'
 
 const NotificationContext = createContext(null)
@@ -214,6 +214,11 @@ export function NotificationProvider({ children }) {
       // Show the "Turn on" button only when the server supports push and
       // this browser hasn't been asked yet.
       canEnablePush: Boolean(vapidPublicKey) && pushPermission === 'default',
+      // Notifications were refused for this site: only the browser's site
+      // settings can undo that, so say so instead of showing a dead button.
+      isPushBlocked: Boolean(vapidPublicKey) && pushPermission === 'denied',
+      // iPhone/iPad in a Safari tab: push needs the Home Screen app first.
+      needsHomeScreen: Boolean(vapidPublicKey) && needsHomeScreenForPush(),
     }}>
       {children}
       {shownAnnouncement && (

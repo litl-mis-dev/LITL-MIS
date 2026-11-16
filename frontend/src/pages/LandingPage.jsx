@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitContactForm } from "../services/contact.service.js";
-import { getPublicOfficerRoster } from "../services/officer.service.js";
+import { getPublicOfficers } from "../services/officer.service.js";
 import logo from "../assets/images/LogoAndText.png";
 import heroImage from "../assets/images/LogoAndText.png";
 import "../assets/styles/LandingPage.css";
@@ -69,7 +69,7 @@ export default function LandingPage() {
   const [formStatus, setFormStatus] = useState({ loading: false, success: false, error: "" });
   const navigate = useNavigate();
   const facebookPageUrl = "https://www.facebook.com/LITLcvsu13";
-  const roster = officers.length > 0 ? officers : OFFICER_PLACEHOLDERS;
+  const shownOfficers = officers.length > 0 ? officers : OFFICER_PLACEHOLDERS;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -81,10 +81,10 @@ export default function LandingPage() {
   useEffect(() => {
     let isMounted = true;
 
-    getPublicOfficerRoster()
-      .then(({ officers: roster }) => {
+    getPublicOfficers()
+      .then(({ officers: list }) => {
         if (!isMounted) return;
-        setOfficers(roster ?? []);
+        setOfficers(list ?? []);
       })
       .catch(() => {
         if (!isMounted) return;
@@ -240,7 +240,7 @@ export default function LandingPage() {
             </div>
 
             <div className="landing-officers-grid">
-              {roster.map((officer) => (
+              {shownOfficers.map((officer) => (
                 <article className="landing-officer-card" key={officer.id ?? officer.position}>
                   {officer.avatar ? (
                     <img className="landing-officer-avatar" src={officer.avatar} alt={`Portrait of ${officer.name}`} />

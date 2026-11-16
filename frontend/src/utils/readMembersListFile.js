@@ -1,4 +1,4 @@
-// Reads a member roster file (.xlsx or .csv) in the browser and returns
+// Reads a Members List file (.xlsx or .csv) in the browser and returns
 // [{ row, studentNumber, lastName }]. Only those two columns are sent to the
 // server; the file itself never leaves the officer's computer.
 //
@@ -9,7 +9,7 @@
 const STUDENT_NUMBER_HEADER = /^(student\s*(no\.?|number|num|#|id)|stud(ent)?\s*no\.?)$/i;
 const LAST_NAME_HEADER = /^(last\s*name|surname|family\s*name)$/i;
 
-export async function readRosterFile(file) {
+export async function readMembersListFile(file) {
     const name = file?.name?.toLowerCase() ?? "";
     let table;
     if (name.endsWith(".csv")) {

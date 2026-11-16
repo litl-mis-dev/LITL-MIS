@@ -176,11 +176,11 @@ async function reconcile(semester, balances) {
 // Because both are tied to the receiving semester, a closed semester's
 // counts never change after the fact. Both are exact for any semester.
 //
-// Active / Unpaid need the roster of active members. The active semester uses
+// Active / Unpaid need the list of active members. The active semester uses
 // today's members (that IS its current status). A closed semester uses the
 // snapshot taken when it closed — never today's status, which has since changed
 // through promotions, graduation and deactivation. Semesters that closed before
-// the snapshot existed have no roster, so Active/Unpaid are reported as null.
+// the snapshot existed have no saved list, so Active/Unpaid are reported as null.
 async function getMemberStats(semester) {
   const payments = await prisma.payment.findMany({
     where: {
@@ -199,37 +199,37 @@ async function getMemberStats(semester) {
     else settled.add(p.memberId)
   }
 
-  let roster = null
+  let activeIds = null
   let source = null
   if (semester.isActive) {
     const rows = await prisma.member.findMany({
       where: { status: 'ACTIVE', user: { status: 'APPROVED', ...MEMBERSHIP_USER_FILTER } },
       select: { id: true }
     })
-    roster = new Set(rows.map((r) => r.id))
+    activeIds = new Set(rows.map((r) => r.id))
     source = 'live'
   } else if (Array.isArray(semester.activeMemberIds)) {
-    roster = new Set(semester.activeMemberIds.map(Number).filter(Number.isInteger))
+    activeIds = new Set(semester.activeMemberIds.map(Number).filter(Number.isInteger))
     source = 'snapshot'
   }
 
-  if (!roster) {
+  if (!activeIds) {
     return {
-      rosterAvailable: false, source: null,
+      memberListAvailable: false, source: null,
       totalActive: null, totalPaid: paid.size, totalSettled: settled.size, totalUnpaid: null
     }
   }
 
-  // Within the roster, Active = Paid + Unpaid always holds. Settled is counted
+  // Within that list, Active = Paid + Unpaid always holds. Settled is counted
   // from the payments themselves, so a member who settled old fees is counted
-  // even if they were not on the roster.
-  const totalPaid = [...paid].filter((id) => roster.has(id)).length
+  // even if they were not on it.
+  const totalPaid = [...paid].filter((id) => activeIds.has(id)).length
   return {
-    rosterAvailable: true, source,
-    totalActive: roster.size,
+    memberListAvailable: true, source,
+    totalActive: activeIds.size,
     totalPaid,
     totalSettled: settled.size,
-    totalUnpaid: roster.size - totalPaid
+    totalUnpaid: activeIds.size - totalPaid
   }
 }
 

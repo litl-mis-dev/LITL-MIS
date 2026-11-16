@@ -242,8 +242,17 @@ export default function Events() {
         }
     }
 
+    // Choosing a disbursement gives the event that disbursement's Title of
+    // Activity. Editing the title afterwards renames the disbursement as well
+    // when the event is saved, so the two always match.
+    function chosenDisbursementTitle(field, value) {
+        if (field !== "disbursementId" || value === "") return null;
+        return budgetOptions?.find(o => String(o.id) === String(value))?.title ?? null;
+    }
+
     function handleFormChange(field, value) {
-        setFormEvent(prev => ({ ...prev, [field]: value }));
+        const title = chosenDisbursementTitle(field, value);
+        setFormEvent(prev => ({ ...prev, [field]: value, ...(title && { title }) }));
         if (field === "access" && value.length > 0) setAccessError("");
         if (field === "hasGoogleForm" && !value) setFormEvent(prev => ({ ...prev, googleFormUrl: "" }));
     }
@@ -270,7 +279,8 @@ export default function Events() {
     function closeEditEventModal() { setEditingEvent(null); setAccessError(""); setIsAccessModalOpen(false); }
 
     function handleEditField(field, value) {
-        setEditingEvent(prev => ({ ...prev, [field]: value }));
+        const title = chosenDisbursementTitle(field, value);
+        setEditingEvent(prev => ({ ...prev, [field]: value, ...(title && { title }) }));
         if (field === "access" && value.length > 0) setAccessError("");
         if (field === "hasGoogleForm" && !value) setEditingEvent(prev => ({ ...prev, googleFormUrl: "" }));
     }

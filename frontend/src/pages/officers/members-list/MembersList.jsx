@@ -10,7 +10,7 @@ import ConfirmActionButton from "../../../components/officers/ConfirmActionButto
 import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, updateMemberStatus, } from "../../../services/officer.service.js";
 import { getMemberPaymentHistory, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
 import MemberSelectionModal from "./MemberSelectionModal.jsx";
-import MemberRosterPanel from "./MemberRosterPanel.jsx";
+import MembersListPanel from "./MembersListPanel.jsx";
 import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf } from "../../../utils/downloadMembershipCardPdf.js";
 import { createAnnouncement } from "../../../services/announcement.service.js";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
@@ -534,9 +534,9 @@ export default function MembersList({ compact = false }) {
             )}
 
             {/* ── Member Approval Tab ────────────────────────────────────────── */}
-            {/* The roster approves accounts, so it needs Member Approval EDIT. */}
+            {/* The Members List approves accounts, so it needs Member Approval EDIT. */}
             {!compact && canApproveMembers && activeSection === "approval" && (
-                <MemberRosterPanel onApprovalsChanged={fetchAll} />
+                <MembersListPanel onApprovalsChanged={fetchAll} />
             )}
             {!compact && canViewMemberApproval && activeSection === "approval" && (
                 <div className="card approval-card">

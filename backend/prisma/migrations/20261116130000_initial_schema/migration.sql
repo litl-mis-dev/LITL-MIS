@@ -1,12 +1,13 @@
 -- CreateTable
 CREATE TABLE `User` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `studentNumber` VARCHAR(191) NOT NULL,
+    `studentNumber` VARCHAR(191) NULL,
     `email` VARCHAR(191) NOT NULL,
     `emailType` ENUM('CVSU', 'PERSONAL') NOT NULL,
     `password` VARCHAR(191) NOT NULL,
-    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER') NOT NULL DEFAULT 'MEMBER',
-    `status` ENUM('PENDING_EMAIL_VERIFICATION', 'PENDING_OFFICER_APPROVAL', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING_OFFICER_APPROVAL',
+    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER', 'DEVELOPER') NOT NULL DEFAULT 'MEMBER',
+    `status` ENUM('PENDING_EMAIL_VERIFICATION', 'PENDING_OFFICER_APPROVAL', 'APPROVED', 'REJECTED', 'DEACTIVATED') NOT NULL DEFAULT 'PENDING_OFFICER_APPROVAL',
+    `adviserTitle` ENUM('ADVISER', 'DEPT_CHAIR') NULL,
     `failedLoginAttempts` INTEGER NOT NULL DEFAULT 0,
     `lockedUntil` DATETIME(3) NULL,
     `tokenVersion` INTEGER NOT NULL DEFAULT 0,
@@ -27,8 +28,8 @@ CREATE TABLE `Member` (
     `lastName` VARCHAR(191) NOT NULL,
     `suffix` VARCHAR(191) NULL,
     `sex` ENUM('MALE', 'FEMALE', 'PREFER_NOT_TO_SAY') NOT NULL,
-    `yearLevel` VARCHAR(191) NOT NULL,
-    `section` VARCHAR(191) NOT NULL,
+    `yearLevel` VARCHAR(191) NULL,
+    `section` VARCHAR(191) NULL,
     `avatar` VARCHAR(191) NULL,
     `avatarPath` VARCHAR(191) NULL,
     `status` ENUM('ACTIVE', 'INACTIVE', 'GRADUATED', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
@@ -84,8 +85,8 @@ CREATE TABLE `PendingRegistration` (
 CREATE TABLE `OfficerAssignment` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `memberId` INTEGER NOT NULL,
-    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER') NOT NULL,
-    `activeRole` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER') NULL,
+    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER', 'DEVELOPER') NOT NULL,
+    `activeRole` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER', 'DEVELOPER') NULL,
     `startDate` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `endDate` DATETIME(3) NULL,
     `status` ENUM('ACTIVE', 'ENDED') NOT NULL DEFAULT 'ACTIVE',
@@ -102,7 +103,7 @@ CREATE TABLE `OfficerAssignment` (
 -- CreateTable
 CREATE TABLE `RolePermission` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER') NOT NULL,
+    `role` ENUM('PRESIDENT_ADMIN', 'VICE_PRESIDENT_ADMIN', 'SECRETARY', 'SEN_INTERNAL_AFFAIRS', 'SEN_EXTERNAL_AFFAIRS', 'SEN_FINANCE', 'SEN_AUDIT', 'SEN_BUSINESS_AFFAIRS', 'SEN_LOGISTICS_PROPERTIES', 'SEN_PUBLICITY_INFORMATION', 'SEN_ACADEMIC_AFFAIRS', 'SEN_RULES_CONSTITUTIONAL_AMENDMENTS', 'SEN_SPORTS_ARTS_CULTURE', 'SEN_STUDENT_RIGHTS_WELFARE', 'YEAR_REP_1', 'YEAR_REP_2', 'YEAR_REP_3', 'YEAR_REP_4', 'ADVISER_DEPT_CHAIR', 'MEMBER', 'DEVELOPER') NOT NULL,
     `module` ENUM('DASHBOARD', 'MEMBER_LIST', 'MEMBERS_APPROVAL', 'AUDIT', 'HASH_CHAIN', 'EVENT', 'DOCUMENTS', 'CERTIFICATION', 'FINANCIAL', 'ACTIVITY_LOGS', 'SETTINGS_ROLES', 'SETTINGS_DESIGN') NOT NULL,
     `level` ENUM('NONE', 'VIEW', 'EDIT') NOT NULL DEFAULT 'NONE',
     `updatedAt` DATETIME(3) NOT NULL,
@@ -139,6 +140,7 @@ CREATE TABLE `Semester` (
     `hasBeenActivated` BOOLEAN NOT NULL DEFAULT false,
     `beginningBalance` DECIMAL(10, 2) NOT NULL DEFAULT 0,
     `endingBalance` DECIMAL(10, 2) NULL,
+    `activeMemberIds` JSON NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `Semester_schoolYear_semester_key`(`schoolYear`, `semester`),
@@ -223,6 +225,8 @@ CREATE TABLE `ReturnFund` (
     `auditedByPosition` VARCHAR(191) NOT NULL,
     `approvedBy` VARCHAR(191) NOT NULL,
     `approvedByPosition` VARCHAR(191) NOT NULL,
+    `autoForDisbursementId` INTEGER NULL,
+    `revisedAt` DATETIME(3) NULL,
     `isArchived` BOOLEAN NOT NULL DEFAULT false,
     `semesterId` INTEGER NOT NULL,
     `createdById` INTEGER NOT NULL,
@@ -230,6 +234,7 @@ CREATE TABLE `ReturnFund` (
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `ReturnFund_reference_key`(`reference`),
+    UNIQUE INDEX `ReturnFund_autoForDisbursementId_key`(`autoForDisbursementId`),
     INDEX `ReturnFund_disbursementId_idx`(`disbursementId`),
     INDEX `ReturnFund_semesterId_idx`(`semesterId`),
     PRIMARY KEY (`id`)
@@ -266,11 +271,14 @@ CREATE TABLE `Event` (
     `access` TEXT NOT NULL,
     `hasGoogleForm` BOOLEAN NOT NULL DEFAULT false,
     `googleFormUrl` VARCHAR(191) NULL,
+    `budget` DECIMAL(10, 2) NULL,
+    `disbursementId` INTEGER NULL,
     `createdById` INTEGER NOT NULL,
     `isArchived` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    UNIQUE INDEX `Event_disbursementId_key`(`disbursementId`),
     INDEX `Event_status_idx`(`status`),
     INDEX `Event_date_idx`(`date`),
     INDEX `Event_isArchived_idx`(`isArchived`),
@@ -389,10 +397,12 @@ CREATE TABLE `EventCertificationFolder` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `eventId` INTEGER NOT NULL,
     `certificationArchiveId` INTEGER NOT NULL,
+    `semesterId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `EventCertificationFolder_eventId_key`(`eventId`),
     INDEX `EventCertificationFolder_certificationArchiveId_idx`(`certificationArchiveId`),
+    INDEX `EventCertificationFolder_semesterId_idx`(`semesterId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -422,6 +432,7 @@ CREATE TABLE `Certificate` (
     INDEX `Certificate_eventCertificationFolderId_idx`(`eventCertificationFolderId`),
     INDEX `Certificate_eventId_idx`(`eventId`),
     INDEX `Certificate_status_idx`(`status`),
+    INDEX `Certificate_certificateHash_idx`(`certificateHash`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -444,10 +455,24 @@ CREATE TABLE `MembershipCertificate` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `MembersListEntry` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `studentNumber` VARCHAR(191) NOT NULL,
+    `lastName` VARCHAR(191) NOT NULL,
+    `addedById` INTEGER NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `MembersListEntry_studentNumber_key`(`studentNumber`),
+    INDEX `MembersListEntry_addedById_idx`(`addedById`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `Notification` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `userId` INTEGER NOT NULL,
-    `type` ENUM('REGISTRATION_APPROVED', 'REGISTRATION_REJECTED', 'EVENT_CREATED', 'EVENT_STATUS_CHANGED', 'EVENT_UPDATED', 'MEMBER_APPROVAL_REQUEST', 'ANNOUNCEMENT', 'AUDIT_STATUS_CHANGED') NOT NULL,
+    `type` ENUM('REGISTRATION_APPROVED', 'REGISTRATION_REJECTED', 'EVENT_CREATED', 'EVENT_STATUS_CHANGED', 'EVENT_UPDATED', 'MEMBER_APPROVAL_REQUEST', 'ANNOUNCEMENT', 'AUDIT_STATUS_CHANGED', 'PAYMENT_REMINDER', 'EVENT_REMINDER') NOT NULL,
     `title` VARCHAR(191) NOT NULL,
     `message` TEXT NOT NULL,
     `link` VARCHAR(191) NULL,
@@ -487,6 +512,41 @@ CREATE TABLE `PushSubscription` (
 
     INDEX `PushSubscription_userId_idx`(`userId`),
     UNIQUE INDEX `PushSubscription_userId_endpoint_key`(`userId`, `endpoint`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DeveloperAccount` (
+    `id` INTEGER NOT NULL DEFAULT 1,
+    `userId` INTEGER NOT NULL,
+    `displayName` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `DeveloperAccount_userId_key`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `AdviserInvite` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `email` VARCHAR(191) NOT NULL,
+    `firstName` VARCHAR(191) NOT NULL,
+    `lastName` VARCHAR(191) NOT NULL,
+    `suffix` VARCHAR(191) NULL,
+    `title` ENUM('ADVISER', 'DEPT_CHAIR') NOT NULL,
+    `tokenHash` CHAR(64) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `invitedById` INTEGER NOT NULL,
+    `acceptedAt` DATETIME(3) NULL,
+    `acceptedUserId` INTEGER NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `AdviserInvite_tokenHash_key`(`tokenHash`),
+    UNIQUE INDEX `AdviserInvite_acceptedUserId_key`(`acceptedUserId`),
+    INDEX `AdviserInvite_email_idx`(`email`),
+    INDEX `AdviserInvite_title_idx`(`title`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -557,6 +617,9 @@ ALTER TABLE `Audit` ADD CONSTRAINT `Audit_reviewedById_fkey` FOREIGN KEY (`revie
 ALTER TABLE `Event` ADD CONSTRAINT `Event_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `Event` ADD CONSTRAINT `Event_disbursementId_fkey` FOREIGN KEY (`disbursementId`) REFERENCES `Disbursement`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `EventAttendance` ADD CONSTRAINT `EventAttendance_eventId_fkey` FOREIGN KEY (`eventId`) REFERENCES `Event`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -587,6 +650,9 @@ ALTER TABLE `EventCertificationFolder` ADD CONSTRAINT `EventCertificationFolder_
 ALTER TABLE `EventCertificationFolder` ADD CONSTRAINT `EventCertificationFolder_certificationArchiveId_fkey` FOREIGN KEY (`certificationArchiveId`) REFERENCES `CertificationArchive`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `EventCertificationFolder` ADD CONSTRAINT `EventCertificationFolder_semesterId_fkey` FOREIGN KEY (`semesterId`) REFERENCES `Semester`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Certificate` ADD CONSTRAINT `Certificate_eventCertificationFolderId_fkey` FOREIGN KEY (`eventCertificationFolderId`) REFERENCES `EventCertificationFolder`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -611,6 +677,9 @@ ALTER TABLE `MembershipCertificate` ADD CONSTRAINT `MembershipCertificate_semest
 ALTER TABLE `MembershipCertificate` ADD CONSTRAINT `MembershipCertificate_issuedById_fkey` FOREIGN KEY (`issuedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `MembersListEntry` ADD CONSTRAINT `MembersListEntry_addedById_fkey` FOREIGN KEY (`addedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Notification` ADD CONSTRAINT `Notification_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -618,3 +687,13 @@ ALTER TABLE `Announcement` ADD CONSTRAINT `Announcement_createdById_fkey` FOREIG
 
 -- AddForeignKey
 ALTER TABLE `PushSubscription` ADD CONSTRAINT `PushSubscription_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `DeveloperAccount` ADD CONSTRAINT `DeveloperAccount_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AdviserInvite` ADD CONSTRAINT `AdviserInvite_invitedById_fkey` FOREIGN KEY (`invitedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AdviserInvite` ADD CONSTRAINT `AdviserInvite_acceptedUserId_fkey` FOREIGN KEY (`acceptedUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+

@@ -132,11 +132,11 @@ const getSignatories = async (req, res) => {
   }
 }
 
-// GET /api/officer/public-roster
+// GET /api/officer/public-officers
 // Public — no auth. Powers the landing page's "Current Leadership" section.
 // Returns only the currently assigned holders of the 14 fixed leadership
 // roles, in the required display/sort order.
-const getPublicOfficerRoster = async (req, res) => {
+const getPublicOfficers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: { role: { in: LEADERSHIP_ROLES }, status: 'APPROVED' },
@@ -162,7 +162,7 @@ const getPublicOfficerRoster = async (req, res) => {
 
     return res.json({ officers })
   } catch (err) {
-    console.error('Get public officer roster error:', err)
+    console.error('Get public officers list error:', err)
     return res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
@@ -629,5 +629,5 @@ const updateMemberStatus = async (req, res) => {
 
 module.exports = {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
-  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficerRoster
+  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers
 }

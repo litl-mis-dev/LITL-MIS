@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSocket } from "../../../services/socket.js";
 import {
-    getMemberRoster, previewMemberRoster, saveMemberRoster, removeMemberRosterEntry,
+    getMembersList, previewMembersList, saveMembersList, removeMembersListEntry,
 } from "../../../services/officer.service.js";
-import { readRosterFile } from "../../../utils/readRosterFile.js";
+import { readMembersListFile } from "../../../utils/readMembersListFile.js";
 import { formatPersonName } from "../../../utils/formInputs.js";
 import ModalPortal from "../../../components/ui/ModalPortal.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
@@ -22,7 +22,7 @@ const ACCOUNT_STATUS_LABELS = {
 // may join (Student Number + Last Name). Pending registrations that match are
 // approved automatically, and so is anyone on the list who registers later.
 // Non-matches stay pending for manual review; nobody is rejected automatically.
-export default function MemberRosterPanel({ onApprovalsChanged }) {
+export default function MembersListPanel({ onApprovalsChanged }) {
     const [entries, setEntries] = useState(null);
     const [loadError, setLoadError] = useState("");
     const [message, setMessage] = useState("");
@@ -34,9 +34,9 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
     const [isListOpen, setIsListOpen] = useState(false);
     const fileInputRef = useRef(null);
 
-    const loadRoster = useCallback(async () => {
+    const loadMembersList = useCallback(async () => {
         try {
-            const data = await getMemberRoster();
+            const data = await getMembersList();
             setEntries(data.entries ?? []);
             setLoadError("");
         } catch {
@@ -46,7 +46,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
 
     useEffect(() => {
         let active = true;
-        getMemberRoster()
+        getMembersList()
             .then((data) => { if (active) setEntries(data.entries ?? []); })
             .catch(() => { if (active) setLoadError("Couldn't load the members list."); });
         return () => { active = false; };
@@ -54,9 +54,9 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
 
     useEffect(() => {
         const socket = getSocket();
-        socket.on("memberRoster:changed", loadRoster);
-        return () => socket.off("memberRoster:changed", loadRoster);
-    }, [loadRoster]);
+        socket.on("membersList:changed", loadMembersList);
+        return () => socket.off("membersList:changed", loadMembersList);
+    }, [loadMembersList]);
 
     async function handleFileChosen(event) {
         const file = event.target.files?.[0];
@@ -66,7 +66,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
         setMessage("");
         setIsReading(true);
         try {
-            const rows = await readRosterFile(file);
+            const rows = await readMembersListFile(file);
             if (rows.length === 0) throw new Error("The file has no student rows under the headings.");
             setPendingSource(file.name);
             setPendingRows(rows);
@@ -81,12 +81,12 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
         setPendingRows(null);
         setIsAddOpen(false);
         setMessage(result.message);
-        loadRoster();
+        loadMembersList();
         if (result.approvedCount > 0) onApprovalsChanged?.();
     }
 
     return (
-        <div className="card roster-card">
+        <div className="card members-list-card">
             <div className="card__header">
                 <div>
                     <h2 className="card__title">Members List</h2>
@@ -96,7 +96,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
                             : `${entries.length} student${entries.length === 1 ? "" : "s"} on the members list.`)}
                     </p>
                 </div>
-                <div className="member-list-actions roster-card__actions">
+                <div className="member-list-actions members-list-card__actions">
                     <input ref={fileInputRef} type="file" accept=".xlsx,.csv" className="sr-only" onChange={handleFileChosen} />
                     <button type="button" className="btn btn--primary" onClick={() => fileInputRef.current?.click()}
                         disabled={isReading} aria-busy={isReading}>
@@ -112,7 +112,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
             </div>
 
             {/* Below the header, full width, so the buttons keep one line. */}
-            <p className="roster-card__note">
+            <p className="members-list-card__note">
                 Registrations with a CvSU email that match a student number and last name are approved automatically.
                 Upload an .xlsx or .csv file with <strong>Student Number</strong> and <strong>Last Name</strong> columns.
             </p>
@@ -124,7 +124,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
             )}
 
             {pendingRows && (
-                <RosterPreviewModal
+                <MembersListPreviewModal
                     rows={pendingRows}
                     source={pendingSource}
                     allowReplace={pendingRows.length > 1}
@@ -141,7 +141,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
             )}
 
             {isListOpen && (
-                <RosterListModal
+                <MembersListModal
                     entries={entries ?? []}
                     onRemoved={(studentNumber) => {
                         setEntries((list) => (list ?? []).filter((e) => e.studentNumber !== studentNumber));
@@ -155,7 +155,7 @@ export default function MemberRosterPanel({ onApprovalsChanged }) {
 }
 
 // ── Preview: what saving will do, then save ──────────────────────────────────
-function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
+function MembersListPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
     const [mode, setMode] = useState("add");
     const [preview, setPreview] = useState(null);
     const [error, setError] = useState("");
@@ -169,7 +169,7 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
 
     useEffect(() => {
         let active = true;
-        previewMemberRoster(rows, mode)
+        previewMembersList(rows, mode)
             .then((data) => { if (active) setPreview(data); })
             .catch((err) => {
                 if (!active) return;
@@ -184,7 +184,7 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
         setIsSaving(true);
         setError("");
         try {
-            onSaved(await saveMemberRoster(rows, mode));
+            onSaved(await saveMembersList(rows, mode));
         } catch (err) {
             setError(err.response?.data?.message ?? "Couldn't save the members list. Please try again.");
             setIsSaving(false);
@@ -196,11 +196,11 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
     return (
         <ModalPortal>
             <div className="member-modal" role="presentation" onClick={(e) => { if (e.target === e.currentTarget && !isSaving) onClose(); }}>
-                <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="roster-preview-title">
+                <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="members-list-preview-title">
                     <div className="member-modal__header">
                         <div>
                             <p className="member-modal__eyebrow">Members List</p>
-                            <h2 id="roster-preview-title" className="member-modal__title">Review before saving</h2>
+                            <h2 id="members-list-preview-title" className="member-modal__title">Review before saving</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} disabled={isSaving} aria-label="Close">×</button>
                     </div>
@@ -212,11 +212,11 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
                             <fieldset className="filter-checklist">
                                 <legend>How to save this list</legend>
                                 <label className="feature-checklist__item">
-                                    <input type="radio" name="roster-mode" checked={mode === "add"} onChange={() => changeMode("add")} disabled={isSaving} />
+                                    <input type="radio" name="members-list-mode" checked={mode === "add"} onChange={() => changeMode("add")} disabled={isSaving} />
                                     <span>Add to the list: new students are added, changed last names are updated</span>
                                 </label>
                                 <label className="feature-checklist__item">
-                                    <input type="radio" name="roster-mode" checked={mode === "replace"} onChange={() => changeMode("replace")} disabled={isSaving} />
+                                    <input type="radio" name="members-list-mode" checked={mode === "replace"} onChange={() => changeMode("replace")} disabled={isSaving} />
                                     <span>Replace the list: the members list becomes exactly this file</span>
                                 </label>
                             </fieldset>
@@ -227,29 +227,29 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
 
                         {preview?.validRows > 0 && (
                             <>
-                                <dl className="roster-summary">
+                                <dl className="members-list-summary">
                                     <div><dt>Will be approved now</dt><dd>{preview.willApprove.length}</dd></div>
                                     <div><dt>New on the list</dt><dd>{preview.added}</dd></div>
                                     <div><dt>Last name updated</dt><dd>{preview.updated}</dd></div>
                                     {mode === "replace" && <div><dt>Removed from the list</dt><dd>{preview.removed}</dd></div>}
                                     <div><dt>Not registered yet</dt><dd>{preview.notRegisteredYet}</dd></div>
                                     <div><dt>Pending, not on the list</dt><dd>{preview.pendingNotListed}</dd></div>
-                                    <div><dt>List size after saving</dt><dd>{preview.rosterSizeAfter}</dd></div>
+                                    <div><dt>List size after saving</dt><dd>{preview.listSizeAfter}</dd></div>
                                 </dl>
                                 <p className="card__sub">
                                     Students who register later are approved automatically if they&apos;re on the members list.
                                     {mode === "replace" && preview.removed > 0 && " Removing someone from the list doesn't undo an approval already given."}
                                 </p>
-                                <RosterList title="Will be approved now" items={preview.willApprove}
+                                <MembersListGroup title="Will be approved now" items={preview.willApprove}
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber}</span></>} />
-                                <RosterList title="Name doesn't match — stays pending for manual review" items={preview.nameMismatch}
-                                    render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · list says &quot;{u.rosterLastName}&quot;</span></>} />
-                                <RosterList title="Registered with a personal email — stays pending for manual review" items={preview.personalEmail}
+                                <MembersListGroup title="Name doesn't match — stays pending for manual review" items={preview.nameMismatch}
+                                    render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · list says &quot;{u.listLastName}&quot;</span></>} />
+                                <MembersListGroup title="Registered with a personal email — stays pending for manual review" items={preview.personalEmail}
                                     render={(u) => <><strong>{u.name}</strong><span>{u.studentNumber} · confirm it&apos;s really this student before approving</span></>} />
                             </>
                         )}
                         {preview?.invalidCount > 0 && (
-                            <RosterList
+                            <MembersListGroup
                                 title={`Rows skipped (${preview.invalidCount})`}
                                 items={preview.invalid}
                                 render={(r) => <><strong>Row {r.row}: {r.studentNumber || "(no student number)"} {r.lastName}</strong><span>{r.reason}</span></>}
@@ -284,14 +284,14 @@ function RosterPreviewModal({ rows, source, allowReplace, onSaved, onClose }) {
     );
 }
 
-function RosterList({ title, items, render }) {
+function MembersListGroup({ title, items, render }) {
     if (!items?.length) return null;
     return (
-        <section className="roster-list">
+        <section className="members-list-entries">
             <h3>{title}</h3>
             <ul className="card-picker__list">
                 {items.map((item, i) => (
-                    <li key={item.userId ?? `${item.row}-${i}`} className="roster-list__item">{render(item)}</li>
+                    <li key={item.userId ?? `${item.row}-${i}`} className="members-list-entries__item">{render(item)}</li>
                 ))}
             </ul>
         </section>
@@ -311,11 +311,11 @@ function AddStudentModal({ onNext, onClose }) {
     return (
         <ModalPortal>
             <div className="member-modal" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-                <div className="member-modal__panel member-modal__panel--approval" role="dialog" aria-modal="true" aria-labelledby="roster-add-title">
+                <div className="member-modal__panel member-modal__panel--approval" role="dialog" aria-modal="true" aria-labelledby="members-list-add-title">
                     <div className="member-modal__header">
                         <div>
                             <p className="member-modal__eyebrow">Members List</p>
-                            <h2 id="roster-add-title" className="member-modal__title">Add Student</h2>
+                            <h2 id="members-list-add-title" className="member-modal__title">Add Student</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} aria-label="Close">×</button>
                     </div>
@@ -343,7 +343,7 @@ function AddStudentModal({ onNext, onClose }) {
 }
 
 // ── View / remove ────────────────────────────────────────────────────────────
-function RosterListModal({ entries, onRemoved, onClose }) {
+function MembersListModal({ entries, onRemoved, onClose }) {
     const [search, setSearch] = useState("");
     const [removing, setRemoving] = useState(null);
     const [error, setError] = useState("");
@@ -359,7 +359,7 @@ function RosterListModal({ entries, onRemoved, onClose }) {
         setRemoving(studentNumber);
         setError("");
         try {
-            await removeMemberRosterEntry(studentNumber);
+            await removeMembersListEntry(studentNumber);
             onRemoved(studentNumber);
         } catch (err) {
             setError(err.response?.data?.message ?? "Couldn't remove that student.");
@@ -371,11 +371,11 @@ function RosterListModal({ entries, onRemoved, onClose }) {
     return (
         <ModalPortal>
             <div className="member-modal" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-                <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="roster-list-title">
+                <div className="member-modal__panel member-modal__panel--filter" role="dialog" aria-modal="true" aria-labelledby="members-list-entries-title">
                     <div className="member-modal__header">
                         <div>
                             <p className="member-modal__eyebrow">Members List</p>
-                            <h2 id="roster-list-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the members list</h2>
+                            <h2 id="members-list-entries-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the members list</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} aria-label="Close">×</button>
                     </div>
@@ -387,9 +387,9 @@ function RosterListModal({ entries, onRemoved, onClose }) {
                         {error && <p className="members-download-status members-download-status--error" role="alert">{error}</p>}
                         <ul className="card-picker__list">
                             {visible.map((e) => (
-                                <li key={e.studentNumber} className="roster-list__item roster-list__item--row">
+                                <li key={e.studentNumber} className="members-list-entries__item members-list-entries__item--row">
                                     <span><strong>{e.lastName}</strong> · {e.studentNumber}</span>
-                                    <span className="roster-list__status">{ACCOUNT_STATUS_LABELS[e.accountStatus] ?? "Not registered"}</span>
+                                    <span className="members-list-entries__status">{ACCOUNT_STATUS_LABELS[e.accountStatus] ?? "Not registered"}</span>
                                     <ConfirmActionButton
                                         className="btn btn--outline btn--sm"
                                         busy={removing === e.studentNumber}

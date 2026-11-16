@@ -12,6 +12,7 @@ const FINANCIAL_LEDGER_ACTIONS = new Set([
   'CATEGORY_UPDATED',
   'CATEGORY_ARCHIVED',
   'DISBURSEMENT_CREATED',
+  'DISBURSEMENT_TITLE_UPDATED',
   'DISBURSEMENT_ARCHIVED',
   'RETURN_FUND_CREATED',
   'RETURN_FUND_UPDATED',
@@ -220,7 +221,13 @@ const CHECKS = {
       reasons.push(`Disbursement ${snap.reference} purpose was changed from "${snap.purposeOfFund}" to "${record.purposeOfFund}" directly in the database.`)
     }
 
-    if (snap.titleOfActivities && snap.titleOfActivities !== record.titleOfActivities) {
+    // A title renamed to match its event is checked by that rename's own
+    // entry (DISBURSEMENT_TITLE_UPDATED) instead.
+    const renamed = await prisma.auditLog.findFirst({
+      where:  { action: 'DISBURSEMENT_TITLE_UPDATED', details: { contains: `"disbursementId":${record.id},` } },
+      select: { id: true }
+    })
+    if (!renamed && snap.titleOfActivities && snap.titleOfActivities !== record.titleOfActivities) {
       reasons.push(`Disbursement ${snap.reference} title was changed from "${snap.titleOfActivities}" to "${record.titleOfActivities}" directly in the database.`)
     }
 
@@ -424,6 +431,33 @@ const CHECKS = {
       return {
         ok: false,
         reasons: [`${missing} fund categor${missing === 1 ? 'y' : 'ies'} (${missingNames.join(', ')}) ${missing === 1 ? 'was' : 'were'} deleted directly from the database.`]
+      }
+    }
+    return { ok: true }
+  },
+
+  async DISBURSEMENT_TITLE_UPDATED(details, log) {
+    if (!details?.disbursementId) return { ok: true, skipped: true }
+
+    // A deleted disbursement is reported by its DISBURSEMENT_CREATED entry.
+    const record = await prisma.disbursement.findUnique({ where: { id: details.disbursementId } })
+    if (!record) return { ok: true, skipped: true }
+
+    // Only the newest rename says what the title should be now.
+    const laterRename = await prisma.auditLog.findFirst({
+      where: {
+        action:  'DISBURSEMENT_TITLE_UPDATED',
+        id:      { gt: log.id },
+        details: { contains: `"disbursementId":${details.disbursementId},` },
+      },
+      select: { id: true }
+    })
+    if (laterRename) return { ok: true }
+
+    if (record.titleOfActivities !== details.to) {
+      return {
+        ok: false,
+        reasons: [`Disbursement ${record.reference} title was changed from "${details.to}" to "${record.titleOfActivities}" directly in the database.`]
       }
     }
     return { ok: true }

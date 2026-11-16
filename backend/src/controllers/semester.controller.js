@@ -168,9 +168,9 @@ const advanceSemester = async (req, res) => {
       // 1. Close the current semester, freezing who was an active member right
       // now. This has to happen before steps 5–6, which promote, graduate and
       // (de)activate members: Member.status keeps no history, so this snapshot
-      // is the only way the Archive can later report the semester's roster.
+      // is the only way the Archive can later report the semester's active members.
       // Same definition of "active member" as getActiveSemesterStats.
-      const closingRoster = await tx.member.findMany({
+      const closingMembers = await tx.member.findMany({
         where: { status: 'ACTIVE', user: { status: 'APPROVED', ...MEMBERSHIP_USER_FILTER } },
         select: { id: true },
         orderBy: { id: 'asc' }
@@ -180,7 +180,7 @@ const advanceSemester = async (req, res) => {
         data: {
           isActive: false,
           endingBalance: carriedBalance.toFixed(2),
-          activeMemberIds: closingRoster.map((m) => m.id)
+          activeMemberIds: closingMembers.map((m) => m.id)
         }
       })
 

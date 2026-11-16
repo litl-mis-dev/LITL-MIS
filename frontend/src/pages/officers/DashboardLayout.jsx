@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/officers/Sidebar.jsx";
 import Topbar from "../../components/officers/Topbar.jsx";
+import PushBanner from "../../components/notifications/PushBanner.jsx";
 import "../../assets/styles/officers/Dashboard.css";
 
 const pagePaths = {
@@ -79,6 +80,7 @@ export default function DashboardLayout() {
             <div className={`dash ${isSidebarCollapsed ? "dash--collapsed" : ""}`}>
                 {/* Pages show immediately (with a short fade-in, see App.css);
                     each page shows its own loading state while its data loads. */}
+                <PushBanner />
                 <Outlet context={{ onNavigate: handleNavigate }} />
             </div>
         </>

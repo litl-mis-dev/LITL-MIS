@@ -9,6 +9,21 @@ export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
+// What to tell someone who can't turn notifications on with one click.
+export const HOME_SCREEN_HINT =
+  'On iPhone or iPad, tap Share, then Add to Home Screen. Open LITL MIS from your Home Screen to turn on notifications.'
+export const BLOCKED_HINT =
+  "Notifications are blocked for this site. To get them, allow notifications for this site in your browser's settings."
+
+// iPhones and iPads only offer push to a site opened from the Home Screen:
+// in a Safari tab there is no PushManager at all, so nothing can be turned on.
+export function needsHomeScreenForPush() {
+  const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPadOS reports a Mac
+  const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
+  return isAppleMobile && !isStandalone
+}
+
 // 'unsupported' | 'default' (never asked) | 'granted' | 'denied'
 export function getPushPermission() {
   return isPushSupported() ? Notification.permission : 'unsupported'
