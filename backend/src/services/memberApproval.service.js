@@ -6,10 +6,10 @@ const { notifyRegistrationApproved } = require('./notification.service')
 const { sendRegistrationStatusEmail } = require('../utils/email')
 
 // Approves one registration that is waiting for officer approval. Used by the
-// officers' Approve button and by the member roster, so both give the member
+// officers' Approve button and by the Members List, so both give the member
 // exactly the same result: approved account, notification, email and an
 // activity log entry. `actorId` is null when the system approves from the
-// roster at registration time.
+// Members List at registration time.
 //
 // Returns { approved: true, memberName } — or { approved: false } when the
 // account isn't (or is no longer) pending, e.g. another officer just acted.
@@ -33,7 +33,7 @@ async function approvePendingUser(userId, { actorId = null, via = 'MANUAL' } = {
     actorId,
     targetUserId: userId,
     action: AUDIT_ACTIONS.USER_APPROVED,
-    details: via === 'ROSTER' ? { memberName, via } : { memberName },
+    details: via === 'MEMBERS_LIST' ? { memberName, via } : { memberName },
   })
 
   await notifyRegistrationApproved(userId, memberName)

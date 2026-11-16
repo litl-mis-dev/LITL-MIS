@@ -1,4 +1,4 @@
-// Member roster (automatic approval by student number + last name),
+// Members List (automatic approval by student number + last name),
 // payment reminders sent only to the selected members, payment reminders
 // pinned with the Important Announcements for 7 days, and adding new fund
 // categories from Edit Categories. Runs against an in-memory fake Prisma —
@@ -15,7 +15,7 @@ const stub = (rel, exports) => { require.cache[require.resolve(path.join(backend
 let db
 let nextId
 const reset = () => {
-  db = { users: [], members: [], roster: [], notifications: [], announcements: [], semesters: [], categories: [], payments: [] }
+  db = { users: [], members: [], membersList: [], notifications: [], announcements: [], semesters: [], categories: [], payments: [] }
   nextId = 1
 }
 const cond = (value, c) => {
@@ -53,9 +53,9 @@ const fakePrisma = {
     findFirst: async ({ where: { member, ...where } }) => db.payments.find((p) => matches(p, where)
       && (!member || db.members.find((m) => m.id === p.memberId)?.userId === member.userId)) ?? null,
   },
-  memberRoster: {
-    findMany: async () => db.roster.map((e) => ({ ...e })),
-    findUnique: async ({ where }) => db.roster.find((e) => e.studentNumber === where.studentNumber) ?? null,
+  membersListEntry: {
+    findMany: async () => db.membersList.map((e) => ({ ...e })),
+    findUnique: async ({ where }) => db.membersList.find((e) => e.studentNumber === where.studentNumber) ?? null,
     deleteMany: ({ where }) => ({ op: 'deleteMany', where }),
     createMany: ({ data }) => ({ op: 'createMany', data }),
     update: ({ where, data }) => ({ op: 'update', where, data }),
@@ -76,9 +76,9 @@ const fakePrisma = {
   },
   $transaction: async (ops) => {
     for (const op of ops) {
-      if (op.op === 'deleteMany') db.roster = db.roster.filter((e) => !op.where.studentNumber.in.includes(e.studentNumber))
-      if (op.op === 'createMany') op.data.forEach((e) => db.roster.push({ id: nextId++, ...e }))
-      if (op.op === 'update') Object.assign(db.roster.find((e) => e.studentNumber === op.where.studentNumber), op.data)
+      if (op.op === 'deleteMany') db.membersList = db.membersList.filter((e) => !op.where.studentNumber.in.includes(e.studentNumber))
+      if (op.op === 'createMany') op.data.forEach((e) => db.membersList.push({ id: nextId++, ...e }))
+      if (op.op === 'update') Object.assign(db.membersList.find((e) => e.studentNumber === op.where.studentNumber), op.data)
       if (op.op === 'updateCategory') Object.assign(db.categories.find((c) => c.id === op.where.id), op.data)
       if (op.op === 'createCategory') db.categories.push({ id: nextId++, isTurnoverFund: false, isArchived: false, ...op.data })
     }
@@ -115,8 +115,8 @@ stub('src/services/membershipPayment.service.js', {
   getUnpaidSemesters: async () => [], buildAllocation: () => [], assertNotAdviser: () => {},
 })
 
-const roster = require(path.join(backend, 'src/services/memberRoster.service'))
-const rosterCtrl = require(path.join(backend, 'src/controllers/memberRoster.controller'))
+const membersList = require(path.join(backend, 'src/services/membersList.service'))
+const membersListCtrl = require(path.join(backend, 'src/controllers/membersList.controller'))
 const paymentCtrl = require(path.join(backend, 'src/controllers/payment.controller'))
 const announcementCtrl = require(path.join(backend, 'src/controllers/announcement.controller'))
 const categoryCtrl = require(path.join(backend, 'src/controllers/fundCategory.controller'))
@@ -138,18 +138,18 @@ const addUser = ({ studentNumber, lastName, firstName = 'Ana', status = 'PENDING
   return user
 }
 
-// ── Roster matching ──────────────────────────────────────────────────────────
+// ── Members List matching ──────────────────────────────────────────────────────
 test('last names match regardless of case, spacing, accents and punctuation', () => {
-  const same = (a, b) => assert.equal(roster.normalizeLastName(a), roster.normalizeLastName(b), `${a} / ${b}`)
+  const same = (a, b) => assert.equal(membersList.normalizeLastName(a), membersList.normalizeLastName(b), `${a} / ${b}`)
   same('Dela Cruz', 'dela cruz')
   same('De La Cruz', 'Dela Cruz')
   same('Peña', 'Pena')
   same("O'Neil", 'ONeil')
-  assert.notEqual(roster.normalizeLastName('Santos'), roster.normalizeLastName('Reyes'))
+  assert.notEqual(membersList.normalizeLastName('Santos'), membersList.normalizeLastName('Reyes'))
 })
 
-test('roster rows are validated and bad rows explained', () => {
-  const { entries, invalid } = roster.validateRosterRows([
+test('Members List rows are validated and bad rows explained', () => {
+  const { entries, invalid } = membersList.validateMembersListRows([
     { row: 2, studentNumber: '2023-100-123', lastName: 'Dela Cruz' },
     { row: 3, studentNumber: '2023-100-123', lastName: 'dela cruz' }, // same student again: fine
     { row: 4, studentNumber: '2023-100-123', lastName: 'Santos' },    // conflicting duplicate
@@ -161,7 +161,7 @@ test('roster rows are validated and bad rows explained', () => {
   assert.deepEqual(invalid.map((r) => r.row), [4, 5, 6])
 })
 
-test('saving a roster approves matching pending members and leaves mismatches pending', async () => {
+test('saving the Members List approves matching pending members and leaves mismatches pending', async () => {
   reset(); clearLogs()
   const match = addUser({ studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
   const mismatch = addUser({ studentNumber: '2023-100-2', lastName: 'Santos' })
@@ -172,90 +172,90 @@ test('saving a roster approves matching pending members and leaves mismatches pe
     { row: 3, studentNumber: '2023-100-2', lastName: 'Garcia' },
     { row: 4, studentNumber: '2023-100-9', lastName: 'Lim' }, // not registered yet
   ]
-  const preview = await call(rosterCtrl.previewRoster, { body: { rows, mode: 'add' } })
+  const preview = await call(membersListCtrl.previewMembersList, { body: { rows, mode: 'add' } })
   assert.equal(preview.statusCode, 200)
   assert.deepEqual(preview.body.willApprove.map((u) => u.userId), [match.id])
   assert.deepEqual(preview.body.nameMismatch.map((u) => u.userId), [mismatch.id])
   assert.equal(preview.body.notRegisteredYet, 1)
   assert.equal(preview.body.pendingNotListed, 1)
-  assert.equal(db.roster.length, 0, 'preview changes nothing')
+  assert.equal(db.membersList.length, 0, 'preview changes nothing')
 
-  const saved = await call(rosterCtrl.applyRoster, { body: { rows, mode: 'add' } })
+  const saved = await call(membersListCtrl.applyMembersList, { body: { rows, mode: 'add' } })
   assert.equal(saved.statusCode, 200)
   assert.equal(saved.body.approvedCount, 1)
   assert.equal(db.users.find((u) => u.id === match.id).status, 'APPROVED')
   assert.equal(db.users.find((u) => u.id === mismatch.id).status, 'PENDING_OFFICER_APPROVAL')
   assert.equal(db.users.find((u) => u.id === unlisted.id).status, 'PENDING_OFFICER_APPROVAL')
-  assert.equal(db.roster.length, 3)
+  assert.equal(db.membersList.length, 3)
   assert.deepEqual(approvalNotices, [match.id])
   assert.deepEqual(emails, [{ kind: 'approved', to: match.email }])
   const approvedLog = auditLogs.find((l) => l.action === 'USER_APPROVED')
-  assert.equal(approvedLog.details.via, 'ROSTER')
-  const rosterLog = auditLogs.find((l) => l.action === 'MEMBER_ROSTER_UPDATED')
-  assert.equal(rosterLog.details.added, 3)
-  assert.equal(JSON.stringify(rosterLog.details).includes('2023-100'), false, 'no student numbers in the activity log')
+  assert.equal(approvedLog.details.via, 'MEMBERS_LIST')
+  const listLog = auditLogs.find((l) => l.action === 'MEMBERS_LIST_UPDATED')
+  assert.equal(listLog.details.added, 3)
+  assert.equal(JSON.stringify(listLog.details).includes('2023-100'), false, 'no student numbers in the activity log')
 })
 
-test('adding to a roster updates names; replacing removes students not on the new list', async () => {
+test('adding to the Members List updates names; replacing removes students not on the new list', async () => {
   reset(); clearLogs()
-  db.roster.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Santos' }, { id: 91, studentNumber: '2023-100-2', lastName: 'Reyes' })
+  db.membersList.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Santos' }, { id: 91, studentNumber: '2023-100-2', lastName: 'Reyes' })
   const pending = addUser({ studentNumber: '2023-100-1', lastName: 'Garcia' })
 
-  const fix = await call(rosterCtrl.applyRoster, { body: { rows: [{ row: 1, studentNumber: '2023-100-1', lastName: 'Garcia' }], mode: 'add' } })
+  const fix = await call(membersListCtrl.applyMembersList, { body: { rows: [{ row: 1, studentNumber: '2023-100-1', lastName: 'Garcia' }], mode: 'add' } })
   assert.equal(fix.body.updated, 1)
   assert.equal(fix.body.approvedCount, 1, 'corrected name approves the waiting member')
   assert.equal(db.users.find((u) => u.id === pending.id).status, 'APPROVED')
-  assert.equal(db.roster.length, 2)
+  assert.equal(db.membersList.length, 2)
 
-  const replace = await call(rosterCtrl.applyRoster, { body: { rows: [{ row: 1, studentNumber: '2024-100-5', lastName: 'Lim' }], mode: 'replace' } })
+  const replace = await call(membersListCtrl.applyMembersList, { body: { rows: [{ row: 1, studentNumber: '2024-100-5', lastName: 'Lim' }], mode: 'replace' } })
   assert.equal(replace.body.removed, 2)
-  assert.deepEqual(db.roster.map((e) => e.studentNumber), ['2024-100-5'])
+  assert.deepEqual(db.membersList.map((e) => e.studentNumber), ['2024-100-5'])
   assert.equal(db.users.find((u) => u.id === pending.id).status, 'APPROVED', 'removal never undoes an approval')
 })
 
-test('a registrant on the roster is approved right after email verification', async () => {
+test('a registrant on the Members List is approved right after email verification', async () => {
   reset(); clearLogs()
-  db.roster.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
+  db.membersList.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
   const listed = addUser({ studentNumber: '2023-100-1', lastName: 'DELA CRUZ' })
   const wrongName = addUser({ studentNumber: '2023-100-1x', lastName: 'Dela Cruz' })
   const adviser = addUser({ studentNumber: '2023-100-1', lastName: 'Dela Cruz', role: 'ADVISER_DEPT_CHAIR' })
 
-  assert.equal(await roster.approveFromRosterIfListed(listed.id), true)
+  assert.equal(await membersList.approveIfOnMembersList(listed.id), true)
   assert.equal(db.users.find((u) => u.id === listed.id).status, 'APPROVED')
-  assert.equal(await roster.approveFromRosterIfListed(listed.id), false, 'not approved twice')
-  assert.equal(await roster.approveFromRosterIfListed(wrongName.id), false)
-  assert.equal(await roster.approveFromRosterIfListed(adviser.id), false)
+  assert.equal(await membersList.approveIfOnMembersList(listed.id), false, 'not approved twice')
+  assert.equal(await membersList.approveIfOnMembersList(wrongName.id), false)
+  assert.equal(await membersList.approveIfOnMembersList(adviser.id), false)
   assert.equal(auditLogs.filter((l) => l.action === 'USER_APPROVED').length, 1)
   assert.equal(auditLogs[0].actorId, null)
 })
 
-test('a personal-email registration is never approved automatically from the roster', async () => {
+test('a personal-email registration is never approved automatically from the Members List', async () => {
   reset(); clearLogs()
-  db.roster.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
+  db.membersList.push({ id: 90, studentNumber: '2023-100-1', lastName: 'Dela Cruz' })
   const impostor = addUser({ studentNumber: '2023-100-1', lastName: 'Dela Cruz', emailType: 'PERSONAL' })
 
   // At registration time
-  assert.equal(await roster.approveFromRosterIfListed(impostor.id), false)
+  assert.equal(await membersList.approveIfOnMembersList(impostor.id), false)
   assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
 
-  // When an officer saves the roster: listed for manual review, not approved
+  // When an officer saves the Members List: listed for manual review, not approved
   const rows = [{ row: 1, studentNumber: '2023-100-1', lastName: 'Dela Cruz' }]
-  const preview = await call(rosterCtrl.previewRoster, { body: { rows, mode: 'add' } })
+  const preview = await call(membersListCtrl.previewMembersList, { body: { rows, mode: 'add' } })
   assert.deepEqual(preview.body.willApprove, [])
   assert.deepEqual(preview.body.personalEmail.map((u) => u.userId), [impostor.id])
-  const saved = await call(rosterCtrl.applyRoster, { body: { rows, mode: 'add' } })
+  const saved = await call(membersListCtrl.applyMembersList, { body: { rows, mode: 'add' } })
   assert.equal(saved.body.approvedCount, 0)
   assert.equal(db.users.find((u) => u.id === impostor.id).status, 'PENDING_OFFICER_APPROVAL')
   assert.equal(emails.length, 0)
 })
 
-test('roster requests are rejected when empty, too large or in an unknown mode', async () => {
+test('Members List requests are rejected when empty, too large or in an unknown mode', async () => {
   reset()
-  assert.equal((await call(rosterCtrl.applyRoster, { body: { rows: [], mode: 'add' } })).statusCode, 400)
-  assert.equal((await call(rosterCtrl.applyRoster, { body: { rows: [{ studentNumber: '2023-100-1', lastName: 'A' }], mode: 'wipe' } })).statusCode, 400)
-  const tooMany = Array.from({ length: roster.MAX_ROSTER_ROWS + 1 }, (_, i) => ({ studentNumber: `2023-100-${i}`, lastName: 'A' }))
-  assert.equal((await call(rosterCtrl.applyRoster, { body: { rows: tooMany, mode: 'add' } })).statusCode, 400)
-  assert.equal((await call(rosterCtrl.applyRoster, { body: undefined })).statusCode, 400)
+  assert.equal((await call(membersListCtrl.applyMembersList, { body: { rows: [], mode: 'add' } })).statusCode, 400)
+  assert.equal((await call(membersListCtrl.applyMembersList, { body: { rows: [{ studentNumber: '2023-100-1', lastName: 'A' }], mode: 'wipe' } })).statusCode, 400)
+  const tooMany = Array.from({ length: membersList.MAX_MEMBERS_LIST_ROWS + 1 }, (_, i) => ({ studentNumber: `2023-100-${i}`, lastName: 'A' }))
+  assert.equal((await call(membersListCtrl.applyMembersList, { body: { rows: tooMany, mode: 'add' } })).statusCode, 400)
+  assert.equal((await call(membersListCtrl.applyMembersList, { body: undefined })).statusCode, 400)
 })
 
 // ── Payment reminders ────────────────────────────────────────────────────────

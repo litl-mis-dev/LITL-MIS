@@ -3,7 +3,7 @@ const AUDIT_ACTIONS = {
   EMAIL_VERIFIED:    'EMAIL_VERIFIED',
   USER_APPROVED:     'USER_APPROVED',
   USER_REJECTED:     'USER_REJECTED',
-  MEMBER_ROSTER_UPDATED: 'MEMBER_ROSTER_UPDATED',
+  MEMBERS_LIST_UPDATED: 'MEMBERS_LIST_UPDATED',
 
   LOGIN_SUCCESS:     'LOGIN_SUCCESS',
   LOGIN_FAILED:      'LOGIN_FAILED',
@@ -87,7 +87,7 @@ const AUDIT_ACTION_LABELS = {
   EMAIL_VERIFIED:    'Email Verified',
   USER_APPROVED:     'Member Approved',
   USER_REJECTED:     'Member Rejected',
-  MEMBER_ROSTER_UPDATED: 'Member Roster Updated',
+  MEMBERS_LIST_UPDATED: 'Members List Updated',
 
   LOGIN_SUCCESS:     'Logged In',
   LOGIN_FAILED:      'Failed Login Attempt',
@@ -169,7 +169,7 @@ const AUDIT_ACTION_MODULE = {
   EMAIL_VERIFIED:    'Registration',
   USER_APPROVED:     'Members',
   USER_REJECTED:     'Members',
-  MEMBER_ROSTER_UPDATED: 'Members',
+  MEMBERS_LIST_UPDATED: 'Members',
 
   LOGIN_SUCCESS:     'Authentication',
   LOGIN_FAILED:      'Authentication',

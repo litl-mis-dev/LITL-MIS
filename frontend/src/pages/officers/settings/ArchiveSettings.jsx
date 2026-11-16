@@ -120,7 +120,7 @@ export default function ArchiveSettings() {
     const members = data?.members;
     const archivedTotal = counts ? counts.disbursements + counts.returnFunds : null;
     const failedChecks = data ? data.reconciliation.checks.filter((check) => !check.skipped && !check.ok) : [];
-    const rosterNote = !members ? "" : members.source === "live" ? "current roster" : members.rosterAvailable ? "at semester close" : "not recorded";
+    const membersNote = !members ? "" : members.source === "live" ? "current members" : members.memberListAvailable ? "at semester close" : "not recorded";
     const figures = data ? [
         ["Beginning Balance", peso(summary.beginningBalance), "carried over"],
         ["Ending Balance", peso(summary.endingBalance), ""],
@@ -128,9 +128,9 @@ export default function ArchiveSettings() {
         ["Total Membership Collections", peso(summary.totalMembershipCollections), `${counts.payments} payments`],
         ["Total Disbursements", peso(summary.totalDisbursements), `${counts.disbursements} records`],
         ["Total Returned Funds", peso(summary.totalReturnedFunds), `${counts.returnFunds} records`],
-        ["Total Active Members", count(members.totalActive), rosterNote],
+        ["Total Active Members", count(members.totalActive), membersNote],
         ["Total Paid Members", count(members.totalPaid), "paid this semester's fee"],
-        ["Total Unpaid Members", count(members.totalUnpaid), rosterNote],
+        ["Total Unpaid Members", count(members.totalUnpaid), membersNote],
         ["Total Settled Members", count(members.totalSettled), "paid earlier semesters' fees"],
     ] : [];
 

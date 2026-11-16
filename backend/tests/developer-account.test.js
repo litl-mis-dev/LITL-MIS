@@ -54,8 +54,8 @@ const fakePrisma = {
       return { count: rows.length }
     },
   },
-  // Nobody is on the member roster in these tests.
-  memberRoster: { findUnique: async () => null },
+  // Nobody is on the Members List in these tests.
+  membersListEntry: { findUnique: async () => null },
   member: {
     findUnique: async ({ where }) => {
       const m = db.members.find((x) => x.id === where.id)

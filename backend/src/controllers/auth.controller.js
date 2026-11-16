@@ -17,7 +17,7 @@ const {
   maskEmail
 } = require('../utils/pendingRegistrationCookie')
 const { syncMemberApprovalNotifications } = require('../services/notification.service')
-const { approveFromRosterIfListed } = require('../services/memberRoster.service')
+const { approveIfOnMembersList } = require('../services/membersList.service')
 const { hasAccess } = require('../services/permissions.service')
 const { emitToOfficers, disconnectUser } = require('../realtime/socket')
 
@@ -642,9 +642,9 @@ const verifyEmailOtp = async (req, res) => {
       targetUserId: newUser.id,
       details: rejectedUserId ? { reapplied: true } : undefined
     })
-    // On the officers' member roster with a matching last name: approved now.
-    const autoApproved = await approveFromRosterIfListed(newUser.id).catch((err) => {
-      logError('Roster auto-approval failed', err, { userId: newUser.id })
+    // On the officers' Members List with a matching last name: approved now.
+    const autoApproved = await approveIfOnMembersList(newUser.id).catch((err) => {
+      logError('Members List auto-approval failed', err, { userId: newUser.id })
       return false
     })
     await syncMemberApprovalNotifications()

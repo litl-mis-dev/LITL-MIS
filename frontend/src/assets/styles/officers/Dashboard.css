@@ -5962,90 +5962,90 @@ button {
   }
 }
 
-/* ── Member roster (members-list/MemberRosterPanel.jsx) ───────────────────── */
-.roster-card {
+/* ── Members List (members-list/MembersListPanel.jsx) ───────────────────── */
+.members-list-card {
   margin-bottom: 16px;
 }
 
 /* Upload / Add / View stay on one line beside the title. */
-.roster-card .roster-card__actions {
+.members-list-card .members-list-card__actions {
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
 
-.roster-card__actions .btn {
+.members-list-card__actions .btn {
   white-space: nowrap;
 }
 
-.roster-card__note {
+.members-list-card__note {
   margin: -8px 0 0;
   color: #64748b;
   font-size: 13px;
   line-height: 1.5;
 }
 
-.roster-card__note strong {
+.members-list-card__note strong {
   color: #334155;
   font-weight: 700;
 }
 
 /* Too narrow for one line: Upload on top, Add and View side by side. */
 @media (max-width: 720px) {
-  .roster-card .card__header {
+  .members-list-card .card__header {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .roster-card .roster-card__actions {
+  .members-list-card .members-list-card__actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
-  .roster-card__actions .btn:first-of-type {
+  .members-list-card__actions .btn:first-of-type {
     grid-column: 1 / -1;
   }
 }
 
-.roster-summary {
+.members-list-summary {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 10px;
   margin: 0;
 }
 
-.roster-summary div {
+.members-list-summary div {
   padding: 10px 12px;
   border: 1px solid #f1e8d9;
   border-radius: 8px;
   background: #fffdf8;
 }
 
-.roster-summary dt {
+.members-list-summary dt {
   font-size: 12px;
   font-weight: 700;
   color: #64748b;
 }
 
-.roster-summary dd {
+.members-list-summary dd {
   margin: 4px 0 0;
   font-size: 20px;
   font-weight: 800;
   color: #111827;
 }
 
-.roster-list h3 {
+.members-list-entries h3 {
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 800;
   color: #334155;
 }
 
-.roster-list .card-picker__list {
+.members-list-entries .card-picker__list {
   max-height: 220px;
 }
 
-.roster-list__item {
+.members-list-entries__item {
   display: grid;
   gap: 2px;
   padding: 8px 12px;
@@ -6053,17 +6053,17 @@ button {
   color: #475569;
 }
 
-.roster-list__item strong {
+.members-list-entries__item strong {
   color: #111827;
 }
 
-.roster-list__item--row {
+.members-list-entries__item--row {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
 }
 
-.roster-list__status {
+.members-list-entries__status {
   font-size: 12px;
   font-weight: 700;
   color: #64748b;
@@ -6071,11 +6071,11 @@ button {
 }
 
 @media (max-width: 640px) {
-  .roster-list__item--row {
+  .members-list-entries__item--row {
     grid-template-columns: 1fr auto;
   }
 
-  .roster-list__status {
+  .members-list-entries__status {
     grid-column: 1;
   }
 }
