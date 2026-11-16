@@ -40,7 +40,7 @@ export default function MembersListPanel({ onApprovalsChanged }) {
             setEntries(data.entries ?? []);
             setLoadError("");
         } catch {
-            setLoadError("Couldn't load the members list.");
+            setLoadError("Couldn't load the Members List.");
         }
     }, []);
 
@@ -48,7 +48,7 @@ export default function MembersListPanel({ onApprovalsChanged }) {
         let active = true;
         getMembersList()
             .then((data) => { if (active) setEntries(data.entries ?? []); })
-            .catch(() => { if (active) setLoadError("Couldn't load the members list."); });
+            .catch(() => { if (active) setLoadError("Couldn't load the Members List."); });
         return () => { active = false; };
     }, []);
 
@@ -92,8 +92,8 @@ export default function MembersListPanel({ onApprovalsChanged }) {
                     <h2 className="card__title">Members List</h2>
                     <p className="card__sub">
                         {loadError || (entries === null
-                            ? "Loading members list…"
-                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the members list.`)}
+                            ? "Loading Members List…"
+                            : `${entries.length} student${entries.length === 1 ? "" : "s"} on the Members List.`)}
                     </p>
                 </div>
                 <div className="member-list-actions members-list-card__actions">
@@ -145,7 +145,7 @@ export default function MembersListPanel({ onApprovalsChanged }) {
                     entries={entries ?? []}
                     onRemoved={(studentNumber) => {
                         setEntries((list) => (list ?? []).filter((e) => e.studentNumber !== studentNumber));
-                        setMessage(`${studentNumber} was removed from the members list. Members already approved stay approved.`);
+                        setMessage(`${studentNumber} was removed from the Members List. Members already approved stay approved.`);
                     }}
                     onClose={() => setIsListOpen(false)}
                 />
@@ -186,7 +186,7 @@ function MembersListPreviewModal({ rows, source, allowReplace, onSaved, onClose 
         try {
             onSaved(await saveMembersList(rows, mode));
         } catch (err) {
-            setError(err.response?.data?.message ?? "Couldn't save the members list. Please try again.");
+            setError(err.response?.data?.message ?? "Couldn't save the Members List. Please try again.");
             setIsSaving(false);
         }
     }
@@ -217,7 +217,7 @@ function MembersListPreviewModal({ rows, source, allowReplace, onSaved, onClose 
                                 </label>
                                 <label className="feature-checklist__item">
                                     <input type="radio" name="members-list-mode" checked={mode === "replace"} onChange={() => changeMode("replace")} disabled={isSaving} />
-                                    <span>Replace the list: the members list becomes exactly this file</span>
+                                    <span>Replace the list: the Members List becomes exactly this file</span>
                                 </label>
                             </fieldset>
                         )}
@@ -237,7 +237,7 @@ function MembersListPreviewModal({ rows, source, allowReplace, onSaved, onClose 
                                     <div><dt>List size after saving</dt><dd>{preview.listSizeAfter}</dd></div>
                                 </dl>
                                 <p className="card__sub">
-                                    Students who register later are approved automatically if they&apos;re on the members list.
+                                    Students who register later are approved automatically if they&apos;re on the Members List.
                                     {mode === "replace" && preview.removed > 0 && " Removing someone from the list doesn't undo an approval already given."}
                                 </p>
                                 <MembersListGroup title="Will be approved now" items={preview.willApprove}
@@ -264,8 +264,8 @@ function MembersListPreviewModal({ rows, source, allowReplace, onSaved, onClose 
                                 className="btn btn--primary"
                                 disabled={!canSave}
                                 busy={isSaving}
-                                title="Replace the members list?"
-                                message={`The members list will become exactly this list of ${preview?.validRows ?? 0} student${preview?.validRows === 1 ? "" : "s"}${preview?.removed ? `, and ${preview.removed} student${preview.removed === 1 ? "" : "s"} not on it will be removed` : ""}.`}
+                                title="Replace the Members List?"
+                                message={`The Members List will become exactly this list of ${preview?.validRows ?? 0} student${preview?.validRows === 1 ? "" : "s"}${preview?.removed ? `, and ${preview.removed} student${preview.removed === 1 ? "" : "s"} not on it will be removed` : ""}.`}
                                 confirmLabel="Replace"
                                 cancelLabel="Cancel"
                                 onConfirm={handleSave}
@@ -375,13 +375,13 @@ function MembersListModal({ entries, onRemoved, onClose }) {
                     <div className="member-modal__header">
                         <div>
                             <p className="member-modal__eyebrow">Members List</p>
-                            <h2 id="members-list-entries-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the members list</h2>
+                            <h2 id="members-list-entries-title" className="member-modal__title">{entries.length} student{entries.length === 1 ? "" : "s"} on the Members List</h2>
                         </div>
                         <button type="button" className="icon-btn icon-btn--plain" onClick={onClose} aria-label="Close">×</button>
                     </div>
                     <div className="filter-modal__body">
                         <label className="member-search card-picker__search">
-                            <span className="sr-only">Search the members list</span>
+                            <span className="sr-only">Search the Members List</span>
                             <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search student no. or last name" />
                         </label>
                         {error && <p className="members-download-status members-download-status--error" role="alert">{error}</p>}
@@ -394,7 +394,7 @@ function MembersListModal({ entries, onRemoved, onClose }) {
                                         className="btn btn--outline btn--sm"
                                         busy={removing === e.studentNumber}
                                         disabled={Boolean(removing)}
-                                        title="Remove from the members list?"
+                                        title="Remove from the Members List?"
                                         message={`${e.studentNumber} (${e.lastName}) won't be approved automatically anymore. If already approved, they stay approved.`}
                                         confirmLabel="Remove"
                                         cancelLabel="Cancel"
