@@ -1256,14 +1256,15 @@ button {
   background: #fee2e2;
 }
 
+/* Same Paid green / Unpaid red as the member pages and the QR lookup. */
 .status-badge--paid {
-  color: #047857;
-  background: #d1fae5;
+  color: #15803d;
+  background: #dcfce7;
 }
 
 .status-badge--unpaid {
-  color: #b45309;
-  background: #fef3c7;
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .dash-form {

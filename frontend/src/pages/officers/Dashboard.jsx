@@ -137,8 +137,8 @@ export default function Dashboard() {
                     />
                     <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ paddingTop: 12, fontSize: 12, fontWeight: 700 }} />
                     <Bar dataKey="collected"    fill="#ef8315" radius={[4,4,0,0]} name="Fund Collected" />
-                    <Bar dataKey="disbursement" fill="#dc2626" radius={[4,4,0,0]} name="Disbursement" />
-                    <Bar dataKey="return"       fill="#16a34a" radius={[4,4,0,0]} name="Return" />
+                    <Bar dataKey="disbursement" fill="#b91c1c" radius={[4,4,0,0]} name="Disbursement" />
+                    <Bar dataKey="return"       fill="#22c55e" radius={[4,4,0,0]} name="Return" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
