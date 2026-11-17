@@ -477,15 +477,18 @@ const archiveEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found.' })
     }
 
-    await prisma.event.update({ where: { id }, data: { isArchived: true } })
+    // A deleted event lets go of its disbursement, so another event can be
+    // funded by it. The Activity Log keeps which one it was.
+    await prisma.event.update({ where: { id }, data: { isArchived: true, disbursementId: null } })
 
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.EVENT_ARCHIVED,
-      details: { eventId: id, title: event.title }
+      details: { eventId: id, title: event.title, ...(event.disbursementId && { disbursementId: event.disbursementId }) }
     })
 
     emitToAll('event:changed', { eventId: id, action: 'archived' })
+    if (event.disbursementId) emitToOfficers('disbursement:changed', { disbursementId: event.disbursementId, action: 'updated' })
 
     return res.json({ message: 'Event archived.' })
   } catch (err) {
@@ -513,22 +516,31 @@ const recordAttendance = async (req, res) => {
     // Advisers are not members — they can't be checked in as attendees.
     const scannedLines = qrCode.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean)
     const scannedStudentNumber = scannedLines[scannedLines.length - 1]
-    if (scannedStudentNumber) {
-      const scannedUser = await prisma.user.findUnique({
-        where: { studentNumber: scannedStudentNumber },
-        select: { role: true }
-      })
-      if (scannedUser && NON_MEMBER_ROLES.includes(scannedUser.role)) {
-        return res.status(400).json({ message: 'Advisers are not members and cannot be checked in as attendees.' })
-      }
-      if (scannedUser?.role === DEVELOPER_ROLE) {
-        return res.status(400).json({ message: 'The Developer account is not a member and cannot be checked in.' })
-      }
+    const scannedUser = await prisma.user.findUnique({
+      where: { studentNumber: scannedStudentNumber },
+      select: { role: true, member: { select: { id: true } } }
+    })
+    if (scannedUser && NON_MEMBER_ROLES.includes(scannedUser.role)) {
+      return res.status(400).json({ message: 'Advisers are not members and cannot be checked in as attendees.' })
+    }
+    if (scannedUser?.role === DEVELOPER_ROLE) {
+      return res.status(400).json({ message: 'The Developer account is not a member and cannot be checked in.' })
+    }
+    // Any other QR code (a URL, a code from another app) would count as an
+    // attendee nobody can identify.
+    if (!scannedUser?.member) {
+      return res.status(400).json({ message: "This QR code doesn't belong to a registered member. Scan the QR code on the member's LITL membership card." })
     }
 
-    // Duplicate check — @@unique([eventId, qrCode]) will also catch this at DB level
-    const existing = await prisma.eventAttendance.findUnique({
-      where: { eventId_qrCode: { eventId, qrCode: qrCode.trim() } }
+    // One check-in per student. The card's QR is "Full Name\nStudentNumber",
+    // so a card printed before a name change has a different QR for the same
+    // student; matching on the student number counts them once.
+    // @@unique([eventId, qrCode]) still catches an identical QR at DB level.
+    const existing = await prisma.eventAttendance.findFirst({
+      where: {
+        eventId,
+        OR: [{ qrCode: qrCode.trim() }, { qrCode: { endsWith: `\n${scannedStudentNumber}` } }]
+      }
     })
     if (existing) {
       return res.status(409).json({ message: 'This QR code is already checked in for this event.' })

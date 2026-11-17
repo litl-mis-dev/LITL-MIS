@@ -369,6 +369,9 @@ export default function Events() {
                 const status = err.response?.status;
                 if (status === 409) {
                     setScannerError("This QR code is already checked in for this event.");
+                } else if (status === 400 && err.response?.data?.message) {
+                    // Why this QR can't be checked in (an adviser, not a member card…)
+                    setScannerError(err.response.data.message);
                 } else {
                     setScannerError("Failed to record attendance. Please try again.");
                 }
