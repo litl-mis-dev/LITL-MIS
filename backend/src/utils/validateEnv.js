@@ -2,6 +2,7 @@ const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
   'RESET_TOKEN_SECRET',
+  'QR_SIGNING_SECRET',
   'SMTP_USER',
   'SMTP_PASS',
   'EMAIL_FROM',
@@ -40,6 +41,14 @@ const validateEnv = () => {
     }
     if (process.env.JWT_SECRET === process.env.RESET_TOKEN_SECRET) {
       problems.push('JWT_SECRET and RESET_TOKEN_SECRET must be different')
+    }
+    // It signs member QR codes: a short or reused value would let someone
+    // who knows the other secret make valid QR codes.
+    if (process.env.QR_SIGNING_SECRET.length < 32) {
+      problems.push('QR_SIGNING_SECRET must be at least 32 characters')
+    }
+    if ([process.env.JWT_SECRET, process.env.RESET_TOKEN_SECRET].includes(process.env.QR_SIGNING_SECRET)) {
+      problems.push('QR_SIGNING_SECRET must be different from JWT_SECRET and RESET_TOKEN_SECRET')
     }
 
     if (problems.length > 0) {

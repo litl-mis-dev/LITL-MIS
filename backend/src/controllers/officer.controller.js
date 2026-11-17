@@ -8,6 +8,7 @@ const { approvePendingUser } = require('../services/memberApproval.service')
 const { resolveSignatories } = require('../services/signatory.service')
 const { emitToOfficers } = require('../realtime/socket')
 const { sendRegistrationStatusEmail } = require('../utils/email')
+const { buildMemberQrText, parseMemberQrText, INVALID_MEMBER_QR_MESSAGE } = require('../utils/memberQr')
 
 // The President and VP seats can only be granted, changed or removed by the
 // President. Without this, a VP (also an OFFICER_MANAGER) could assign
@@ -257,12 +258,38 @@ const getApprovedMembers = async (req, res) => {
         paymentId: m?.payments?.[0]?.id ?? null,
         // Profile picture, so membership cards downloaded here show it.
         avatar: m?.avatar ?? null,
+        // The signed text of the member's QR, drawn on cards downloaded here.
+        qrCodePayload: m ? buildMemberQrText(m.id) : null,
       }
     })
 
     return res.json({ members })
   } catch (err) {
     console.error('Get approved members error:', err)
+    return res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+// POST /api/officer/members/scan-qr   body: { qrCode }
+// Members List ▸ Scan Member QR. Checks the QR was made by this system (see
+// utils/memberQr.js) and says which approved member it belongs to; the
+// scanner then shows that member from the list it already has.
+const scanMemberQr = async (req, res) => {
+  try {
+    const result = parseMemberQrText(req.body?.qrCode)
+    if (result.error) return res.status(400).json({ message: INVALID_MEMBER_QR_MESSAGE })
+
+    const member = await prisma.member.findUnique({
+      where: { id: result.memberId },
+      select: { id: true, user: { select: { status: true, role: true } } }
+    })
+    const isApprovedMember = member && member.user.status === 'APPROVED'
+      && !NON_MEMBER_ROLES.includes(member.user.role) && member.user.role !== DEVELOPER_ROLE
+    if (!isApprovedMember) return res.status(404).json({ message: 'No approved member matched this QR code.' })
+
+    return res.json({ memberId: member.id })
+  } catch (err) {
+    console.error('Scan member QR error:', err)
     return res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
@@ -629,5 +656,6 @@ const updateMemberStatus = async (req, res) => {
 
 module.exports = {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
-  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers
+  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers,
+  scanMemberQr
 }
