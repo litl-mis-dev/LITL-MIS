@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import MembershipPaymentSection from "./MembershipPaymentSection.jsx";
 import ModalPortal from "../../../components/ui/ModalPortal.jsx";
+import { scanMemberQr } from "../../../services/officer.service.js";
 
 const scannerElementId = "officers-member-qr-reader";
 
@@ -29,12 +30,22 @@ export default function MemberLookupModal({ members, onClose, onPaymentRecorded,
     }
 
     async function handleQrScan(decodedText) {
-        const matchedMember = findMemberFromQr(decodedText, members);
-
         setScanResult(decodedText);
-        setScannedMember(matchedMember);
-        setScannerError(matchedMember ? "" : "No approved member matched this QR code.");
+        setScannedMember(null);
+        setScannerError("");
         setPaymentHistory([]);
+
+        // The server checks the QR was made by LITL MIS (a signed code) and
+        // says whose it is; a homemade QR is refused there.
+        let matchedMember = null;
+        try {
+            const { memberId } = await scanMemberQr(decodedText);
+            matchedMember = members.find((member) => Number(member.memberId) === Number(memberId)) ?? null;
+            if (!matchedMember) setScannerError("No approved member matched this QR code.");
+        } catch (err) {
+            setScannerError(err.response?.data?.message ?? "This QR code couldn't be checked. Please try again.");
+        }
+        setScannedMember(matchedMember);
         if (!matchedMember) {
             scheduleScannerRestart(1800);
             return;
@@ -271,54 +282,6 @@ function ModalHeader({ eyebrow, title, onClose }) {
 
 function formatQrPreview(value) {
     return String(value ?? "").replace(/\s+/g, " ").trim();
-}
-
-function findMemberFromQr(decodedText, members) {
-    const values = getQrCandidateValues(decodedText);
-
-    return members.find((member) => {
-        const memberValues = [
-            member.id,
-            member.memberId,
-            member.userId,
-            member.studentNumber,
-            member.email,
-        ].filter(Boolean).map((value) => String(value).trim().toLowerCase());
-
-        return values.some((value) => memberValues.includes(value));
-    }) ?? null;
-}
-
-function getQrCandidateValues(decodedText) {
-    const rawValue = String(decodedText ?? "").trim();
-    const values = new Set([rawValue.toLowerCase()]);
-    rawValue
-        .split(/[\r\n,|;]+/)
-        .map((value) => value.trim().toLowerCase())
-        .filter(Boolean)
-        .forEach((value) => values.add(value));
-
-    try {
-        const parsed = JSON.parse(rawValue);
-        if (parsed && typeof parsed === "object") {
-            ["id", "memberId", "userId", "studentNumber", "studentNo", "email"].forEach((key) => {
-                if (parsed[key]) values.add(String(parsed[key]).trim().toLowerCase());
-            });
-        }
-    } catch {
-        try {
-            const parsedUrl = new URL(rawValue);
-            values.add(parsedUrl.pathname.split("/").filter(Boolean).at(-1)?.toLowerCase() ?? "");
-            ["id", "memberId", "userId", "studentNumber", "studentNo", "email"].forEach((key) => {
-                const value = parsedUrl.searchParams.get(key);
-                if (value) values.add(value.trim().toLowerCase());
-            });
-        } catch {
-            // Plain QR payloads are matched as-is.
-        }
-    }
-
-    return [...values].filter(Boolean);
 }
 
 function CloseIcon() {

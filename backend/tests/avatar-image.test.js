@@ -8,6 +8,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-that-is-long-enough-123'
+process.env.QR_SIGNING_SECRET = process.env.QR_SIGNING_SECRET || 'test-qr-signing-secret-that-is-long-enough-789'
 const backend = path.resolve(__dirname, '..')
 const stub = (rel, exports) => { require.cache[require.resolve(path.join(backend, rel))] = { exports } }
 

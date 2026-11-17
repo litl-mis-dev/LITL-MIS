@@ -8,6 +8,7 @@ export default function SuccessDialog({
     buttonLabel = "OK",
     onClose,
     autoCloseMs = 3000,
+    children,
 }) {
     useEffect(() => {
         if (!isOpen || !autoCloseMs) {
@@ -57,6 +58,7 @@ export default function SuccessDialog({
                         {title}
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">{message}</p>
+                    {children}
 
                     <button
                         type="button"

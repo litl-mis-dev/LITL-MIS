@@ -6,7 +6,7 @@ const { signAuthToken, verifyAuthToken, signResetToken, verifyResetToken } = req
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')  
-const { generateMemberQrCode } = require('../utils/memberQr')
+const { generateMemberQrCode, buildMemberQrText } = require('../utils/memberQr')
 const { isNonMemberRole, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
 const storageService = require('../services/storage.service')
 const {
@@ -249,7 +249,9 @@ function buildAuthUser(user) {
     // Display label: "Adviser" / "Department Chair" for advisers, else the role.
     position: positionLabel(user),
     memberStatus: isAdviser ? null : (m?.status ?? null),
-    qrCode: isAdviser ? null : (m?.qrCode ?? null)
+    qrCode: isAdviser ? null : (m?.qrCode ?? null),
+    // The signed text inside that QR, so a downloaded card draws the same code.
+    qrCodePayload: isAdviser || !m?.id ? null : buildMemberQrText(m.id)
   }
 }
 
@@ -258,10 +260,8 @@ async function ensureAuthUserQrCode(user) {
   // Advisers are not members — they get no member QR code.
   if (isNonMemberRole(user.role)) return user
 
-  const qrCode = await generateMemberQrCode({
-    ...user.member,
-    studentNumber: user.studentNumber
-  })
+  // Also replaces a QR made before codes were signed, on the next sign-in.
+  const qrCode = await generateMemberQrCode(user.member.id)
 
   if (user.member.qrCode !== qrCode) {
     await prisma.member.update({
@@ -573,14 +573,6 @@ const verifyEmailOtp = async (req, res) => {
       }
     }
 
-    const memberQrCode = await generateMemberQrCode({
-      firstName: pending.firstName,
-      middleName: pending.middleName,
-      lastName: pending.lastName,
-      suffix: pending.suffix,
-      studentNumber: pending.studentNumber
-    })
-
     const memberData = {
       firstName: pending.firstName,
       middleName: pending.middleName,
@@ -589,7 +581,9 @@ const verifyEmailOtp = async (req, res) => {
       sex: pending.sex,
       yearLevel: pending.yearLevel,
       section: pending.section,
-      qrCode: memberQrCode
+      // The signed QR needs the member ID, so it is made at the first sign-in
+      // (ensureAuthUserQrCode). Clears an old code on a re-application.
+      qrCode: null
     }
 
     // --- Atomic: create (or re-open) User+Member AND delete the pending row together ---

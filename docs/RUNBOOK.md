@@ -101,3 +101,11 @@ See `backend/.env.example` for the full list. Push notifications need
 `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_CONTACT_EMAIL`
 (`npx web-push generate-vapid-keys` on your own computer); without them the API
 logs a warning at startup and push is off.
+
+`QR_SIGNING_SECRET` signs member QR codes, so only codes made by the system
+check members in. It is required (the API won't start without it), must be
+at least 32 characters and different from `JWT_SECRET` and
+`RESET_TOKEN_SECRET`. Make one with
+`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`.
+Changing it gives every member a new QR code: cards printed before stop
+working, and members get the new code on their next sign-in.

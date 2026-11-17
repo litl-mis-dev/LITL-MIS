@@ -72,8 +72,15 @@ function getAvatar(member) {
     );
 }
 
+// The signed code the server made for this member (see backend
+// utils/memberQr.js). The card never builds its own: a QR made here from the
+// name and student number would not be accepted by the scanners.
 function getQrText(member) {
-    return member?.qrCodePayload || `${getMemberName(member)}\n${getStudentNumber(member)}`;
+    const payload = member?.qrCodePayload || member?.member?.qrCodePayload;
+    if (!payload) {
+        throw new Error(`The QR code for ${getMemberName(member) || "this member"} isn't available. Refresh the page and try again.`);
+    }
+    return payload;
 }
 
 function getIssueDate(member) {
@@ -539,7 +546,7 @@ function createPageCanvas() {
 }
 
 async function getMemberAssets(member) {
-    const qrDataUrl = member?.qrCode || await QRCode.toDataURL(getQrText(member), {
+    const qrDataUrl = await QRCode.toDataURL(getQrText(member), {
         errorCorrectionLevel: "M",
         margin: 2,
         width: 320,

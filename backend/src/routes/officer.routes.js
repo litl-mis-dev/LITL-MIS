@@ -5,7 +5,8 @@ validateIdParams(router, ['id', 'userId'])
 
 const {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
-  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers
+  assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers,
+  scanMemberQr
 } = require('../controllers/officer.controller')
 const { getMembersListEntries, previewMembersList, applyMembersList, removeMembersListEntry } = require('../controllers/membersList.controller')
 const authMiddleware = require('../middleware/auth.middleware')
@@ -24,6 +25,7 @@ router.get('/signatories', authMiddleware, roleGuard(OFFICER_ROLES), getSignator
 
 // Member List module
 router.get('/members', authMiddleware, requireModule('MEMBER_LIST', 'VIEW'), getApprovedMembers)
+router.post('/members/scan-qr', authMiddleware, requireModule('MEMBER_LIST', 'VIEW'), scanMemberQr)
 
 // Advisers are not members, so they are not in /members. Manage Roles reads
 // them from here so their officer-side permissions stay configurable.
