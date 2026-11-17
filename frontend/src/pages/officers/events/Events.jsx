@@ -76,6 +76,7 @@ export default function Events() {
     const [scanningEventId,         setScanningEventId]         = useState(null);
     const [isSuccessDialogOpen,     setIsSuccessDialogOpen]     = useState(false);
     const [isAttendanceSuccessOpen, setIsAttendanceSuccessOpen] = useState(false);
+    const [checkedInMember,         setCheckedInMember]         = useState(null);
     const [accessError,             setAccessError]             = useState("");
     const [scannerError,            setScannerError]            = useState("");
     const [scannerStatus,           setScannerStatus]           = useState("");
@@ -352,14 +353,16 @@ export default function Events() {
         setScanResult(decodedText);
 
         recordAttendance(scanningEventId, decodedText)
-            .then(() => {
+            .then((result) => {
                 setScannerError("");
+                // Name and photo, so the officer can check the card belongs to
+                // the person showing it.
+                setCheckedInMember(result.member ?? null);
                 setIsAttendanceSuccessOpen(true);
-                // member not available immediately on scan — will resolve on next getAttendance call
                 setAttendanceRecords(prev => ({
                     ...prev,
                     [scanningEventId]: [
-                        { code: decodedText, member: null, checkedInAt, scannedAt },
+                        { code: decodedText, member: result.member ?? null, checkedInAt, scannedAt },
                         ...(prev[scanningEventId] ?? [])
                     ]
                 }));
@@ -799,7 +802,9 @@ export default function Events() {
             )}
 
             <SuccessDialog isOpen={isSuccessDialogOpen}     title="Event Added"      message="The event was created successfully."                          buttonLabel="Done" onClose={() => setIsSuccessDialogOpen(false)} />
-            <SuccessDialog isOpen={isAttendanceSuccessOpen} title="Attendance Done"  message="The QR code was scanned and attendance was recorded."         buttonLabel="OK"   onClose={() => setIsAttendanceSuccessOpen(false)} />
+            <SuccessDialog isOpen={isAttendanceSuccessOpen} title="Attendance Done"  message="The QR code was scanned and attendance was recorded."         buttonLabel="OK"   onClose={() => setIsAttendanceSuccessOpen(false)} autoCloseMs={checkedInMember ? 5000 : 3000}>
+                {checkedInMember && <CheckedInMember member={checkedInMember} />}
+            </SuccessDialog>
         </>
     );
 }
@@ -870,6 +875,32 @@ function isDoneEvent(e)        { return e.status === "Closed" || e.status === "D
 function canViewAttendance(e)  { return isHappeningEvent(e) || isDoneEvent(e); }
 function getStatusClass(s)     { return s.toLowerCase().replace(/\s+/g, "-"); }
 function getNewest(records)    { return [...records].sort((a, b) => (b.scannedAt ?? 0) - (a.scannedAt ?? 0)); }
+
+// Who was just checked in: photo (or initials), name, student number and
+// year-section, for the officer to compare with the person at the door.
+function CheckedInMember({ member }) {
+    const [photoFailed, setPhotoFailed] = useState(false);
+    const initials = member.name.split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+    const yearSection = [member.yearLevel, member.section].filter(Boolean).join("-");
+
+    return (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left">
+            {member.avatar && !photoFailed ? (
+                <img src={member.avatar} alt={`Profile photo of ${member.name}`} onError={() => setPhotoFailed(true)}
+                    className="h-16 w-16 shrink-0 rounded-full object-cover" />
+            ) : (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-semibold text-orange-700" aria-hidden="true">
+                    {initials}
+                </div>
+            )}
+            <div className="min-w-0">
+                <p className="truncate font-semibold text-gray-900">{member.name}</p>
+                <p className="text-sm text-gray-600">{member.studentNumber}{yearSection ? ` · ${yearSection}` : ""}</p>
+                {(!member.avatar || photoFailed) && <p className="text-xs text-gray-500">No profile photo</p>}
+            </div>
+        </div>
+    );
+}
 
 function CameraIcon() {
     return (
