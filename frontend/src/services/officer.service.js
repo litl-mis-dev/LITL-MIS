@@ -24,6 +24,11 @@ export const getApprovedMembers = () => {
   return api.get('/officer/members').then(res => res.data)
 }
 
+// Checks a scanned member QR on the server; resolves to { memberId }.
+export const scanMemberQr = (qrCode) => {
+  return api.post('/officer/members/scan-qr', { qrCode }).then(res => res.data)
+}
+
 // Adviser / Dept. Chair accounts — used by Manage Roles only (not members).
 export const getAdvisers = () => {
   return api.get('/officer/advisers').then(res => res.data)

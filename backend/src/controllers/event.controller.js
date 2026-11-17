@@ -11,6 +11,7 @@ const {
 const { emitToAll, emitToOfficers } = require('../realtime/socket')
 const { validateScheduleDate, validateScheduleTime } = require('../utils/schedule')
 const { RETURNS_SUMMARY_INCLUDE, summarizeReturns } = require('../services/calculations.service')
+const { buildMemberQrText, parseMemberQrText, INVALID_MEMBER_QR_MESSAGE } = require('../utils/memberQr')
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -522,33 +523,40 @@ const recordAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Event not found.' })
     }
 
-    // Advisers are not members — they can't be checked in as attendees.
-    const scannedLines = qrCode.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean)
-    const scannedStudentNumber = scannedLines[scannedLines.length - 1]
-    const scannedUser = await prisma.user.findUnique({
-      where: { studentNumber: scannedStudentNumber },
-      select: { role: true, member: { select: { id: true } } }
+    // Only a QR made by this system checks anyone in: a homemade or edited
+    // code fails the signature check (utils/memberQr.js).
+    const scanned = parseMemberQrText(qrCode)
+    if (scanned.error) {
+      return res.status(400).json({ message: INVALID_MEMBER_QR_MESSAGE })
+    }
+    const member = await prisma.member.findUnique({
+      where: { id: scanned.memberId },
+      select: {
+        id: true, firstName: true, middleName: true, lastName: true, suffix: true,
+        yearLevel: true, section: true, avatar: true,
+        user: { select: { id: true, role: true, studentNumber: true } }
+      }
     })
-    if (scannedUser && NON_MEMBER_ROLES.includes(scannedUser.role)) {
+    if (!member) {
+      return res.status(400).json({ message: INVALID_MEMBER_QR_MESSAGE })
+    }
+    // Advisers are not members — they can't be checked in as attendees.
+    if (NON_MEMBER_ROLES.includes(member.user.role)) {
       return res.status(400).json({ message: 'Advisers are not members and cannot be checked in as attendees.' })
     }
-    if (scannedUser?.role === DEVELOPER_ROLE) {
+    if (member.user.role === DEVELOPER_ROLE) {
       return res.status(400).json({ message: 'The Developer account is not a member and cannot be checked in.' })
     }
-    // Any other QR code (a URL, a code from another app) would count as an
-    // attendee nobody can identify.
-    if (!scannedUser?.member) {
-      return res.status(400).json({ message: "This QR code doesn't belong to a registered member. Scan the QR code on the member's LITL membership card." })
-    }
 
-    // One check-in per student. The card's QR is "Full Name\nStudentNumber",
-    // so a card printed before a name change has a different QR for the same
-    // student; matching on the student number counts them once.
-    // @@unique([eventId, qrCode]) still catches an identical QR at DB level.
+    // One check-in per member: each member has exactly one valid code, so
+    // @@unique([eventId, qrCode]) also catches a repeat at DB level. A
+    // check-in saved before codes were signed ("Full Name\nStudentNumber")
+    // counts too.
+    const memberQr = buildMemberQrText(member.id)
     const existing = await prisma.eventAttendance.findFirst({
       where: {
         eventId,
-        OR: [{ qrCode: qrCode.trim() }, { qrCode: { endsWith: `\n${scannedStudentNumber}` } }]
+        OR: [{ qrCode: memberQr }, { qrCode: { endsWith: `\n${member.user.studentNumber}` } }]
       }
     })
     if (existing) {
@@ -556,18 +564,32 @@ const recordAttendance = async (req, res) => {
     }
 
     const attendance = await prisma.eventAttendance.create({
-      data: { eventId, qrCode: qrCode.trim() }
+      data: { eventId, qrCode: memberQr }
     })
 
+    const memberName = [member.firstName, member.middleName, member.lastName, member.suffix].filter(Boolean).join(' ')
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.ATTENDANCE_RECORDED,
-      details: { eventId, eventTitle: event.title, qrCode: qrCode.trim() }
+      details: { eventId, eventTitle: event.title, memberId: member.id, memberName, studentNumber: member.user.studentNumber }
     })
 
     emitToOfficers('attendance:changed', { eventId })
 
-    return res.status(201).json({ message: 'Attendance recorded.', attendance })
+    // Name and photo, so the officer can see the card belongs to the person
+    // holding it (a signed QR can still be screenshotted and lent).
+    return res.status(201).json({
+      message: 'Attendance recorded.',
+      attendance,
+      member: {
+        userId: member.user.id,
+        name: memberName,
+        studentNumber: member.user.studentNumber,
+        yearLevel: member.yearLevel,
+        section: member.section,
+        avatar: member.avatar
+      }
+    })
   } catch (err) {
     if (err.code === 'P2002') {
       return res.status(409).json({ message: 'This QR code is already checked in for this event.' })
@@ -592,27 +614,34 @@ const getAttendance = async (req, res) => {
       orderBy: { checkedInAt: 'desc' }
     })
 
-    // Resolve each qrCode to a real member by matching studentNumber
-    // The QR payload is "Full Name\nStudentNumber" — extract the student number
+    // Each qrCode is a signed member code (utils/memberQr.js). Check-ins
+    // saved before codes were signed hold "Full Name\nStudentNumber" and are
+    // matched by that student number.
     const studentNumberOf = (qrCode) => {
       const lines = qrCode.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean)
       return lines[lines.length - 1] ?? null
     }
-    const studentNumbers = [...new Set(attendances.map((a) => studentNumberOf(a.qrCode)).filter(Boolean))]
+    const memberIdOf = (qrCode) => parseMemberQrText(qrCode).memberId ?? null
+    const memberIds = [...new Set(attendances.map((a) => memberIdOf(a.qrCode)).filter(Boolean))]
+    const studentNumbers = [...new Set(attendances.filter((a) => !memberIdOf(a.qrCode)).map((a) => studentNumberOf(a.qrCode)).filter(Boolean))]
 
-    const users = studentNumbers.length === 0 ? [] : await prisma.user.findMany({
-      where: { studentNumber: { in: studentNumbers } },
-      select: {
-        studentNumber: true,
-        member: {
-          select: { firstName: true, middleName: true, lastName: true, suffix: true, yearLevel: true, section: true }
-        }
-      }
-    })
+    const MEMBER_FIELDS = { firstName: true, middleName: true, lastName: true, suffix: true, yearLevel: true, section: true }
+    const [signedMembers, users] = await Promise.all([
+      memberIds.length === 0 ? [] : prisma.member.findMany({
+        where: { id: { in: memberIds } },
+        select: { id: true, ...MEMBER_FIELDS, user: { select: { studentNumber: true } } }
+      }),
+      studentNumbers.length === 0 ? [] : prisma.user.findMany({
+        where: { studentNumber: { in: studentNumbers } },
+        select: { studentNumber: true, member: { select: MEMBER_FIELDS } }
+      }),
+    ])
+    const memberById = new Map(signedMembers.map((m) => [m.id, { studentNumber: m.user.studentNumber, member: m }]))
     const userByStudentNumber = new Map(users.map((u) => [u.studentNumber, u]))
 
     const enriched = attendances.map((a) => {
-      const user = userByStudentNumber.get(studentNumberOf(a.qrCode))
+      const memberId = memberIdOf(a.qrCode)
+      const user = memberId ? memberById.get(memberId) : userByStudentNumber.get(studentNumberOf(a.qrCode))
       let member = null
       if (user?.member) {
         const m = user.member
