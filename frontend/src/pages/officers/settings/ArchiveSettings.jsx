@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "../../../assets/styles/officers/ArchiveSettings.css";
 import FinancialRecordsTable from "../financial/FinancialRecordsTable.jsx";
+import ArchiveCharts from "./ArchiveCharts.jsx";
 import {
     mapDisbursementRow, mapReturnFundRow, disbursementColumns, returnFundColumns,
     fundReportColumns, buildFundReportRows,
@@ -121,18 +122,6 @@ export default function ArchiveSettings() {
     const archivedTotal = counts ? counts.disbursements + counts.returnFunds : null;
     const failedChecks = data ? data.reconciliation.checks.filter((check) => !check.skipped && !check.ok) : [];
     const membersNote = !members ? "" : members.source === "live" ? "current members" : members.memberListAvailable ? "at semester close" : "not recorded";
-    const figures = data ? [
-        ["Beginning Balance", peso(summary.beginningBalance), "carried over"],
-        ["Ending Balance", peso(summary.endingBalance), ""],
-        ["Total Collections Fund", peso(summary.totalCollectionsFund), "excl. turnover"],
-        ["Total Membership Collections", peso(summary.totalMembershipCollections), `${counts.payments} payments`],
-        ["Total Disbursements", peso(summary.totalDisbursements), `${counts.disbursements} records`],
-        ["Total Returned Funds", peso(summary.totalReturnedFunds), `${counts.returnFunds} records`],
-        ["Total Active Members", count(members.totalActive), membersNote],
-        ["Total Paid Members", count(members.totalPaid), "paid this semester's fee"],
-        ["Total Unpaid Members", count(members.totalUnpaid), membersNote],
-        ["Total Settled Members", count(members.totalSettled), "paid earlier semesters' fees"],
-    ] : [];
 
     let footer = "Select an academic year and semester to view archived records.";
     if (archiveLoading) footer = "Loading archived records...";
@@ -226,11 +215,7 @@ export default function ArchiveSettings() {
                             </ul>
                         )}
                     </div>
-                    <dl className="archive-summary archive-summary-grid" aria-label="Financial summary">
-                        {figures.map(([label, value, note]) => (
-                            <div key={label}><dt>{label}</dt><dd>{value}{note && <span> {note}</span>}</dd></div>
-                        ))}
-                    </dl>
+                    <ArchiveCharts summary={summary} counts={counts} members={members} membersNote={membersNote} />
                 </>
             )}
 

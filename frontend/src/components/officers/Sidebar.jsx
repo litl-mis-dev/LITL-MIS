@@ -18,7 +18,7 @@ const NAV_ITEM_MODULES = {
   'activity-logs': 'ACTIVITY_LOGS',
 };
 
-// The nav, in four groups shown with a divider line between them.
+// The nav, in three groups shown with a divider line between them.
 const defaultNavGroups = [
   [
     {
@@ -34,23 +34,6 @@ const defaultNavGroups = [
   ],
   [
     {
-      label: "Events",
-      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-160 0q-17 0-28.5-11.5T280-440q0-17 11.5-28.5T320-480q17 0 28.5 11.5T360-440q0 17-11.5 28.5T320-400Zm320 0q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400Z" /></svg>),
-      page: "events"
-    },
-    {
-      label: "Documents",
-      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520Z" /></svg>),
-      page: "documents"
-    },
-    {
-      label: "Certification",
-      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M480-80 360-200H200v-160L80-480l120-120v-160h160l120-120 120 120h160v160l120 120-120 120v160H600L480-80Zm0-112 86-88h114v-114l88-86-88-86v-114H566l-86-88-86 88H280v114l-88 86 88 86v114h114l86 88Zm-42-146 226-226-56-58-170 170-86-84-56 56 142 142Zm42-142Z" /></svg>),
-      page: "certification"
-    },
-  ],
-  [
-    {
       label: "Financial",
       icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-120q-33 0-56.5-23.5T120-200v-640h80v640h640v80H200Zm40-120v-360h160v360H240Zm200 0v-560h160v560H440Zm200 0v-200h160v200H640Z" /></svg>),
       page: "financial"
@@ -59,6 +42,21 @@ const defaultNavGroups = [
       label: "Audit",
       icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h360l200 200v520q0 33-23.5 56.5T720-80H240Zm320-560v-160H240v640h480v-480H560Z" /></svg>),
       page: "audit"
+    },
+    {
+      label: "Events",
+      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-160 0q-17 0-28.5-11.5T280-440q0-17 11.5-28.5T320-480q17 0 28.5 11.5T360-440q0 17-11.5 28.5T320-400Zm320 0q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400Z" /></svg>),
+      page: "events"
+    },
+    {
+      label: "Certification",
+      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M480-80 360-200H200v-160L80-480l120-120v-160h160l120-120 120 120h160v160l120 120-120 120v160H600L480-80Zm0-112 86-88h114v-114l88-86-88-86v-114H566l-86-88-86 88H280v114l-88 86 88 86v114h114l86 88Zm-42-146 226-226-56-58-170 170-86-84-56 56 142 142Zm42-142Z" /></svg>),
+      page: "certification"
+    },
+    {
+      label: "Documents",
+      icon: (<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520Z" /></svg>),
+      page: "documents"
     },
   ],
   [

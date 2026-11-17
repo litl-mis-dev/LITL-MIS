@@ -31,10 +31,49 @@
 
 .archive-records-title + .archive-reconciliation { margin-top: 12px; }
 
-/* The figures' bottom border already divides them from the first record list. */
-.archive-summary-grid + .archive-list-heading {
+/* The charts' bottom border already divides them from the first record list. */
+.archive-charts + .archive-list-heading {
     margin-top: 0;
     border-top: 0;
+}
+
+/* The semester's figures as three charts (ArchiveCharts.jsx). */
+.archive-charts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin: 16px 0 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.archive-chart {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.archive-chart__title { margin: 0; color: #111827; font-size: 14px; font-weight: 700; }
+.archive-chart__sub { margin: 4px 0 8px; color: #6b7280; font-size: 12px; line-height: 1.5; }
+.archive-chart__empty { margin: auto 0; padding: 32px 0; color: #7b8491; font-size: 12px; text-align: center; }
+
+.archive-chart__legend { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.archive-chart__legend li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; }
+.archive-chart__swatch { width: 10px; height: 10px; border-radius: 2px; }
+.archive-chart__legend-label { color: #26313d; font-weight: 600; overflow-wrap: anywhere; }
+.archive-chart__legend-value { color: #26313d; font-weight: 700; text-align: right; white-space: nowrap; }
+.archive-chart__legend small { display: block; color: #7b8491; font-size: 11px; font-weight: 400; }
+
+@media (max-width: 1100px) {
+    .archive-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+    .archive-charts { grid-template-columns: minmax(0, 1fr); }
 }
 
 .archive-field {
@@ -112,10 +151,6 @@
 .archive-summary > div { min-width: 0; padding: 0 24px; border-right: 1px solid #e5e7eb; }
 .archive-summary > div:first-child { padding-left: 0; }
 .archive-summary > div:last-child { border-right: 0; }
-/* Financial figures wrap onto several rows of three */
-.archive-summary-grid { row-gap: 20px; padding-bottom: 20px; margin-bottom: 16px; }
-.archive-summary-grid > div:nth-child(3n + 1) { padding-left: 0; }
-.archive-summary-grid > div:nth-child(3n) { border-right: 0; }
 .archive-reconciliation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 20px 0 4px; color: #4b5563; font-size: 12px; line-height: 1.5; }
 .archive-reconciliation ul { flex-basis: 100%; margin: 0; padding-left: 18px; color: #b91c1c; }
 .archive-summary dt { color: #6b7280; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
