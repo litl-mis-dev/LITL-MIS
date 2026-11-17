@@ -476,6 +476,15 @@ const archiveEvent = async (req, res) => {
     if (!event || event.isArchived) {
       return res.status(404).json({ message: 'Event not found.' })
     }
+    // Only an event that hasn't happened can be deleted: an Open event is
+    // taking attendance, and a Closed one keeps its record. The Delete button
+    // is unavailable for both; this stops a direct request too.
+    if (event.status === 'OPEN') {
+      return res.status(400).json({ message: 'This event is open, so it can\'t be deleted. Change its status to Cancelled if it won\'t happen.' })
+    }
+    if (event.status === 'CLOSED') {
+      return res.status(400).json({ message: 'This event has ended, so it can\'t be deleted.' })
+    }
 
     // A deleted event lets go of its disbursement, so another event can be
     // funded by it. The Activity Log keeps which one it was.

@@ -604,7 +604,17 @@ export default function Events() {
                         </div>
                         <div className="member-modal__footer event-details-actions">
                             <div className="event-details-actions__danger">
-                                {canEdit && !isDoneEvent(selectedEvent) && (
+                                {/* An Open event is taking attendance, so it can't be deleted
+                                    (the server refuses too); the button stays, disabled, to say why. */}
+                                {canEdit && isHappeningEvent(selectedEvent) && (
+                                    <span className="event-details-actions__locked" title="Open events can't be deleted. Change the status to Cancelled if it won't happen.">
+                                        <button type="button" className="icon-btn icon-btn--danger" disabled aria-disabled="true"
+                                            aria-label={`Delete ${selectedEvent.title} (unavailable: open events can't be deleted)`}>
+                                            <DeleteIcon />
+                                        </button>
+                                    </span>
+                                )}
+                                {canEdit && !isDoneEvent(selectedEvent) && !isHappeningEvent(selectedEvent) && (
                                     <ConfirmActionButton
                                         className="icon-btn icon-btn--danger"
                                         busy={isDeleting}

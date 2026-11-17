@@ -382,6 +382,20 @@ button {
   background: #fef2f2;
 }
 
+/* Same disabled look as .btn:disabled. */
+.icon-btn:disabled,
+.icon-btn:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.58;
+  background: #ffffff;
+}
+
+/* Holds the tooltip: a disabled button gets no hover of its own in some browsers. */
+.event-details-actions__locked {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+
 .dash__stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
