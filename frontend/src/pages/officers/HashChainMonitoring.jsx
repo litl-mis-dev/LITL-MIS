@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import { verifyLedger } from "../../services/ledger.service.js";
 import { getSocket } from "../../services/socket.js";
+import TablePagination from "../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../utils/usePagination.js";
 
 const MIN_VISIBLE_VERIFYING_MS = 900;
 
@@ -63,6 +65,12 @@ export default function HashChainMonitoring() {
         socket.on('ledger:new', handler);
         return () => socket.off('ledger:new', handler);
     }, []);
+
+    // Newest link first, 10 per page, numbered on across pages (the
+    // Log # stays the link's permanent ID). A new verification starts at page 1.
+    const newestLinks = useMemo(() => (result ? [...result.links].reverse() : []), [result]);
+    const linkPager = usePagination(newestLinks, { resetKey: result });
+    const tamperedPager = usePagination(result?.tamperedLinks ?? [], { resetKey: result });
 
     const alertVariant =
         !hasVerified || isVerifying ? "pending"
@@ -130,13 +138,13 @@ export default function HashChainMonitoring() {
                 {/* ── Chain links ──────────────────────────────────────────── */}
                 {result && result.links.length > 0 && (
                     <div className="hash-chain-flow" aria-label="Financial ledger hash chain">
-                        {[...result.links].reverse().map((link, index) => (
+                        {linkPager.pageRows.map((link, index) => (
                             <article
                                 key={link.id}
                                 className={`hash-chain-link hash-chain-link--${link.status.toLowerCase()}`}
                             >
                                 <div className="hash-chain-link__index">
-                                    {String(result.links.length - index).padStart(2, "0")}
+                                    {String(linkPager.rowNumber(index)).padStart(2, "0")}
                                 </div>
                                 <div className="hash-chain-link__body">
                                     <div className="hash-chain-link__top">
@@ -176,6 +184,7 @@ export default function HashChainMonitoring() {
                         ))}
                     </div>
                 )}
+                {result && <TablePagination {...linkPager} onPageChange={linkPager.setPage} label="Chain links" />}
             </section>
 
             {/* ── Tampered records table ───────────────────────────────────── */}
@@ -195,6 +204,7 @@ export default function HashChainMonitoring() {
                         <table className="data-table">
                             <thead>
                                 <tr>
+                                    <th className="data-table__number">No.</th>
                                     <th>Log ID</th>
                                     <th>Action</th>
                                     <th>Performed By</th>
@@ -203,8 +213,9 @@ export default function HashChainMonitoring() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {result.tamperedLinks.map(link => (
+                                {tamperedPager.pageRows.map((link, index) => (
                                     <tr key={link.id}>
+                                        <td className="data-table__number">{tamperedPager.rowNumber(index)}</td>
                                         <td>#{link.id}</td>
                                         <td>{link.actionLabel ?? link.action}</td>
                                         <td>{link.actorName ?? "—"}</td>
@@ -223,6 +234,7 @@ export default function HashChainMonitoring() {
                             </tbody>
                         </table>
                     </div>
+                    <TablePagination {...tamperedPager} onPageChange={tamperedPager.setPage} label="Affected records" />
                 </section>
             )}
         </>

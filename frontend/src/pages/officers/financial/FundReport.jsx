@@ -5,6 +5,7 @@ import SemesterManager from './SemesterManager.jsx'
 import { useRole } from '../../../utils/useRole'
 import { listCategories } from '../../../services/financial.service'
 import { sortCategoriesByPercentage } from '../../../utils/financialRecordRows.js'
+import FundReportTable from './FundReportTable.jsx'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,31 +34,6 @@ const mainColumns = [
   { key: 'returned',   label: 'Returned'   },
   { key: 'remaining',  label: 'Remaining'  },
 ]
-
-function FinancialTable({ columns, rows }) {
-  return (
-    <div className="table-wrapper table-wrapper--scroll">
-      <table className="data-table">
-        <thead>
-          <tr>{columns.map(col => <th key={col.key}>{col.label}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map(row => (
-            <tr key={row.rowKey} className={row.isSummary ? 'font-semibold' : ''}>
-              {columns.map(col => (
-                <td key={col.key}>
-                  {col.key === 'name' && row.isTurnoverFund
-                    ? <>↻ {row[col.key]}</>
-                    : row[col.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 // ── Summary row ───────────────────────────────────────────────────────────────
 
@@ -186,7 +162,7 @@ export default function FundReport({ showHeader = true }) {
           </p>
         )}
         {!loading && !error && (
-          <FinancialTable columns={mainColumns} rows={displayRows} />
+          <FundReportTable columns={mainColumns} rows={displayRows} />
         )}
       </div>
     </>

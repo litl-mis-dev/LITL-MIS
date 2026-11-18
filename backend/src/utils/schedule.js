@@ -47,6 +47,13 @@ function nextDateString(date) {
   return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
 }
 
+// The time as "HH:MM" (24-hour) in the organization's timezone.
+function timeInOrgTimezone(now = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: ORG_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(now)
+}
+
 // The hour (0–23) in the organization's timezone.
 function hourInOrgTimezone(now = new Date()) {
   return Number(new Intl.DateTimeFormat('en-US', {
@@ -56,6 +63,6 @@ function hourInOrgTimezone(now = new Date()) {
 
 module.exports = {
   CLASS_HOURS_START, CLASS_HOURS_END,
-  todayInOrgTimezone, nextDateString, hourInOrgTimezone, isValidDateString, isWithinClassHours,
+  todayInOrgTimezone, timeInOrgTimezone, nextDateString, hourInOrgTimezone, isValidDateString, isWithinClassHours,
   validateScheduleDate, validateScheduleTime,
 }

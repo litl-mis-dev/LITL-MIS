@@ -969,12 +969,15 @@ button {
   white-space: nowrap;
 }
 
-.member-data-table th:not(:first-child),
-.member-data-table td:not(:first-child) {
+/* Column 1 is "No.", column 2 the name (with email): the name reads from
+   the left, everything else is centered. */
+.member-data-table th,
+.member-data-table td {
   text-align: center;
 }
 
-.member-data-table td:first-child {
+.member-data-table th:nth-child(2),
+.member-data-table td:nth-child(2) {
   text-align: left;
 }
 
@@ -1026,6 +1029,38 @@ button {
   color: #64748b;
   font-weight: 700;
   text-align: center;
+}
+
+/* "No." column: numbered on across pages, 11–20 on page 2 (utils/usePagination.js). */
+.data-table th.data-table__number,
+.data-table td.data-table__number {
+  width: 48px;
+  color: #64748b;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The bar under every table (components/ui/TablePagination.jsx). */
+.table-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.table-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-pagination__page {
+  white-space: nowrap;
 }
 
 .data-table__role {
@@ -3490,10 +3525,12 @@ button {
   justify-content: center;
 }
 
+/* Sized by whichever buttons show (Edit, Show Attendees, Scan): a fixed grid
+   squeezed "Show Attendees" into the Edit column when Edit was hidden. */
 .event-details-actions__main {
-  display: grid;
-  grid-template-columns: 34px minmax(140px, max-content) 42px;
-  justify-content: end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -3514,6 +3551,20 @@ button {
   width: auto;
   min-width: 0;
   white-space: nowrap;
+}
+
+/* Edit, with its pencil icon and the word "Edit". */
+.event-details-actions__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.event-details-actions__edit svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .dash-form__field textarea {
@@ -4677,9 +4728,15 @@ button {
   min-width: 820px;
 }
 
-.manage-roles-table th:not(:first-child),
-.manage-roles-table td:not(:first-child) {
+/* Same layout as the Members List: "No.", then the left-aligned name. */
+.manage-roles-table th,
+.manage-roles-table td {
   text-align: center;
+}
+
+.manage-roles-table th:nth-child(2),
+.manage-roles-table td:nth-child(2) {
+  text-align: left;
 }
 
 .manage-roles-select {
@@ -4898,9 +4955,6 @@ button {
     grid-template-columns: 34px minmax(0, 1fr);
   }
 
-  .event-details-actions__main {
-    grid-template-columns: 34px minmax(0, max-content) 42px;
-  }
 }
 
 @media (max-width: 860px) {
@@ -5199,7 +5253,6 @@ button {
   }
 
   .event-details-actions__main {
-    grid-template-columns: 34px minmax(0, 1fr) 42px;
     gap: 8px;
   }
 
@@ -5333,7 +5386,7 @@ button {
   }
 
   .event-details-actions__attendees {
-    width: 100%;
+    flex: 1 1 auto;
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;

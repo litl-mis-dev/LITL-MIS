@@ -129,6 +129,7 @@ export default function Disbursement({ showHeader = true }) {
           <FinancialRecordsTable
             columns={disbursementColumns}
             rows={filteredRecords}
+            pageResetKey={searchTerm}
             emptyMessage="No disbursement records found."
             onDownload={downloadDisbursementCertificate}
             renderRowActions={(row) => row.details.canRecordAmountSpent && (

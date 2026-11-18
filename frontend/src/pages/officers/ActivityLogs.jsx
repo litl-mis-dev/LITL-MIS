@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import { listAuditLogs } from "../../services/auditLog.service.js";
+import TablePagination from "../../components/ui/TablePagination.jsx";
+import { TABLE_PAGE_SIZE } from "../../utils/usePagination.js";
 
 const MODULES = ['Authentication', 'Registration', 'Members', 'Financial']
 const ROLE_BADGE_STYLE = {
@@ -14,7 +16,8 @@ export default function ActivityLogs() {
     const [logs,    setLogs]    = useState([]);
     const [loading, setLoading] = useState(true);
     const [error,   setError]   = useState('');
-    const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 1 });
+    // Paged by the server, 10 per page like every table (utils/usePagination.js).
+    const [pagination, setPagination] = useState({ page: 1, limit: TABLE_PAGE_SIZE, total: 0, totalPages: 1 });
 
     // ── Filter & search state ─────────────────────────────────────────────────
     const [searchTerm,     setSearchTerm]     = useState("");
@@ -46,14 +49,14 @@ export default function ActivityLogs() {
         try {
             const data = await listAuditLogs({
                 q:        debouncedSearch,
-                module:   filters.modules.length === 1 ? filters.modules[0] : '',
+                module:   filters.modules.join(','),
                 dateFrom: filters.dateFrom,
                 dateTo:   filters.dateTo,
                 page:     overridePage,
                 limit:    pagination.limit,
             });
             setLogs(data.logs ?? []);
-            setPagination(data.pagination ?? { page: 1, limit: 50, total: 0, totalPages: 1 });
+            setPagination(data.pagination ?? { page: 1, limit: TABLE_PAGE_SIZE, total: 0, totalPages: 1 });
         } catch {
             setError('Failed to load activity logs. Please refresh.');
         } finally {
@@ -64,12 +67,8 @@ export default function ActivityLogs() {
     // Re-fetch whenever search or filters change (reset to page 1)
     useEffect(() => { fetchLogs(1); }, [fetchLogs]);
 
-    // ── Client-side multi-module filter — API sends one module at a time,
-    //    multiple selections filter in-memory so the UI stays snappy ──────────
-    const filteredLogs = useMemo(() => {
-        if (filters.modules.length <= 1) return logs;
-        return logs.filter(log => filters.modules.includes(log.module));
-    }, [logs, filters.modules]);
+    // The server applies every filter, including several modules at once.
+    const filteredLogs = logs;
 
     // ── Filter handlers ───────────────────────────────────────────────────────
 
@@ -148,6 +147,7 @@ export default function ActivityLogs() {
                     <table className="data-table activity-logs-table">
                         <thead>
                                 <tr>
+                                    <th className="data-table__number">No.</th>
                                     <th>Date</th>
                                     <th>Time</th>
                                     <th>Account</th>
@@ -157,8 +157,9 @@ export default function ActivityLogs() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {!loading && filteredLogs.map(log => (
+                                {!loading && filteredLogs.map((log, index) => (
                                     <tr key={log.id}>
+                                    <td className="data-table__number">{(pagination.page - 1) * pagination.limit + index + 1}</td>
                                     <td className="data-table__nowrap">{log.date}</td>
                                     <td className="data-table__nowrap">{log.time}</td>
                                     <td>
@@ -194,14 +195,14 @@ export default function ActivityLogs() {
                             ))}
                             {loading && (
                                 <tr>
-                                    <td colSpan="6" className="data-table__empty">
+                                    <td colSpan="7" className="data-table__empty">
                                         Loading activity logs...
                                     </td>
                                 </tr>
                             )}
                             {!loading && filteredLogs.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="data-table__empty">
+                                    <td colSpan="7" className="data-table__empty">
                                         {error || "No activity logs match your search or filter."}
                                     </td>
                                 </tr>
@@ -210,35 +211,9 @@ export default function ActivityLogs() {
                     </table>
                 </div>
 
-                {/* Pagination */}
-                {!loading && pagination.totalPages > 1 && (
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '12px 16px', borderTop: '1px solid var(--color-border, #e5e7eb)',
-                        fontSize: 13, color: 'var(--color-text-secondary, #6b7280)'
-                    }}>
-                        <span>
-                            Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total.toLocaleString()}
-                        </span>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                                type="button"
-                                className="btn btn--outline btn--sm"
-                                disabled={pagination.page <= 1}
-                                onClick={() => fetchLogs(pagination.page - 1)}
-                            >
-                                Previous
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn--outline btn--sm"
-                                disabled={pagination.page >= pagination.totalPages}
-                                onClick={() => fetchLogs(pagination.page + 1)}
-                            >
-                                Next
-                            </button>
-                        </div>
-                    </div>
+                {!loading && (
+                    <TablePagination page={pagination.page} pageCount={pagination.totalPages} pageSize={pagination.limit}
+                        total={pagination.total} onPageChange={fetchLogs} label="Activity logs" />
                 )}
             </div>
 

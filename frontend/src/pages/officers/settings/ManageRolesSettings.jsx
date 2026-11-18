@@ -9,6 +9,8 @@ import { useRole } from "../../../utils/useRole.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import TablePagination from "../../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../../utils/usePagination.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,8 @@ export default function ManageRolesSettings() {
                 .some((value) => value?.toLowerCase().includes(query));
         });
     }, [members, searchTerm]);
+    // 10 per page, numbered on across pages; a new search starts at page 1.
+    const pager = usePagination(filteredMembers, { resetKey: searchTerm });
 
     async function loadMembers() {
         setLoading(true);
@@ -190,6 +194,7 @@ export default function ManageRolesSettings() {
                 <table className="data-table manage-roles-table">
                     <thead>
                         <tr>
+                            <th className="data-table__number">No.</th>
                             <th>Member</th>
                             <th>Student Number</th>
                             <th>Current Role</th>
@@ -199,16 +204,17 @@ export default function ManageRolesSettings() {
                     <tbody>
                         {loading && (
                             <tr>
-                                <td colSpan="4" className="data-table__empty"><LoadingState inline label="Loading members…" /></td>
+                                <td colSpan="5" className="data-table__empty"><LoadingState inline label="Loading members…" /></td>
                             </tr>
                         )}
 
-                        {!loading && filteredMembers.map((member) => {
+                        {!loading && pager.pageRows.map((member, index) => {
                             const currentRole = member.role ?? "MEMBER";
                             const isSaving    = savingId === member.memberId;
 
                             return (
                                 <tr key={member.memberId}>
+                                    <td className="data-table__number">{pager.rowNumber(index)}</td>
                                     <td>
                                         <div className="user-cell">
                                             <div>
@@ -241,7 +247,7 @@ export default function ManageRolesSettings() {
 
                         {!loading && filteredMembers.length === 0 && (
                             <tr>
-                                <td colSpan="4" className="data-table__empty">
+                                <td colSpan="5" className="data-table__empty">
                                     No officers match your search.
                                 </td>
                             </tr>
@@ -249,6 +255,7 @@ export default function ManageRolesSettings() {
                     </tbody>
                 </table>
             </div>
+            {!loading && <TablePagination {...pager} onPageChange={pager.setPage} label="Officers" />}
 
             {editingMember && (
                 <RoleEditModal

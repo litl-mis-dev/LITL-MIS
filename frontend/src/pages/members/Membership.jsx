@@ -5,6 +5,8 @@ import { downloadMembershipCertificate } from "../../utils/downloadMembershipCer
 import { getMyPaymentHistory } from "../../services/financial.service";
 import { getSocket } from "../../services/socket";
 import Spinner from "../../components/ui/Spinner.jsx";
+import TablePagination from "../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../utils/usePagination.js";
 
 const SEMESTER_LABELS = { FIRST: "First", SECOND: "Second" }
 
@@ -87,6 +89,9 @@ export default function Membership() {
       setDownloadingId(null)
     }
   }
+
+  // 10 per page, numbered on across pages (11–20 on page 2).
+  const pager = usePagination(records)
 
   return (
     <>
@@ -181,7 +186,7 @@ export default function Membership() {
             </colgroup>
             <thead>
               <tr>
-                <TableHeader label="#" />
+                <TableHeader label="No." />
                 <TableHeader label="Academic Year" />
                 <TableHeader label="Semester" />
                 <TableHeader label="Section" />
@@ -205,10 +210,10 @@ export default function Membership() {
                   </td>
                 </tr>
               )}
-              {!loading && records.map((record) => (
+              {!loading && pager.pageRows.map((record, index) => (
                 <tr key={record.semesterId}>
                   <td>
-                    <span className="member-membership-table__index">{record.id}</span>
+                    <span className="member-membership-table__index">{pager.rowNumber(index)}</span>
                   </td>
                   <td className="member-membership-table__strong">{record.academicYear}</td>
                   <td className="member-membership-table__strong">{record.semester}</td>
@@ -253,6 +258,7 @@ export default function Membership() {
             </tbody>
           </table>
         </div>
+        {!loading && <TablePagination {...pager} onPageChange={pager.setPage} label="Membership records" />}
       </section>
     </>
   );

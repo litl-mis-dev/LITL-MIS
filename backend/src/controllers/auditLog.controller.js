@@ -86,11 +86,14 @@ const listAuditLogs = async (req, res) => {
     }
 
     // Module filter maps to a set of action keys
-    if (moduleFilter) {
-      const actionsInModule = Object.entries(AUDIT_ACTION_MODULE)
-        .filter(([, mod]) => mod === moduleFilter)
+    // One module, or several separated by commas ("Events,Financial"), so a
+    // multi-module filter is applied before paging, not to one page of rows.
+    const modules = moduleFilter.split(',').map((m) => m.trim()).filter(Boolean)
+    if (modules.length) {
+      const actionsInModules = Object.entries(AUDIT_ACTION_MODULE)
+        .filter(([, mod]) => modules.includes(mod))
         .map(([key]) => key)
-      where.action = { in: actionsInModule }
+      where.action = { in: actionsInModules }
     }
 
     const [rawLogs, total] = await prisma.$transaction([
@@ -251,6 +254,11 @@ function buildDescription(action, details, targetName) {
       }
       return `Updated disbursement record ${d.reference ?? ''}.`
     }
+
+    case 'EVENT_STATUS_CHANGED':
+      return d.automatic
+        ? `"${d.title ?? 'An event'}" changed from ${d.from ?? 'N/A'} to ${d.to ?? 'N/A'} automatically, on its schedule.`
+        : `Changed the status of "${d.title ?? 'an event'}" from ${d.from ?? 'N/A'} to ${d.to ?? 'N/A'}.`
 
     case 'DISBURSEMENT_TITLE_UPDATED':
       return `Renamed disbursement ${d.reference ?? ''} from "${d.from ?? 'N/A'}" to "${d.to ?? 'N/A'}" to match its event.`

@@ -15,6 +15,8 @@ import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf } from "../../
 import { createAnnouncement } from "../../../services/announcement.service.js";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import TablePagination from "../../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../../utils/usePagination.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -159,6 +161,8 @@ export default function MembersList({ compact = false }) {
             return matchesSearch && matchesYear && matchesSection && matchesPayment && matchesMemberStatus;
         });
     }, [members, searchTerm, filters]);
+    // 10 per page, numbered on across pages; a new search or filter starts at page 1.
+    const pager = usePagination(filteredMembers, { resetKey: `${searchTerm}|${JSON.stringify(filters)}` });
 
     function handleFilterToggle(group, value) {
         setFilters(f => ({ ...f, [group]: f[group].includes(value) ? f[group].filter(v => v !== value) : [...f[group], value] }))
@@ -469,6 +473,7 @@ export default function MembersList({ compact = false }) {
                     <table className="data-table member-data-table">
                         <thead>
                             <tr>
+                                <th className="data-table__number">No.</th>
                                 <th>Name</th>
                                 <th>Student Number</th>
                                 <th><span className="stacked-table-heading"><span>Year</span><span>Section</span></span></th>
@@ -478,8 +483,9 @@ export default function MembersList({ compact = false }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {!loading && filteredMembers.map(m => (
+                            {!loading && pager.pageRows.map((m, index) => (
                                 <tr key={m.id}>
+                                    <td className="data-table__number">{pager.rowNumber(index)}</td>
                                     <td>
                                         <div className="user-cell">
                                             <div>
@@ -522,14 +528,15 @@ export default function MembersList({ compact = false }) {
                                 </tr>
                             ))}
                             {!loading && filteredMembers.length === 0 && (
-                                <tr><td colSpan="6" className="data-table__empty">
+                                <tr><td colSpan="7" className="data-table__empty">
                                     {error || "No members match the current search or filter."}
                                 </td></tr>
                             )}
-                            {loading && <tr><td colSpan="6" className="data-table__empty"><LoadingState inline label="Loading members…" /></td></tr>}
+                            {loading && <tr><td colSpan="7" className="data-table__empty"><LoadingState inline label="Loading members…" /></td></tr>}
                         </tbody>
                     </table>
                 </div>
+                {!loading && <TablePagination {...pager} onPageChange={pager.setPage} label="Members" />}
             </div>
             )}
 

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { FileDownloadIcon } from '../../../components/icons/ActionIcons.jsx'
 import { useRole } from '../../../utils/useRole'
 import Spinner from '../../../components/ui/Spinner.jsx'
+import TablePagination from '../../../components/ui/TablePagination.jsx'
+import { usePagination } from '../../../utils/usePagination.js'
 
 export function SearchIcon() {
   return (
@@ -24,8 +26,11 @@ const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount', 'amountSpent'])
 // hide the button itself.
 // `renderRowActions(row)` adds buttons before a row's download button, and
 // `canDownloadRow(row)` hides the download for rows with nothing to download.
-export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload, renderRowActions, canDownloadRow = () => true }) {
+// 10 rows per page, numbered on across pages; `pageResetKey` (e.g. the search text)
+// sends the table back to page 1 when it changes.
+export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload, renderRowActions, canDownloadRow = () => true, pageResetKey = rows.length }) {
   const { canManageFinancials } = useRole()
+  const pager = usePagination(rows, { resetKey: pageResetKey })
   const showActionsColumn = columns.some(col => col.key === 'actions') && canManageFinancials
 
   // The certificate PDF is drawn in the browser: spinner on that row's button,
@@ -56,6 +61,7 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
       <table className="data-table">
         <thead>
           <tr>
+            <th className="data-table__number">No.</th>
             {columns
               .filter(col => col.key !== 'actions' || showActionsColumn)
               .map(col => <th key={col.key}>{col.label}</th>)}
@@ -64,13 +70,14 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="py-6 text-center text-sm text-gray-500">
+              <td colSpan={columns.length + 1} className="py-6 text-center text-sm text-gray-500">
                 {emptyMessage}
               </td>
             </tr>
           ) : (
-            rows.map(row => (
+            pager.pageRows.map((row, index) => (
               <tr key={row.id}>
+                <td className="data-table__number">{pager.rowNumber(index)}</td>
                 {columns.map(col => {
                   if (col.key === 'actions') {
                     // View-only: no action column rendered at all — not even
@@ -105,6 +112,7 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
           )}
         </tbody>
       </table>
+      <TablePagination {...pager} onPageChange={pager.setPage} label="Records" />
     </div>
   )
 }
