@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getEvent, getEventAttendance } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
 import { downloadAttendancePdf, sortAttendanceRecords } from "../../../utils/downloadAttendancePdf.js";
+import TablePagination from "../../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../../utils/usePagination.js";
 
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
@@ -103,12 +105,18 @@ export default function EventAttendance() {
       });
   }, [filteredRecords, searchTerm]);
 
-    // Splits the (already sorted) list into Year + Section groups so the table
-  // matches the Download Attendance layout: one table per group, No. restarts at 1.
+  // 10 attendees per page, numbered on across pages (11–20 on page 2); a new
+  // search or filter starts at page 1.
+  const pager = usePagination(attendance, { resetKey: `${yearFilter}|${sectionFilter}|${searchTerm}` });
+
+  // Splits the page's (already sorted) attendees into Year + Section groups,
+  // like the Download Attendance layout. `number` is the row's place in the
+  // whole list, so numbering runs on across the groups and pages.
   const attendanceGroups = useMemo(() => {
     const groups = [];
     const byKey = new Map();
-    attendance.forEach((record) => {
+    pager.pageRows.forEach((pageRecord, index) => {
+      const record = { ...pageRecord, number: pager.rowNumber(index) };
       const member = record.member;
       const key = member ? `${member.yearLevel ?? ""}||${member.section ?? ""}` : "__unmatched__";
       let group = byKey.get(key);
@@ -126,7 +134,7 @@ export default function EventAttendance() {
       group.records.push(record);
     });
     return groups;
-  }, [attendance]);
+  }, [pager]);
 
   async function handleDownloadPdf() {
     // A ref as well as state: drawing the PDF can delay the redraw that
@@ -270,9 +278,9 @@ export default function EventAttendance() {
                       </tr>
                     </thead>
                     <tbody>
-                      {group.records.map((record, index) => (
+                      {group.records.map((record) => (
                         <tr key={`${record.code}-${record.scannedAt}`}>
-                          <td>{index + 1}</td>
+                          <td>{record.number}</td>
                           <td>{record.member?.name ?? record.code}</td>
                           <td>{record.member?.studentNumber ?? "—"}</td>
                           <td>{record.member?.yearLevel ?? "—"}</td>
@@ -285,6 +293,7 @@ export default function EventAttendance() {
                 </div>
               </div>
             ))}
+            <TablePagination {...pager} onPageChange={pager.setPage} label="Attendees" />
           </div>
         )}
 

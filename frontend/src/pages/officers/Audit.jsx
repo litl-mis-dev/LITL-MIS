@@ -3,6 +3,8 @@ import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import ConfirmationDialog from "../../components/officers/ConfirmationDialog.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import AuditRemarksDialog from "../../components/officers/AuditRemarksDialog.jsx";
+import TablePagination from "../../components/ui/TablePagination.jsx";
+import { usePagination } from "../../utils/usePagination.js";
 import { listAudits, reviewAudit } from "../../services/financial.service.js";
 import { useRole } from "../../utils/useRole.js";
 
@@ -122,6 +124,8 @@ export default function Audit() {
       return matchesFilter && matchesSearch;
     });
   }, [activeFilter, items, searchTerm]);
+  // 10 per page, numbered on across pages; a new search or filter starts at page 1.
+  const pager = usePagination(filteredItems, { resetKey: `${activeFilter}|${searchTerm}` });
 
   const totals = useMemo(() => {
     const pending = items.filter((item) => item.status === "PENDING").length;
@@ -269,6 +273,7 @@ export default function Audit() {
             <table className="data-table audit-table">
               <thead>
                 <tr>
+                  <th className="data-table__number">No.</th>
                   <th>Audit ID</th>
                   <th>Date</th>
                   <th>Reference</th>
@@ -284,14 +289,15 @@ export default function Audit() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={canAuditFinancials ? 10 : 9} className="data-table__empty">
+                    <td colSpan={canAuditFinancials ? 11 : 10} className="data-table__empty">
                       Loading automated audit records...
                     </td>
                   </tr>
                 )}
                 {!loading &&
-                  filteredItems.map((item) => (
+                  pager.pageRows.map((item, index) => (
                     <tr key={item.id}>
+                      <td className="data-table__number">{pager.rowNumber(index)}</td>
                       <td className="data-table__nowrap">{item.displayId}</td>
                       <td className="data-table__nowrap">{formatDate(item.date)}</td>
                       <td className="data-table__nowrap">{item.reference}</td>
@@ -343,7 +349,7 @@ export default function Audit() {
                   ))}
                 {!loading && filteredItems.length === 0 && (
                   <tr>
-                    <td colSpan={canAuditFinancials ? 10 : 9} className="data-table__empty">
+                    <td colSpan={canAuditFinancials ? 11 : 10} className="data-table__empty">
                       {error || "No automated audit records match your search or filter."}
                     </td>
                   </tr>
@@ -351,6 +357,7 @@ export default function Audit() {
               </tbody>
             </table>
           </div>
+          {!loading && <TablePagination {...pager} onPageChange={pager.setPage} label="Audit records" />}
         </div>
       </section>
       {pendingReview && <AuditRemarksDialog

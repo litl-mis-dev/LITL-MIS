@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "../../../assets/styles/officers/ArchiveSettings.css";
 import FinancialRecordsTable from "../financial/FinancialRecordsTable.jsx";
 import ArchiveCharts from "./ArchiveCharts.jsx";
+import FundReportTable from "../financial/FundReportTable.jsx";
 import {
     mapDisbursementRow, mapReturnFundRow, disbursementColumns, returnFundColumns,
     fundReportColumns, buildFundReportRows,
@@ -221,29 +222,14 @@ export default function ArchiveSettings() {
 
             {data && showFund && renderSection("Fund Report", records.fund, (n) => `${n} categories`, (rows) => (
                 rows.length > 1 ? (
-                    <div className="table-wrapper table-wrapper--scroll">
-                        <table className="data-table">
-                            <thead>
-                                <tr>{fundReportColumns.map((col) => <th key={col.key}>{col.label}</th>)}</tr>
-                            </thead>
-                            <tbody>
-                                {rows.map((row) => (
-                                    <tr key={row.rowKey} className={row.isSummary ? "font-semibold" : ""}>
-                                        {fundReportColumns.map((col) => (
-                                            <td key={col.key}>{col.key === "name" && row.isTurnoverFund ? <>{"\u21BB"} {row.name}</> : row[col.key]}</td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <FundReportTable columns={fundReportColumns} rows={rows} pageResetKey={archiveKey} />
                 ) : <p className="archive-footer">No fund categories for this semester.</p>
             ), (rows) => Math.max(rows.length - 1, 0))}
             {data && showDisbursements && renderSection("Disbursement Records", records.disbursements, (n) => `${n} records`, (rows) => (
-                <FinancialRecordsTable columns={disbursementColumns} rows={rows} emptyMessage="No disbursement records for this semester." onDownload={downloadDisbursementCertificate} />
+                <FinancialRecordsTable columns={disbursementColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No disbursement records for this semester." onDownload={downloadDisbursementCertificate} />
             ))}
             {data && showReturns && renderSection("Return Fund Records", records.returnFunds, (n) => `${n} records`, (rows) => (
-                <FinancialRecordsTable columns={returnFundColumns} rows={rows} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} canDownloadRow={(row) => !row.details.nothingReturnedYet} />
+                <FinancialRecordsTable columns={returnFundColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} canDownloadRow={(row) => !row.details.nothingReturnedYet} />
             ))}
             <p className="archive-footer" role="status">{footer}</p>
         </div>

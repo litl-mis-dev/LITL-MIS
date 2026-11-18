@@ -81,6 +81,7 @@ export default function Returning({ showHeader = true }) {
           <FinancialRecordsTable
             columns={returnFundColumns}
             rows={filteredRecords}
+            pageResetKey={searchTerm}
             emptyMessage="No return fund records found."
             onDownload={downloadReturnFundCertificate}
             canDownloadRow={(row) => !row.details.nothingReturnedYet}
