@@ -8,6 +8,7 @@ import { CloseIcon as ActionCloseIcon, DeleteIcon, EditIcon } from "../../../com
 import { listEvents, createEvent, updateEvent, archiveEvent, recordAttendance, getEventAttendance as getAttendance, listAvailableDisbursements } from "../../../services/event.service.js";
 import { getSocket } from "../../../services/socket.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
+import ConfirmationDialog from "../../../components/officers/ConfirmationDialog.jsx";
 import Spinner from "../../../components/ui/Spinner.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
@@ -20,6 +21,16 @@ const accessOptions        = ["Members", "Officers"];
 const maxDescriptionLength = 2000;
 const addStatusOptions     = ["Coming soon", "Open"];
 const statusOptions        = ["Coming soon", "Open", "Closed", "Cancelled"];
+// Status only moves forward, as on the server (services/eventStatus.service.js).
+// Coming soon -> Open and Open -> Closed also happen on their own: an event
+// opens at its date and time and closes at 11:59 PM that day.
+const NEXT_STATUSES = { "Coming soon": ["Open", "Cancelled"], "Open": ["Closed", "Cancelled"], "Closed": [], "Cancelled": [] };
+const SCHEDULE_NOTE = "Opens automatically at its date and time, and closes at 11:59 PM that day.";
+const STATUS_CHANGE_NOTES = {
+    "Open": "It opens for attendance now and can't go back to Coming soon.",
+    "Closed": "Attendance ends now. A closed event can't be reopened.",
+    "Cancelled": "A cancelled event can't be reopened.",
+};
 const scannerElementId     = "officers-event-qr-reader";
 const monthOptions = [
     { value: "01", label: "January" },  { value: "02", label: "February" },
@@ -84,6 +95,7 @@ export default function Events() {
     const [formEvent,               setFormEvent]               = useState(emptyEvent);
     const [editingEvent,            setEditingEvent]            = useState(null);
     const [isSaving,                setIsSaving]                = useState(false);
+    const [isStatusConfirmOpen,     setIsStatusConfirmOpen]     = useState(false);
     const [isDeleting,              setIsDeleting]              = useState(false);
     const [deleteError,             setDeleteError]             = useState("");
     const [formError,               setFormError]               = useState("");
@@ -286,6 +298,8 @@ export default function Events() {
         if (field === "hasGoogleForm" && !value) setEditingEvent(prev => ({ ...prev, googleFormUrl: "" }));
     }
 
+    // Saving checks the form first; a status change then asks for confirmation
+    // (it can't be undone) before anything is sent.
     async function handleSaveEdit(e) {
         e.preventDefault();
         if (!editingEvent) return;
@@ -295,12 +309,19 @@ export default function Events() {
         if (editingEvent.date !== selectedEvent?.date && isPastDate(editingEvent.date)) { setFormError(PAST_DATE_MESSAGE); return; }
         if (editingEvent.time !== selectedEvent?.time && !isWithinClassHours(editingEvent.time)) { setFormError(CLASS_HOURS_MESSAGE); return; }
         setFormError("");
+        if (editingEvent.status !== selectedEvent?.status) { setIsStatusConfirmOpen(true); return; }
+        await saveEditedEvent();
+    }
+
+    async function saveEditedEvent() {
         setIsSaving(true);
         try {
             await updateEvent(editingEvent.id, toEventPayload(editingEvent));
             await fetchEvents();
+            setIsStatusConfirmOpen(false);
             closeEditEventModal();
         } catch (err) {
+            setIsStatusConfirmOpen(false);
             setFormError(err.response?.data?.message ?? "Failed to save the event. Please try again.");
         } finally {
             setIsSaving(false);
@@ -525,6 +546,7 @@ export default function Events() {
                                 <select value={formEvent.status} onChange={e => handleFormChange("status", e.target.value)}>
                                     {addStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
+                                <span className="event-form__hint">{SCHEDULE_NOTE}</span>
                             </label>
                             <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={formEvent.description} onChange={e => handleFormChange("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
@@ -634,8 +656,9 @@ export default function Events() {
                             </div>
                             <div className="event-details-actions__main">
                                 {canEdit && !isDoneEvent(selectedEvent) && (
-                                    <button type="button" className="icon-btn" aria-label={`Edit ${selectedEvent.title}`} onClick={openEditEventModal}>
+                                    <button type="button" className="btn btn--outline event-details-actions__edit" aria-label={`Edit ${selectedEvent.title}`} onClick={openEditEventModal}>
                                         <EditIcon />
+                                        <span>Edit</span>
                                     </button>
                                 )}
                                 {canViewAttendance(selectedEvent) && (
@@ -668,11 +691,16 @@ export default function Events() {
                                 <input value={editingEvent.Proponent} onChange={e => handleEditField("Proponent", e.target.value)} maxLength={50} required />
                             </label>
                             <label className="dash-form__field"><span>Date<RequiredMark /></span>
-                                <input type="date" value={editingEvent.date} min={minScheduleDate(selectedEvent?.date)} onChange={e => handleEditField("date", e.target.value)} required />
+                                <input type="date" value={editingEvent.date} min={minScheduleDate(selectedEvent?.date)} onChange={e => handleEditField("date", e.target.value)} required
+                                    disabled={selectedEvent?.status !== "Coming soon"} aria-describedby="event-schedule-lock" />
                             </label>
                             <label className="dash-form__field"><span>Time<RequiredMark /></span>
-                                <input type="time" value={editingEvent.time} {...(editingEvent.time !== selectedEvent?.time && { min: CLASS_HOURS_START, max: CLASS_HOURS_END })} onChange={e => handleEditField("time", e.target.value)} required />
+                                <input type="time" value={editingEvent.time} {...(editingEvent.time !== selectedEvent?.time && { min: CLASS_HOURS_START, max: CLASS_HOURS_END })} onChange={e => handleEditField("time", e.target.value)} required
+                                    disabled={selectedEvent?.status !== "Coming soon"} aria-describedby="event-schedule-lock" />
                             </label>
+                            {selectedEvent?.status !== "Coming soon" && (
+                                <p id="event-schedule-lock" className="event-form__hint event-form__wide">The date and time can only be changed while the event is Coming soon.</p>
+                            )}
                             <label className="dash-form__field"><span>Location<RequiredMark /></span>
                                 <input value={editingEvent.location} onChange={e => handleEditField("location", e.target.value)} maxLength={50} required />
                             </label>
@@ -680,9 +708,11 @@ export default function Events() {
                                 options={budgetOptions} error={budgetOptionsError}
                                 fallbackBudget={selectedEvent?.disbursementId ? null : selectedEvent?.budget} />
                             <label className="dash-form__field">Status
-                                <select value={editingEvent.status} onChange={e => handleEditField("status", e.target.value)}>
-                                    {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                                <select value={editingEvent.status} onChange={e => handleEditField("status", e.target.value)}
+                                    disabled={!NEXT_STATUSES[selectedEvent?.status]?.length}>
+                                    {[selectedEvent?.status, ...(NEXT_STATUSES[selectedEvent?.status] ?? [])].filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
+                                <span className="event-form__hint">{NEXT_STATUSES[selectedEvent?.status]?.length ? SCHEDULE_NOTE : "This status is final."}</span>
                             </label>
                             <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={editingEvent.description} onChange={e => handleEditField("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
@@ -723,6 +753,17 @@ export default function Events() {
                     </div>
                 </div>
             )}
+
+            <ConfirmationDialog
+                isOpen={isStatusConfirmOpen && Boolean(editingEvent)}
+                title={`Change the status to ${editingEvent?.status}?`}
+                message={`"${editingEvent?.title}" will change from ${selectedEvent?.status} to ${editingEvent?.status}. ${STATUS_CHANGE_NOTES[editingEvent?.status] ?? ""}`}
+                confirmLabel={`Change to ${editingEvent?.status}`}
+                cancelLabel="Keep editing"
+                busy={isSaving}
+                onConfirm={saveEditedEvent}
+                onCancel={() => setIsStatusConfirmOpen(false)}
+            />
 
             {/* ── Filter Modal ────────────────────────────────────────────────── */}
             {isFilterModalOpen && (

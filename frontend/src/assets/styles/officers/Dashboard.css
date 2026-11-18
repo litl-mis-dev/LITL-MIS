@@ -3490,10 +3490,12 @@ button {
   justify-content: center;
 }
 
+/* Sized by whichever buttons show (Edit, Show Attendees, Scan): a fixed grid
+   squeezed "Show Attendees" into the Edit column when Edit was hidden. */
 .event-details-actions__main {
-  display: grid;
-  grid-template-columns: 34px minmax(140px, max-content) 42px;
-  justify-content: end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -3514,6 +3516,20 @@ button {
   width: auto;
   min-width: 0;
   white-space: nowrap;
+}
+
+/* Edit, with its pencil icon and the word "Edit". */
+.event-details-actions__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.event-details-actions__edit svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .dash-form__field textarea {
@@ -4898,9 +4914,6 @@ button {
     grid-template-columns: 34px minmax(0, 1fr);
   }
 
-  .event-details-actions__main {
-    grid-template-columns: 34px minmax(0, max-content) 42px;
-  }
 }
 
 @media (max-width: 860px) {
@@ -5199,7 +5212,6 @@ button {
   }
 
   .event-details-actions__main {
-    grid-template-columns: 34px minmax(0, 1fr) 42px;
     gap: 8px;
   }
 
@@ -5333,7 +5345,7 @@ button {
   }
 
   .event-details-actions__attendees {
-    width: 100%;
+    flex: 1 1 auto;
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;
