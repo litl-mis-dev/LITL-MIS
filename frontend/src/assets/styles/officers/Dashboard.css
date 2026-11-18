@@ -969,12 +969,15 @@ button {
   white-space: nowrap;
 }
 
-.member-data-table th:not(:first-child),
-.member-data-table td:not(:first-child) {
+/* Column 1 is "No.", column 2 the name (with email): the name reads from
+   the left, everything else is centered. */
+.member-data-table th,
+.member-data-table td {
   text-align: center;
 }
 
-.member-data-table td:first-child {
+.member-data-table th:nth-child(2),
+.member-data-table td:nth-child(2) {
   text-align: left;
 }
 
@@ -4725,9 +4728,15 @@ button {
   min-width: 820px;
 }
 
-.manage-roles-table th:not(:first-child),
-.manage-roles-table td:not(:first-child) {
+/* Same layout as the Members List: "No.", then the left-aligned name. */
+.manage-roles-table th,
+.manage-roles-table td {
   text-align: center;
+}
+
+.manage-roles-table th:nth-child(2),
+.manage-roles-table td:nth-child(2) {
+  text-align: left;
 }
 
 .manage-roles-select {
