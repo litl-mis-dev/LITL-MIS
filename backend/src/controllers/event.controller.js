@@ -11,6 +11,7 @@ const {
 const { emitToAll, emitToOfficers } = require('../realtime/socket')
 const { validateScheduleDate, validateScheduleTime } = require('../utils/schedule')
 const { RETURNS_SUMMARY_INCLUDE, summarizeReturns } = require('../services/calculations.service')
+const { statusChangeError, applyScheduledStatuses } = require('../services/eventStatus.service')
 const { buildMemberQrText, parseMemberQrText, INVALID_MEMBER_QR_MESSAGE } = require('../utils/memberQr')
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -162,8 +163,10 @@ function parseBudget(raw) {
   return { value: amount.toFixed(2) }
 }
 
-function parseStatus(raw) {
-  return LABEL_TO_STATUS[raw] ?? 'COMING_SOON'
+// Brings statuses up to date before events are shown, so they are right even
+// if the scheduled job hasn't run yet (e.g. just after the server started).
+function applySchedule() {
+  return applyScheduledStatuses().catch((err) => logError('Apply event schedule', err))
 }
 
 async function resolveAccessTier(userId, effectiveRole) {
@@ -179,6 +182,7 @@ async function resolveAccessTier(userId, effectiveRole) {
 
 const listEvents = async (req, res) => {
   try {
+    await applySchedule()
     const tier = await resolveAccessTier(req.user.id, req.user.effectiveRole)
 
     const events = await prisma.event.findMany({
@@ -198,6 +202,7 @@ const listEvents = async (req, res) => {
 
 const getEvent = async (req, res) => {
   try {
+    await applySchedule()
     const id   = Number(req.params.id)
     const tier = await resolveAccessTier(req.user.id, req.user.effectiveRole)
 
@@ -260,6 +265,12 @@ const createEvent = async (req, res) => {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
     }
 
+    // A new event starts Coming soon (it opens on its schedule) or Open.
+    const initialStatus = status ? LABEL_TO_STATUS[status] : 'COMING_SOON'
+    if (initialStatus !== 'COMING_SOON' && initialStatus !== 'OPEN') {
+      return res.status(400).json({ message: 'A new event starts as Coming soon or Open.' })
+    }
+
     const created = await prisma.event.create({
       data: {
         title:        title.trim(),
@@ -268,7 +279,7 @@ const createEvent = async (req, res) => {
         location:     location.trim(),
         proponent:    proponent.trim(),
         description:  description.trim(),
-        status:       parseStatus(status),
+        status:       initialStatus,
         access:       JSON.stringify(access),
         hasGoogleForm: Boolean(hasGoogleForm),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
@@ -295,6 +306,7 @@ const createEvent = async (req, res) => {
     })
 
     emitToAll('event:changed', { eventId: event.id, action: 'created' })
+    applySchedule() // opens it right away if its start time has already come
 
     return res.status(201).json({ message: 'Event created.', event: formatEvent(event, { withDisbursement: true }) })
   } catch (err) {
@@ -325,8 +337,24 @@ const updateEvent = async (req, res) => {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
     }
 
+    // Status only moves forward (services/eventStatus.service.js).
+    let nextStatus = existing.status
+    if (status !== undefined && status !== null && status !== '') {
+      nextStatus = LABEL_TO_STATUS[status]
+      if (!nextStatus) return res.status(400).json({ message: 'Choose a valid status.' })
+      const statusError = statusChangeError(existing.status, nextStatus)
+      if (statusError) return res.status(400).json({ message: statusError })
+    }
+
+    // The schedule decides when an event opens and closes, so it can only be
+    // changed before the event opens.
+    const reschedules = (date && date !== existing.date) || (time && time !== existing.time)
+    if (reschedules && existing.status !== 'COMING_SOON') {
+      return res.status(400).json({ message: 'The date and time can only be changed while the event is Coming soon.' })
+    }
+
     // Only a changed date/time is checked, so an event whose date has passed
-    // can still be edited (e.g. to close it) without being rescheduled.
+    // can still be edited without being rescheduled.
     if (date && date !== existing.date) {
       const dateError = validateScheduleDate(date)
       if (dateError) return res.status(400).json({ message: dateError })
@@ -366,7 +394,7 @@ const updateEvent = async (req, res) => {
         ...(location     && { location: location.trim() }),
         ...(proponent    && { proponent: proponent.trim() }),
         ...(description  && { description: description.trim() }),
-        ...(status       && { status: parseStatus(status) }),
+        ...(nextStatus !== existing.status && { status: nextStatus }),
         ...(access       && { access: JSON.stringify(access) }),
         ...(hasGoogleForm !== undefined && { hasGoogleForm: Boolean(hasGoogleForm) }),
         googleFormUrl: hasGoogleForm ? (googleFormUrl?.trim() || null) : null,
@@ -382,6 +410,17 @@ const updateEvent = async (req, res) => {
       action: AUDIT_ACTIONS.EVENT_UPDATED,
       details: { eventId: id, title: updated.title }
     })
+
+    if (existing.status !== updated.status) {
+      await writeAuditLog({
+        actorId: req.user.id,
+        action: AUDIT_ACTIONS.EVENT_STATUS_CHANGED,
+        details: {
+          eventId: id, title: updated.title, automatic: false,
+          from: STATUS_TO_LABEL[existing.status], to: STATUS_TO_LABEL[updated.status],
+        }
+      })
+    }
 
     // ── Notification diffing — based on the ACTUAL persisted before/after
     // values, never on whether a field happened to be present in the
@@ -418,6 +457,7 @@ const updateEvent = async (req, res) => {
     }
 
     emitToAll('event:changed', { eventId: id, action: 'updated' })
+    applySchedule() // a rescheduled event opens right away if its time has come
 
     return res.json({ message: 'Event updated.', event: formatEvent(updated, { withDisbursement: true }) })
   } catch (err) {

@@ -252,6 +252,11 @@ function buildDescription(action, details, targetName) {
       return `Updated disbursement record ${d.reference ?? ''}.`
     }
 
+    case 'EVENT_STATUS_CHANGED':
+      return d.automatic
+        ? `"${d.title ?? 'An event'}" changed from ${d.from ?? 'N/A'} to ${d.to ?? 'N/A'} automatically, on its schedule.`
+        : `Changed the status of "${d.title ?? 'an event'}" from ${d.from ?? 'N/A'} to ${d.to ?? 'N/A'}.`
+
     case 'DISBURSEMENT_TITLE_UPDATED':
       return `Renamed disbursement ${d.reference ?? ''} from "${d.from ?? 'N/A'}" to "${d.to ?? 'N/A'}" to match its event.`
 

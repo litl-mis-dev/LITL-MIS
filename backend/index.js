@@ -16,6 +16,7 @@ const financialRoutes = require('./src/routes/financial.routes')
 const auditLogRoutes  = require('./src/routes/auditLog.routes')
 const { startCleanupJob } = require('./src/utils/cleanup')
 const { startEventReminderJob } = require('./src/utils/eventReminders')
+const { startEventStatusJob } = require('./src/utils/eventStatusJob')
 const eventRoutes = require('./src/routes/event.routes')
 const documentRoutes = require('./src/routes/document.routes')
 const dashboardRoutes = require('./src/routes/dashboard.routes')
@@ -130,6 +131,7 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
   startCleanupJob()
   startEventReminderJob()
+  startEventStatusJob()
 })  
 
 process.on('unhandledRejection', (reason) => {
