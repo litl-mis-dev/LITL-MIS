@@ -34,11 +34,29 @@ export function minScheduleDate(originalDate) {
   return originalDate && originalDate < today ? originalDate : today;
 }
 
-// "jUAN carlos" → "Juan Carlos", "mary-jane" → "Mary-Jane", "o'neil" → "O'Neil".
-// Capitalizes the first letter of every word and lowercases the rest, keeping
-// the spacing as typed so it can run on every keystroke.
+// Title Case: capitalizes the first letter of every word and leaves the rest
+// as typed, so "juan dela cruz" → "Juan Dela Cruz" while "McDonald" and
+// "BSIT" stay as they are. Names also start a word after ' and - ("o'neil"
+// → "O'Neil", "mary-jane" → "Mary-Jane"); other text only after spaces,
+// ( and /, so "don't" stays "Don't".
+export function toTitleCase(value, { name = false } = {}) {
+  const wordStart = name ? /(^|[\s'(/-])(\p{Ll})/gu : /(^|[\s(/])(\p{Ll})/gu;
+  return String(value ?? "").replace(wordStart, (_, separator, letter) => separator + letter.toUpperCase());
+}
+
+// A person's name, capitalized as it is typed (see toTitleCase).
 export function formatPersonName(value) {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => separator + letter.toUpperCase());
+  return toTitleCase(value, { name: true });
+}
+
+// onBlur for any text field that should be in Title Case: rewrites the
+// field's text and sends it through the field's own onChange, so it works
+// with whatever state the form keeps. Add data-name to treat it as a name.
+export function titleCaseOnBlur(event) {
+  const field = event.target;
+  const next = toTitleCase(field.value, { name: "name" in field.dataset });
+  if (next === field.value) return;
+  const proto = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(field, next);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
 }

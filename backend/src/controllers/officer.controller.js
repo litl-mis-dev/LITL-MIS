@@ -1,13 +1,18 @@
 const prisma = require('../lib/prisma')
+const { logError } = require('../utils/logger')
 const { ROLE_POSITION_LABELS, ALL_ROLES, YEAR_REP_TO_YEAR_LEVEL, MEMBERSHIP_USER_FILTER, NON_MEMBER_ROLES, ASSIGNABLE_OFFICER_ROLES, LEADERSHIP_ROLES, DEVELOPER_ROLE, positionLabel } = require('../utils/roles')
-const { VALID_MEMBER_STATUSES } = require('../utils/validators')
+const {
+  VALID_MEMBER_STATUSES, VALID_SUFFIXES, VALID_YEAR_LEVELS,
+  isValidName, isValidEmail, isCvsuEmail, isValidStudentNumber, isValidSection, isValidSex,
+} = require('../utils/validators')
+const { diffChanges } = require('../utils/changes')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
-const { notifyRegistrationRejected, syncMemberApprovalNotifications } = require('../services/notification.service')
-const { approvePendingUser } = require('../services/memberApproval.service')
+const { syncMemberApprovalNotifications } = require('../services/notification.service')
+const { approvePendingUser, rejectPendingUser } = require('../services/memberApproval.service')
 const { resolveSignatories } = require('../services/signatory.service')
 const { emitToOfficers } = require('../realtime/socket')
-const { sendRegistrationStatusEmail } = require('../utils/email')
+const { sendEmailChangedByOfficerEmail } = require('../utils/email')
 const { buildMemberQrText, parseMemberQrText, INVALID_MEMBER_QR_MESSAGE } = require('../utils/memberQr')
 
 // The President and VP seats can only be granted, changed or removed by the
@@ -98,27 +103,58 @@ const rejectUser = async (req, res) => {
       return res.status(400).json({ message: 'This user is not awaiting approval' })
     }
 
-    await prisma.user.update({
-      where: { id: Number(userId) },
-      data: { status: 'REJECTED' }
-    })
-
-    const memberName = user.member ? `${user.member.firstName} ${user.member.lastName}` : null
-    await writeAuditLog({
-      actorId: req.user.id,
-      targetUserId: Number(userId),
-      action: AUDIT_ACTIONS.USER_REJECTED,
-      details: { memberName }
-    }) 
-
-    await notifyRegistrationRejected(Number(userId), memberName)
-    await sendRegistrationStatusEmail(user.email, memberName, false).catch((e) => console.error('Rejection email failed:', e))
+    const { rejected } = await rejectPendingUser(Number(userId), { actorId: req.user.id })
+    if (!rejected) {
+      return res.status(400).json({ message: 'This user is not awaiting approval' })
+    }
     await syncMemberApprovalNotifications()
     emitToOfficers('membership:changed', { userId: Number(userId), action: 'rejected' })
 
     return res.json({ message: 'User rejected' })
   } catch (err) {
     console.error('Reject user error:', err)
+    return res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+// POST /api/officer/pending-users/bulk   body: { action: 'approve' | 'reject', userIds: [..] }
+// Approves or rejects several pending registrations at once (Member
+// Approval checkboxes). Accounts no longer pending — e.g. another officer
+// just acted — are skipped. Emails go out in the background.
+const MAX_BULK_APPROVALS = 200
+const bulkReviewUsers = async (req, res) => {
+  try {
+    const { action, userIds } = req.body ?? {}
+    if (action !== 'approve' && action !== 'reject') {
+      return res.status(400).json({ message: 'Choose Approve or Reject.' })
+    }
+    const ids = Array.isArray(userIds) ? [...new Set(userIds.map(Number))] : []
+    if (ids.length === 0 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+      return res.status(400).json({ message: 'Select at least one registration.' })
+    }
+    if (ids.length > MAX_BULK_APPROVALS) {
+      return res.status(400).json({ message: `Select at most ${MAX_BULK_APPROVALS} registrations at a time.` })
+    }
+
+    let done = 0
+    for (const id of ids) {
+      const result = action === 'approve'
+        ? await approvePendingUser(id, { actorId: req.user.id, waitForEmail: false })
+        : await rejectPendingUser(id, { actorId: req.user.id, waitForEmail: false })
+      if (result.approved || result.rejected) done++
+    }
+
+    await syncMemberApprovalNotifications()
+    emitToOfficers('membership:changed', { action: action === 'approve' ? 'approved' : 'rejected' })
+
+    const verb = action === 'approve' ? 'approved' : 'rejected'
+    const skipped = ids.length - done
+    return res.json({
+      done, skipped,
+      message: `${done} registration${done === 1 ? '' : 's'} ${verb}.${skipped ? ` ${skipped} skipped (no longer pending).` : ''}`,
+    })
+  } catch (err) {
+    logError('Bulk review registrations', err)
     return res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
@@ -196,6 +232,7 @@ const getApprovedMembers = async (req, res) => {
             middleName: true,
             lastName: true,
             suffix: true,
+            sex: true,
             yearLevel: true,
             section: true,
             status: true,
@@ -252,6 +289,11 @@ const getApprovedMembers = async (req, res) => {
         status: u.status,
         memberStatus: m?.status ?? null,
         name: fullName,
+        firstName: m?.firstName ?? '',
+        middleName: m?.middleName ?? '',
+        lastName: m?.lastName ?? '',
+        suffix: m?.suffix ?? '',
+        sex: m?.sex ?? '',
         yearLevel: m?.yearLevel ?? '',
         section: m?.section ?? '',
         isPaid: (m?.payments?.length ?? 0) > 0,
@@ -290,6 +332,105 @@ const scanMemberQr = async (req, res) => {
     return res.json({ memberId: member.id })
   } catch (err) {
     console.error('Scan member QR error:', err)
+    return res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+// PUT /api/officer/members/:id/info   body: { firstName, middleName, lastName, suffix, sex, yearLevel, section, email, studentNumber }
+// Lets officers with Members List EDIT fix typos in a member's details. Every
+// change is logged with its old and new value (the member's edit history). A
+// changed email is told to both addresses; the President and VP's details can
+// only be changed by the President, as with their status.
+const MEMBER_INFO_FIELDS = {
+  firstName: 'First name', middleName: 'Middle name', lastName: 'Last name', suffix: 'Suffix',
+  sex: 'Sex', yearLevel: 'Year level', section: 'Section', email: 'Email', studentNumber: 'Student number',
+}
+const updateMemberInfo = async (req, res) => {
+  try {
+    const member = await prisma.member.findUnique({ where: { id: Number(req.params.id) }, include: { user: true } })
+    if (!member) return res.status(404).json({ message: 'Member not found.' })
+    if (NON_MEMBER_ROLES.includes(member.user.role) || member.user.role === DEVELOPER_ROLE) {
+      return res.status(400).json({ message: 'Only member accounts can be edited here.' })
+    }
+    if (requiresPresident(req.user.role, member.user.role)) {
+      return res.status(403).json({ message: 'Only the President can change the President or Vice President\'s details.' })
+    }
+
+    const text = (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '')
+    const next = {
+      firstName: text(req.body.firstName), middleName: text(req.body.middleName), lastName: text(req.body.lastName),
+      suffix: text(req.body.suffix), sex: text(req.body.sex), yearLevel: text(req.body.yearLevel),
+      section: text(req.body.section), email: text(req.body.email).toLowerCase(), studentNumber: text(req.body.studentNumber),
+    }
+
+    const errors = {}
+    if (!isValidName(next.firstName)) errors.firstName = 'Enter a first name of 2 to 50 letters.'
+    if (next.middleName && !isValidName(next.middleName)) errors.middleName = 'The middle name must be 2 to 50 letters.'
+    if (!isValidName(next.lastName)) errors.lastName = 'Enter a last name of 2 to 50 letters.'
+    if (next.suffix && !VALID_SUFFIXES.includes(next.suffix)) errors.suffix = 'Choose a valid suffix.'
+    if (!isValidSex(next.sex)) errors.sex = 'Choose Male or Female.'
+    if (!VALID_YEAR_LEVELS.includes(next.yearLevel)) errors.yearLevel = 'Choose a year level.'
+    if (!isValidSection(next.section)) errors.section = 'Enter a section number from 1 to 99.'
+    if (!isValidEmail(next.email) || next.email.length > 254) errors.email = 'Enter a valid email address.'
+    if (!isValidStudentNumber(next.studentNumber)) errors.studentNumber = 'Student number must look like 2023-100-123.'
+    if (Object.keys(errors).length) return res.status(400).json({ message: 'Check the highlighted fields.', errors })
+
+    const before = {
+      firstName: member.firstName, middleName: member.middleName ?? '', lastName: member.lastName, suffix: member.suffix ?? '',
+      sex: member.sex, yearLevel: member.yearLevel ?? '', section: member.section ?? '',
+      email: member.user.email, studentNumber: member.user.studentNumber ?? '',
+    }
+    const changes = diffChanges(before, next, MEMBER_INFO_FIELDS)
+    if (changes.length === 0) return res.json({ message: 'No changes to save.', changes })
+
+    // Email and student number identify an account, so they must stay unique.
+    const taken = await prisma.user.findFirst({
+      where: { id: { not: member.userId }, OR: [{ email: next.email }, { studentNumber: next.studentNumber }] },
+      select: { email: true },
+    })
+    if (taken) {
+      return res.status(409).json({
+        message: taken.email === next.email ? 'Another account already uses that email.' : 'Another account already uses that student number.',
+      })
+    }
+
+    await prisma.$transaction([
+      prisma.member.update({
+        where: { id: member.id },
+        data: {
+          firstName: next.firstName, middleName: next.middleName || null, lastName: next.lastName,
+          suffix: next.suffix || null, sex: next.sex, yearLevel: next.yearLevel, section: next.section,
+        },
+      }),
+      prisma.user.update({
+        where: { id: member.userId },
+        data: {
+          email: next.email, studentNumber: next.studentNumber,
+          ...(next.email !== before.email && { emailType: isCvsuEmail(next.email) ? 'CVSU' : 'PERSONAL' }),
+        },
+      }),
+    ])
+
+    const memberName = [next.firstName, next.middleName, next.lastName, next.suffix].filter(Boolean).join(' ')
+    await writeAuditLog({
+      actorId: req.user.id,
+      targetUserId: member.userId,
+      action: AUDIT_ACTIONS.MEMBER_INFO_UPDATED,
+      entity: { type: 'member', id: member.id },
+      details: { memberId: member.id, memberName, changes },
+    })
+
+    if (next.email !== before.email) {
+      for (const [to, isOldAddress] of [[before.email, true], [next.email, false]]) {
+        sendEmailChangedByOfficerEmail(to, { memberName, newEmail: next.email, isOldAddress })
+          .catch((err) => logError('Email-changed notice failed', err))
+      }
+    }
+    emitToOfficers('membership:changed', { memberId: member.id, action: 'infoUpdated' })
+
+    return res.json({ message: 'Member details saved.', changes })
+  } catch (err) {
+    logError('Update member info', err)
     return res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
@@ -612,6 +753,11 @@ const updateMemberStatus = async (req, res) => {
       return res.status(403).json({ message: 'Only the President can change the President or Vice President\'s membership status.' })
     }
 
+    // Graduated is final; Active, Inactive and Archived can change back.
+    if (member.status === 'GRADUATED' && status !== 'GRADUATED') {
+      return res.status(400).json({ message: 'This member has graduated. Graduated is final and can no longer be changed.' })
+    }
+
     const previousStatus = member.status
     const isLeavingActive = previousStatus === 'ACTIVE' && status !== 'ACTIVE'
     const hadOfficerRole = member.user.role !== 'MEMBER'
@@ -633,12 +779,14 @@ const updateMemberStatus = async (req, res) => {
       actorId,
       targetUserId: member.userId,
       action: AUDIT_ACTIONS.MEMBER_STATUS_CHANGED,
+      entity: { type: 'member', id: member.id },
       details: {
         memberId: member.id,
         previousStatus,
         newStatus: status,
         memberName,
-        officerRoleRevoked: isLeavingActive && hadOfficerRole
+        officerRoleRevoked: isLeavingActive && hadOfficerRole,
+        changes: [{ field: 'status', label: 'Member status', from: previousStatus, to: status }],
       }
     })
 
@@ -657,5 +805,6 @@ const updateMemberStatus = async (req, res) => {
 module.exports = {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
   assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers,
-  scanMemberQr
+  scanMemberQr,
+  bulkReviewUsers, updateMemberInfo
 }

@@ -5,7 +5,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const CVSU_EMAIL_REGEX = /^[^\s@]+@cvsu\.edu\.ph$/
 
-const VALID_SEX_VALUES = ['MALE', 'FEMALE',"PREFER_NOT_TO_SAY"]
+const VALID_SEX_VALUES = ['MALE', 'FEMALE']
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#_-])[A-Za-z\d@$!%*?&.#_-]{8,}$/
 
@@ -41,7 +41,7 @@ const isValidSex = (value) => {
 const isValidName = (value) => {
   return typeof value === 'string'
     && value.trim().length >= 2
-    && value.trim().length <= 30
+    && value.trim().length <= 50
     && NAME_REGEX.test(value.trim())
 }
 
@@ -55,6 +55,7 @@ const isValidYearLevel = (value) => {
 }
 
 const VALID_MEMBER_STATUSES = ['ACTIVE', 'INACTIVE', 'GRADUATED', 'ARCHIVED']
+const VALID_SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV']
 
 module.exports = {
   isValidStudentNumber,
@@ -65,5 +66,7 @@ module.exports = {
   isValidName,
   isValidSection,
   VALID_MEMBER_STATUSES,
+  VALID_SUFFIXES,
+  VALID_YEAR_LEVELS,
   isValidYearLevel
 }

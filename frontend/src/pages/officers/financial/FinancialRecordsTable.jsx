@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { FileDownloadIcon } from '../../../components/icons/ActionIcons.jsx'
 import { useRole } from '../../../utils/useRole'
 import Spinner from '../../../components/ui/Spinner.jsx'
+import LastEdited from '../../../components/ui/LastEdited.jsx'
 import TablePagination from '../../../components/ui/TablePagination.jsx'
 import { usePagination } from '../../../utils/usePagination.js'
 
@@ -15,8 +16,10 @@ export function SearchIcon() {
   )
 }
 
-// Reference numbers, dates and amounts stay on one line.
+// Reference numbers, dates and amounts stay on one line; amounts line up on the right.
 const NOWRAP_COLUMNS = new Set(['id', 'date', 'amount', 'amountSpent'])
+const MONEY_COLUMNS = new Set(['amount', 'amountSpent'])
+const cellClass = (key) => [NOWRAP_COLUMNS.has(key) && 'data-table__nowrap', MONEY_COLUMNS.has(key) && 'data-table__money'].filter(Boolean).join(' ') || undefined
 
 // Downloading a certificate is an action, not a view — a role with VIEW-only
 // access to Financial can see this table but must not be able to generate or
@@ -64,7 +67,7 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
             <th className="data-table__number">No.</th>
             {columns
               .filter(col => col.key !== 'actions' || showActionsColumn)
-              .map(col => <th key={col.key}>{col.label}</th>)}
+              .map(col => <th key={col.key} className={MONEY_COLUMNS.has(col.key) ? 'data-table__money' : undefined}>{col.label}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -102,8 +105,8 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                     )
                   }
                   return (
-                    <td key={col.key} className={NOWRAP_COLUMNS.has(col.key) ? 'data-table__nowrap' : undefined}>
-                      {row[col.key]}
+                    <td key={col.key} className={cellClass(col.key)}>
+                      {col.key === 'lastEdited' ? <LastEdited edit={row.lastEdit} /> : row[col.key]}
                     </td>
                   )
                 })}

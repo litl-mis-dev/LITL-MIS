@@ -1,10 +1,10 @@
-const { verifyAuthToken } = require('../utils/jwt')
+const { verifyAuthToken, setAuthCookie, AUTH_COOKIE_NAME, SESSION_RENEW_AFTER_SECONDS } = require('../utils/jwt')
 
 const prisma = require('../lib/prisma')
 const { MEMBER_SIDE_ROLES } = require('../utils/roles')
 
 const authMiddleware = async (req, res, next) => {
-  const token = req.cookies['LITL-MIS']
+  const token = req.cookies[AUTH_COOKIE_NAME]
 
   if (!token) {
     return res.status(401).json({ message: 'Not authenticated' })
@@ -31,6 +31,12 @@ const authMiddleware = async (req, res, next) => {
     }
 
     req.user = { id: user.id, role: user.role }
+
+    // Using the site keeps you signed in: once the token is a day old it is
+    // replaced with a fresh 30-day one, so only 30 days without use end it.
+    if (Math.floor(Date.now() / 1000) - decoded.iat >= SESSION_RENEW_AFTER_SECONDS) {
+      setAuthCookie(res, user)
+    }
 
     const viewAs = req.headers['x-view-as']
     if (viewAs === 'MEMBER' && MEMBER_SIDE_ROLES.includes(user.role)) {

@@ -1,3 +1,4 @@
+const path = require('path')
 const nodemailer = require('nodemailer')
 
 // Hostinger email over SMTP. Port 465 uses implicit TLS; 587 upgrades with STARTTLS.
@@ -13,9 +14,31 @@ const transporter = nodemailer.createTransport({
   },
 })
 
+// Every email opens with the LITL logo so members can tell it's genuine. The
+// image travels inside the email (a CID attachment), so it shows without the
+// "display images" prompt that linked images get.
+const LOGO_CID = 'litl-logo'
+const LOGO_PATH = path.join(__dirname, '../../assets/email-logo.png')
+const LOGO_HEADER = `<div style="text-align: center; margin-bottom: 16px;">`
+  + `<img src="cid:${LOGO_CID}" alt="LITL" width="64" height="64" style="display: inline-block; width: 64px; height: 64px;" />`
+  + `</div>`
+
+// Puts the logo at the top of the email's content (right after its first tag).
+function withLogo(html) {
+  const firstTagEnd = html.indexOf('>')
+  return firstTagEnd === -1 ? LOGO_HEADER + html : html.slice(0, firstTagEnd + 1) + LOGO_HEADER + html.slice(firstTagEnd + 1)
+}
+
 // nodemailer throws on failure, so a failed send reaches the caller's try/catch.
 const sendMail = (message) =>
-  transporter.sendMail({ from: process.env.EMAIL_FROM, ...message })
+  transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    ...message,
+    ...(message.html && {
+      html: withLogo(message.html),
+      attachments: [...(message.attachments ?? []), { filename: 'litl-logo.png', path: LOGO_PATH, cid: LOGO_CID }],
+    }),
+  })
 
 const PURPOSES = {
   EMAIL_VERIFICATION: {
@@ -231,4 +254,22 @@ const sendAdviserInviteEmail = async ({ toEmail, firstName, titleLabel, link, ex
   })
 }
 
-module.exports = { sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail, sendAdviserInviteEmail }
+// Sent to the old and the new address when an officer corrects a member's
+// email, so a wrong change doesn't go unnoticed.
+const sendEmailChangedByOfficerEmail = async (toEmail, { memberName, newEmail, isOldAddress }) => {
+  const name = escapeHtml(memberName || 'Member')
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #1a1a1a;">Your LITL email was updated</h2>
+      <p style="color: #444; font-size: 14px;">Hello ${name},</p>
+      <p style="color: #444; font-size: 14px;">
+        An LITL officer updated the email address on your account to <strong>${escapeHtml(newEmail)}</strong>.
+        ${isOldAddress ? 'From now on, sign in and receive LITL emails with that address.' : 'You can now sign in with this address.'}
+      </p>
+      <p style="color: #888; font-size: 12px;">If you didn't ask for this change, please contact an LITL officer.</p>
+    </div>
+  `
+  await sendMail({ to: toEmail, subject: 'Your LITL email address was updated', html })
+}
+
+module.exports = { sendEmailChangedByOfficerEmail, sendOtpEmail, sendPaymentReminderEmail, sendContactFormEmail, sendRegistrationStatusEmail, sendAdviserInviteEmail }

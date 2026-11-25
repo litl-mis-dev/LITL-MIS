@@ -5,6 +5,7 @@ import { getSocket } from "../../../services/socket.js";
 import { downloadAttendancePdf, sortAttendanceRecords } from "../../../utils/downloadAttendancePdf.js";
 import TablePagination from "../../../components/ui/TablePagination.jsx";
 import { usePagination } from "../../../utils/usePagination.js";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
@@ -224,7 +225,7 @@ export default function EventAttendance() {
             <label className="member-search attendance-page__filter attendance-page__filter-search">
               <span className="sr-only">Search attendees</span>
               <input
-                type="search"
+                type="search" maxLength={LIMITS.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search name, student no., or time"

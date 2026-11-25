@@ -7,6 +7,8 @@ import { readMembersListFile } from "../../../utils/readMembersListFile.js";
 import { formatPersonName } from "../../../utils/formInputs.js";
 import ModalPortal from "../../../components/ui/ModalPortal.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import CharCount from "../../../components/ui/CharCount.jsx";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 
@@ -328,7 +330,8 @@ function AddStudentModal({ onNext, onClose }) {
                         <label className="dash-form__field">
                             <span>Last Name<RequiredMark /></span>
                             <input value={lastName} onChange={(e) => setLastName(formatPersonName(e.target.value))}
-                                placeholder="e.g. Dela Cruz" maxLength={60} required />
+                                placeholder="e.g. Dela Cruz" maxLength={LIMITS.membersListLastName} required />
+                            <CharCount value={lastName} max={LIMITS.membersListLastName} />
                         </label>
                         <p className="card__sub">If the student number is already on the list, its last name is updated.</p>
                         <div className="member-modal__actions">
@@ -382,7 +385,7 @@ function MembersListModal({ entries, onRemoved, onClose }) {
                     <div className="filter-modal__body">
                         <label className="member-search card-picker__search">
                             <span className="sr-only">Search the Members List</span>
-                            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search student no. or last name" />
+                            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search student no. or last name" maxLength={LIMITS.search} />
                         </label>
                         {error && <p className="members-download-status members-download-status--error" role="alert">{error}</p>}
                         <ul className="card-picker__list">

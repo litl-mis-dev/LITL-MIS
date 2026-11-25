@@ -1,0 +1,25 @@
+// Longest text each kind of field takes, the same across every form. The
+// server checks the same limits (each controller's validation).
+export const LIMITS = {
+    name: 50,
+    suffix: 10,
+    email: 254,
+    password: 72,
+    eventTitle: 50,
+    proponent: 50,
+    eventLocation: 100,
+    eventDescription: 2000,
+    url: 191,
+    announcementTitle: 50,
+    announcementMessage: 1000,
+    disbursementField: 50,
+    fundCategory: 50,
+    documentName: 50,
+    remarks: 1000,
+    membersListLastName: 60,
+    contactName: 100,
+    contactOrganization: 100,
+    contactSubject: 150,
+    contactMessage: 2000,
+    search: 100,
+};

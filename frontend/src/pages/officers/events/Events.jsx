@@ -12,22 +12,27 @@ import ConfirmationDialog from "../../../components/officers/ConfirmationDialog.
 import Spinner from "../../../components/ui/Spinner.jsx";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import EditHistory from "../../../components/ui/EditHistory.jsx";
+import CharCount from "../../../components/ui/CharCount.jsx";
+import OptionalMark from "../../../components/ui/OptionalMark.jsx";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 import {
     CLASS_HOURS_END, CLASS_HOURS_MESSAGE, CLASS_HOURS_START, PAST_DATE_MESSAGE,
-    isPastDate, isWithinClassHours, minScheduleDate, todayDateString,
+    isPastDate, isWithinClassHours, minScheduleDate, titleCaseOnBlur, todayDateString,
 } from "../../../utils/formInputs.js";
 
 const accessOptions        = ["Members", "Officers"];
-const maxDescriptionLength = 2000;
+const maxDescriptionLength = LIMITS.eventDescription;
 const addStatusOptions     = ["Coming soon", "Open"];
 const statusOptions        = ["Coming soon", "Open", "Closed", "Cancelled"];
-// Status only moves forward, as on the server (services/eventStatus.service.js).
+// Statuses that aren't final can go back; Closed and Cancelled are final (as on
+// the server, services/eventStatus.service.js).
 // Coming soon -> Open and Open -> Closed also happen on their own: an event
 // opens at its date and time and closes at 11:59 PM that day.
-const NEXT_STATUSES = { "Coming soon": ["Open", "Cancelled"], "Open": ["Closed", "Cancelled"], "Closed": [], "Cancelled": [] };
-const SCHEDULE_NOTE = "Opens automatically at its date and time, and closes at 11:59 PM that day.";
+const NEXT_STATUSES = { "Coming soon": ["Open", "Cancelled"], "Open": ["Coming soon", "Closed", "Cancelled"], "Closed": [], "Cancelled": [] };
 const STATUS_CHANGE_NOTES = {
-    "Open": "It opens for attendance now and can't go back to Coming soon.",
+    "Open": "It opens for attendance now.",
+    "Coming soon": "Attendance stops until its new date and time.",
     "Closed": "Attendance ends now. A closed event can't be reopened.",
     "Cancelled": "A cancelled event can't be reopened.",
 };
@@ -457,7 +462,7 @@ export default function Events() {
                     <div className="member-list-actions">
                         <label className="member-search">
                             <span className="sr-only">Search events</span>
-                            <input type="search" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search events" />
+                            <input type="search" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search events" maxLength={LIMITS.search} />
                         </label>
                         <div className="event-filter-actions">
                             <button type="button" className="btn btn--outline btn--filter" onClick={() => setIsFilterModalOpen(true)}>
@@ -526,10 +531,12 @@ export default function Events() {
                         <ModalHeader eyebrow="Event" title="Add Event" onClose={() => setIsAddModalOpen(false)} />
                         <form className="member-modal__form" onSubmit={handleAddEvent}>
                             <label className="dash-form__field"><span>Event title<RequiredMark /></span>
-                                <input value={formEvent.title} onChange={e => handleFormChange("title", e.target.value)} maxLength={50} required autoFocus />
+                                <input value={formEvent.title} onChange={e => handleFormChange("title", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.eventTitle} required autoFocus />
+                                <CharCount value={formEvent.title} max={LIMITS.eventTitle} />
                             </label>
                             <label className="dash-form__field"><span>Proponent<RequiredMark /></span>
-                                <input value={formEvent.Proponent} onChange={e => handleFormChange("Proponent", e.target.value)} maxLength={50} required />
+                                <input value={formEvent.Proponent} onChange={e => handleFormChange("Proponent", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.proponent} required />
+                                <CharCount value={formEvent.Proponent} max={LIMITS.proponent} />
                             </label>
                             <label className="dash-form__field"><span>Date<RequiredMark /></span>
                                 <input type="date" value={formEvent.date} min={todayDateString()} onChange={e => handleFormChange("date", e.target.value)} required />
@@ -538,7 +545,8 @@ export default function Events() {
                                 <input type="time" value={formEvent.time} min={CLASS_HOURS_START} max={CLASS_HOURS_END} onChange={e => handleFormChange("time", e.target.value)} required />
                             </label>
                             <label className="dash-form__field"><span>Location<RequiredMark /></span>
-                                <input value={formEvent.location} onChange={e => handleFormChange("location", e.target.value)} maxLength={50} required />
+                                <input value={formEvent.location} onChange={e => handleFormChange("location", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.eventLocation} required />
+                                <CharCount value={formEvent.location} max={LIMITS.eventLocation} />
                             </label>
                             <BudgetFields value={formEvent.disbursementId} onChange={v => handleFormChange("disbursementId", v)}
                                 options={budgetOptions} error={budgetOptionsError} />
@@ -546,11 +554,10 @@ export default function Events() {
                                 <select value={formEvent.status} onChange={e => handleFormChange("status", e.target.value)}>
                                     {addStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <span className="event-form__hint">{SCHEDULE_NOTE}</span>
                             </label>
                             <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={formEvent.description} onChange={e => handleFormChange("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
-                                <span className="event-form__hint">{formEvent.description.length}/{maxDescriptionLength} characters</span>
+                                <CharCount value={formEvent.description} max={maxDescriptionLength} />
                             </label>
                             <label className="feature-checklist__item event-form__wide event-form__toggle">
                                 <input type="checkbox" checked={formEvent.hasGoogleForm} onChange={e => handleFormChange("hasGoogleForm", e.target.checked)} />
@@ -558,7 +565,7 @@ export default function Events() {
                             </label>
                             {formEvent.hasGoogleForm && (
                                 <label className="dash-form__field event-form__wide"><span>Google Form URL<RequiredMark /></span>
-                                    <input type="url" value={formEvent.googleFormUrl} onChange={e => handleFormChange("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." required />
+                                    <input type="url" value={formEvent.googleFormUrl} onChange={e => handleFormChange("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." maxLength={LIMITS.url} required />
                                 </label>
                             )}
                             <fieldset className="feature-checklist" aria-invalid={accessError ? "true" : "false"}>
@@ -614,6 +621,8 @@ export default function Events() {
                                 <h3>Description</h3>
                                 <p>{selectedEvent.description}</p>
                             </section>
+                            {/* Reloads whenever the event changes (edits, status changes). */}
+                            <EditHistory type="event" id={selectedEvent.id} refreshKey={JSON.stringify(selectedEvent)} title={`Edit history · ${selectedEvent.title}`} />
                             {selectedAttendance.length > 0 && (
                                 <div className="attendance-list">
                                     <h3>Recent check-ins</h3>
@@ -685,24 +694,24 @@ export default function Events() {
                         <ModalHeader eyebrow="Event settings" title="Edit Event" onClose={closeEditEventModal} />
                         <form className="member-modal__form" onSubmit={handleSaveEdit}>
                             <label className="dash-form__field"><span>Event title<RequiredMark /></span>
-                                <input value={editingEvent.title} onChange={e => handleEditField("title", e.target.value)} maxLength={50} required />
+                                <input value={editingEvent.title} onChange={e => handleEditField("title", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.eventTitle} required />
+                                <CharCount value={editingEvent.title} max={LIMITS.eventTitle} />
                             </label>
                             <label className="dash-form__field"><span>Proponent<RequiredMark /></span>
-                                <input value={editingEvent.Proponent} onChange={e => handleEditField("Proponent", e.target.value)} maxLength={50} required />
+                                <input value={editingEvent.Proponent} onChange={e => handleEditField("Proponent", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.proponent} required />
+                                <CharCount value={editingEvent.Proponent} max={LIMITS.proponent} />
                             </label>
                             <label className="dash-form__field"><span>Date<RequiredMark /></span>
                                 <input type="date" value={editingEvent.date} min={minScheduleDate(selectedEvent?.date)} onChange={e => handleEditField("date", e.target.value)} required
-                                    disabled={selectedEvent?.status !== "Coming soon"} aria-describedby="event-schedule-lock" />
+                                    disabled={editingEvent.status !== "Coming soon"} />
                             </label>
                             <label className="dash-form__field"><span>Time<RequiredMark /></span>
                                 <input type="time" value={editingEvent.time} {...(editingEvent.time !== selectedEvent?.time && { min: CLASS_HOURS_START, max: CLASS_HOURS_END })} onChange={e => handleEditField("time", e.target.value)} required
-                                    disabled={selectedEvent?.status !== "Coming soon"} aria-describedby="event-schedule-lock" />
+                                    disabled={editingEvent.status !== "Coming soon"} />
                             </label>
-                            {selectedEvent?.status !== "Coming soon" && (
-                                <p id="event-schedule-lock" className="event-form__hint event-form__wide">The date and time can only be changed while the event is Coming soon.</p>
-                            )}
                             <label className="dash-form__field"><span>Location<RequiredMark /></span>
-                                <input value={editingEvent.location} onChange={e => handleEditField("location", e.target.value)} maxLength={50} required />
+                                <input value={editingEvent.location} onChange={e => handleEditField("location", e.target.value)} onBlur={titleCaseOnBlur} maxLength={LIMITS.eventLocation} required />
+                                <CharCount value={editingEvent.location} max={LIMITS.eventLocation} />
                             </label>
                             <BudgetFields value={editingEvent.disbursementId} onChange={v => handleEditField("disbursementId", v)}
                                 options={budgetOptions} error={budgetOptionsError}
@@ -712,11 +721,11 @@ export default function Events() {
                                     disabled={!NEXT_STATUSES[selectedEvent?.status]?.length}>
                                     {[selectedEvent?.status, ...(NEXT_STATUSES[selectedEvent?.status] ?? [])].filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <span className="event-form__hint">{NEXT_STATUSES[selectedEvent?.status]?.length ? SCHEDULE_NOTE : "This status is final."}</span>
+                                {!NEXT_STATUSES[selectedEvent?.status]?.length && <span className="event-form__hint">This status is final.</span>}
                             </label>
                             <label className="dash-form__field event-form__wide"><span>Description<RequiredMark /></span>
                                 <textarea value={editingEvent.description} onChange={e => handleEditField("description", e.target.value.slice(0, maxDescriptionLength))} maxLength={maxDescriptionLength} required />
-                                <span className="event-form__hint">{editingEvent.description.length}/{maxDescriptionLength} characters</span>
+                                <CharCount value={editingEvent.description} max={maxDescriptionLength} />
                             </label>
                             <label className="feature-checklist__item event-form__wide event-form__toggle">
                                 <input type="checkbox" checked={editingEvent.hasGoogleForm} onChange={e => handleEditField("hasGoogleForm", e.target.checked)} />
@@ -724,7 +733,7 @@ export default function Events() {
                             </label>
                             {editingEvent.hasGoogleForm && (
                                 <label className="dash-form__field event-form__wide"><span>Google Form URL<RequiredMark /></span>
-                                    <input type="url" value={editingEvent.googleFormUrl} onChange={e => handleEditField("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." required />
+                                    <input type="url" value={editingEvent.googleFormUrl} onChange={e => handleEditField("googleFormUrl", e.target.value)} placeholder="https://forms.google.com/..." maxLength={LIMITS.url} required />
                                 </label>
                             )}
                             <fieldset className="filter-checklist">
@@ -892,7 +901,7 @@ function BudgetFields({ value, onChange, options, error, fallbackBudget = null }
     const budget = selected ? selected.amountSpent : (value === "" ? fallbackBudget : null);
     return (
         <>
-            <label className="dash-form__field"><span>Disbursement</span>
+            <label className="dash-form__field"><span>Disbursement<OptionalMark /></span>
                 <select value={value} onChange={e => onChange(e.target.value)} disabled={options === null}>
                     <option value="">{options === null ? "Loading disbursements…" : "No disbursement yet"}</option>
                     {(options ?? []).map(o => (

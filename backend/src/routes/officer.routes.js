@@ -6,7 +6,7 @@ validateIdParams(router, ['id', 'userId'])
 const {
   getPendingUsers, getApprovedMembers, getAdvisers, approveUser, rejectUser, getSignatories,
   assignOfficerRole, removeOfficerRole, getOfficerAssignments, updateMemberStatus, getPublicOfficers,
-  scanMemberQr
+  scanMemberQr, bulkReviewUsers, updateMemberInfo
 } = require('../controllers/officer.controller')
 const { getMembersListEntries, previewMembersList, applyMembersList, removeMembersListEntry } = require('../controllers/membersList.controller')
 const authMiddleware = require('../middleware/auth.middleware')
@@ -25,6 +25,7 @@ router.get('/signatories', authMiddleware, roleGuard(OFFICER_ROLES), getSignator
 
 // Member List module
 router.get('/members', authMiddleware, requireModule('MEMBER_LIST', 'VIEW'), getApprovedMembers)
+router.put('/members/:id/info', authMiddleware, requireModule('MEMBER_LIST', 'EDIT'), updateMemberInfo)
 router.post('/members/scan-qr', authMiddleware, requireModule('MEMBER_LIST', 'VIEW'), scanMemberQr)
 
 // Advisers are not members, so they are not in /members. Manage Roles reads
@@ -36,6 +37,7 @@ router.get('/advisers', authMiddleware, requireModule('SETTINGS_ROLES', 'VIEW'),
 // from the MEMBER_LIST permission — each module gates only its own access.
 router.get('/pending-users',   authMiddleware, requireModule('MEMBERS_APPROVAL', 'VIEW'), getPendingUsers)
 router.put('/approve/:userId', authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), approveUser)
+router.post('/pending-users/bulk', authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), bulkReviewUsers)
 router.put('/reject/:userId',  authMiddleware, requireModule('MEMBERS_APPROVAL', 'EDIT'), rejectUser)
 
 // Members List (automatic approval). It holds students' personal data and

@@ -211,6 +211,26 @@ button[aria-busy="true"]:has(.ui-spinner)::before {
     font-weight: 600;
 }
 
+/* "(optional)" after a label (components/ui/OptionalMark.jsx). */
+/* Live character count under a text field (components/ui/CharCount.jsx). The
+   doubled class wins over forms that style every span in a label. */
+.char-count.char-count {
+    display: block;
+    margin-top: 2px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 400;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+.char-count.char-count--near { color: #b45309; }
+.char-count.char-count--full { color: #b91c1c; }
+
+.optional-mark.optional-mark {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
 /* Keyboard users can jump past the navigation; hidden until focused. */
 .skip-link {
     position: absolute;

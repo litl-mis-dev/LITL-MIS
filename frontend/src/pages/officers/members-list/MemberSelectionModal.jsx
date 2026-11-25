@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ModalPortal from "../../../components/ui/ModalPortal.jsx";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
 
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
@@ -114,7 +115,7 @@ export default function MemberSelectionModal({
                             <label className="member-search card-picker__search">
                                 <span className="sr-only">Search members</span>
                                 <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search name or student no." />
+                                    placeholder="Search name or student no." maxLength={LIMITS.search} />
                             </label>
                             <label className="dash-form__field">
                                 Year Level
@@ -125,7 +126,7 @@ export default function MemberSelectionModal({
                             </label>
                             <label className="dash-form__field">
                                 Section
-                                <input value={sectionFilter} inputMode="numeric" pattern="[0-9]*" placeholder="All"
+                                <input value={sectionFilter} inputMode="numeric" pattern="[0-9]*" placeholder="All" maxLength={2}
                                     onChange={(e) => setSectionFilter(digitsOnly(e.target.value))} />
                             </label>
                         </div>

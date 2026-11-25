@@ -3,6 +3,7 @@ import DashboardHeader from "../../components/officers/DashboardHeader.jsx";
 import { listAuditLogs } from "../../services/auditLog.service.js";
 import TablePagination from "../../components/ui/TablePagination.jsx";
 import { TABLE_PAGE_SIZE } from "../../utils/usePagination.js";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const MODULES = ['Authentication', 'Registration', 'Members', 'Financial']
 const ROLE_BADGE_STYLE = {
@@ -113,7 +114,7 @@ export default function ActivityLogs() {
                         <label className="member-search activity-logs__search">
                             <span className="sr-only">Search activity logs</span>
                             <input
-                                type="search"
+                                type="search" maxLength={LIMITS.search}
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 placeholder="Search logs"
@@ -153,7 +154,7 @@ export default function ActivityLogs() {
                                     <th>Account</th>
                                     <th>Description</th>
                                     <th>Module</th>
-                                    <th>Fund Amount</th>
+                                    <th className="data-table__money">Fund Amount</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -178,7 +179,7 @@ export default function ActivityLogs() {
                                         <span className="activity-logs-table__module">{log.module}</span>
                                     </td>
                                     
-                                    <td>
+                                    <td className="data-table__money">
                                         {log.fundAmount ? (
                                             <span className={`activity-logs-table__amount activity-logs-table__amount--${log.fundChange}`}>
                                                 <span className="activity-logs-table__amount-sign">

@@ -18,6 +18,9 @@ import {
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../components/ui/RequiredMark.jsx";
+import EditHistory from "../../components/ui/EditHistory.jsx";
+import CharCount from "../../components/ui/CharCount.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const groupAccessOptions = ["Members", "Officers", "Adviser/Dept. Chair"];
 
@@ -513,7 +516,7 @@ async function handleSaveAccess() {
                         <label className="member-search documents-search">
                             <span className="sr-only">Search documents</span>
                             <input
-                                type="search"
+                                type="search" maxLength={LIMITS.search}
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
                                 placeholder="Search in this folder"
@@ -604,6 +607,9 @@ async function handleSaveAccess() {
                                 <span className="document-tile__meta">
                                     {item.type === "folder" ? "Folder" : item.fileType} | {item.updatedAt}
                                 </span>
+                                <span className="document-tile__meta document-tile__meta--by">
+                                    {item.type === "folder" ? "Created" : "Uploaded"} by {item.owner} · {item.createdAt}
+                                </span>
                             </article>
                         ))}
 
@@ -633,8 +639,12 @@ async function handleSaveAccess() {
 
                         <dl className="documents-meta-list">
                             <div>
-                                <dt>Owner</dt>
+                                <dt>{selectedItem.type === "folder" ? "Created by" : "Uploaded by"}</dt>
                                 <dd>{selectedItem.owner}</dd>
+                            </div>
+                            <div>
+                                <dt>{selectedItem.type === "folder" ? "Created on" : "Uploaded on"}</dt>
+                                <dd>{selectedItem.createdAt}</dd>
                             </div>
                             <div>
                                 <dt>Updated</dt>
@@ -657,6 +667,7 @@ async function handleSaveAccess() {
                                 <dd>{formatAccessSummary(selectedItem.access, officerAccessOptions)}</dd>
                             </div>
                         </dl>
+                        <EditHistory type="document" id={Number(selectedItem.id)} refreshKey={selectedItem.name} title={`Edit history · ${selectedItem.name}`} />
                         <div className="documents-details__actions">
                             {isTrashOpen ? (
                                 <>
@@ -717,9 +728,10 @@ async function handleSaveAccess() {
                                     onChange={(event) => setNewFolderName(event.target.value)}
                                     placeholder="e.g. Assembly Files"
                                     autoFocus
-                                    maxLength={50}
+                                    maxLength={LIMITS.documentName}
                                     required
                                 />
+                                <CharCount value={newFolderName} max={LIMITS.documentName} />
                             </label>
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={() => setIsFolderModalOpen(false)}>
@@ -848,9 +860,10 @@ async function handleSaveAccess() {
                                     value={renameValue}
                                     onChange={(event) => setRenameValue(event.target.value)}
                                     autoFocus
-                                    maxLength={50}
+                                    maxLength={LIMITS.documentName}
                                     required
                                 />
+                                <CharCount value={renameValue} max={LIMITS.documentName} />
                             </label>
                             <div className="member-modal__actions">
                                 <button type="button" className="btn btn--outline" onClick={() => setRenamingItem(null)}>

@@ -4,6 +4,7 @@
 // original design otherwise. This module never designs a certificate — it
 // only overlays verification information onto one that already exists.
 
+const path = require('path')
 const sharp = require('sharp')
 const QRCode = require('qrcode')
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib')
@@ -23,6 +24,16 @@ function getSharedMeasurementFont() {
   }
   return sharedMeasurementFontPromise
 }
+
+// The certificate number on image certificates is drawn with this bundled
+// font (Arimo Bold, SIL Open Font License; same letter widths as Arial and
+// Helvetica). It used to ask for "Arial, Helvetica, sans-serif", which the
+// image library looks up among the fonts installed on the server: the Linux
+// host has neither, so PNG certificates got broken, unreadable text. PDFs
+// were fine because they embed their own Helvetica.
+const LABEL_FONT_FILE = path.join(__dirname, '../../assets/fonts/Arimo-Bold.ttf')
+const LABEL_FONT_NAME = 'Arimo Bold'
+const LABEL_COLOR = '#334155'
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
 const SUPPORTED_PDF_MIME_TYPE = 'application/pdf'
@@ -182,16 +193,20 @@ async function stampRasterCertificate({ buffer, certificateNumber, verificationU
 
   const qrPngBuffer = await generateQrPngBuffer(verificationUrl, qrSize)
 
-  // Text baseline sits `labelGap` below the QR, matching the PDF path's
-  // `qrY - cardPadding - fontSize * 0.7` placement logic exactly (both put
-  // the baseline roughly 0.7 * fontSize above the bottom of the label zone).
-  const labelSvg = `
-    <svg width="${cardWidth}" height="${labelHeight}" xmlns="http://www.w3.org/2000/svg">
-      <text x="${cardWidth / 2}" y="${labelHeight - labelGap * 0.3}" text-anchor="middle"
-            font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}"
-            font-weight="700" fill="#334155">${escapeXml(certificateNumber)}</text>
-    </svg>
-  `
+  // The certificate number, rendered with the bundled font (see
+  // LABEL_FONT_FILE) and centered in the label zone under the QR. At 72 dpi
+  // one point is one pixel, so the font size is the same `fontSize` px.
+  const label = await sharp({
+    text: {
+      text: `<span foreground="${LABEL_COLOR}">${escapeXml(certificateNumber)}</span>`,
+      font: `${LABEL_FONT_NAME} ${fontSize}`,
+      fontfile: LABEL_FONT_FILE,
+      dpi: 72,
+      rgba: true,
+    },
+  }).png().toBuffer({ resolveWithObject: true })
+  const labelLeft = cardX + Math.max(0, Math.round((cardWidth - label.info.width) / 2))
+  const labelTop = cardY + cardPadding + qrSize + Math.max(0, Math.round((labelHeight - label.info.height) / 2))
 
   const cardPath = roundedRectPath(cardWidth, cardHeight, cornerRadius)
   const cardSvg = `
@@ -204,7 +219,7 @@ async function stampRasterCertificate({ buffer, certificateNumber, verificationU
     .composite([
       { input: Buffer.from(cardSvg), left: cardX, top: cardY },
       { input: qrPngBuffer, left: cardX + qrOffsetX, top: cardY + cardPadding },
-      { input: Buffer.from(labelSvg), left: cardX, top: cardY + cardPadding + qrSize },
+      { input: label.data, left: labelLeft, top: labelTop },
     ])
     .toFormat(metadata.format === 'jpeg' ? 'jpeg' : 'png')
     .toBuffer()

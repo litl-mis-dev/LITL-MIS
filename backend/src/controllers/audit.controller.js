@@ -70,6 +70,9 @@ const reviewAudit = async (req, res) => {
     if (remarks !== undefined && remarks !== null && typeof remarks !== 'string') {
       return res.status(400).json({ message: 'Remarks must be text.' })
     }
+    if (typeof remarks === 'string' && remarks.trim().length > 1000) {
+      return res.status(400).json({ message: 'Remarks must not exceed 1000 characters.' })
+    }
 
     if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Status must be one of: Pending, Review, For Clarification, Cleared.' })
@@ -107,6 +110,7 @@ const reviewAudit = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: isBeingCleared ? AUDIT_ACTIONS.AUDIT_CLEARED : AUDIT_ACTIONS.AUDIT_STATUS_UPDATED,
+      entity: { type: 'audit', id },
       details: {
         auditId: id,
         displayId,
@@ -115,7 +119,11 @@ const reviewAudit = async (req, res) => {
         reference: updated.disbursement?.reference || updated.returnFund?.reference || null,
         previousStatus: audit.status,
         newStatus: status,
-        remarks: reviewRemarks
+        remarks: reviewRemarks,
+        changes: [
+          { field: 'status', label: 'Status', from: audit.status, to: status },
+          { field: 'remarks', label: 'Remarks', from: audit.remarks ?? null, to: reviewRemarks ?? null },
+        ].filter((c) => (c.from ?? '') !== (c.to ?? ''))
       }
     })
 

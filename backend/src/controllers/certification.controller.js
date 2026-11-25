@@ -359,6 +359,9 @@ const revokeCertificate = async (req, res) => {
   try {
     const id = Number(req.params.id)
     const { reason } = req.body
+    if (reason != null && (typeof reason !== 'string' || reason.trim().length > 300)) {
+      return res.status(400).json({ message: 'Reason must not exceed 300 characters.' })
+    }
 
     const certificate = await prisma.certificate.findUnique({ where: { id } })
     if (!certificate) return res.status(404).json({ message: 'Certificate not found.' })

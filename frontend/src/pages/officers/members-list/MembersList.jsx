@@ -7,14 +7,20 @@ import MembershipPaymentSection from "./MembershipPaymentSection.jsx";
 import { useRole } from '../../../utils/useRole.js'
 import { ROLE_LABELS } from '../../../utils/roles.js'
 import ConfirmActionButton from "../../../components/officers/ConfirmActionButton.jsx";
-import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, updateMemberStatus, } from "../../../services/officer.service.js";
+import { getApprovedMembers, getPendingUsers, approveUser, rejectUser, bulkReviewUsers, updateMemberStatus, updateMemberInfo, } from "../../../services/officer.service.js";
+import EditHistory from "../../../components/ui/EditHistory.jsx";
 import { getMemberPaymentHistory, sendBulkPaymentReminders, } from "../../../services/financial.service.js";
 import MemberSelectionModal from "./MemberSelectionModal.jsx";
 import MembersListPanel from "./MembersListPanel.jsx";
 import { downloadAllMembershipCardsPdf, downloadMembershipCardPdf } from "../../../utils/downloadMembershipCardPdf.js";
+import { downloadMembersListPdf } from "../../../utils/downloadAttendancePdf.js";
 import { createAnnouncement } from "../../../services/announcement.service.js";
 import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
+import OptionalMark from "../../../components/ui/OptionalMark.jsx";
+import CharCount from "../../../components/ui/CharCount.jsx";
+import { LIMITS } from "../../../utils/fieldLimits.js";
+import { titleCaseOnBlur } from "../../../utils/formInputs.js";
 import TablePagination from "../../../components/ui/TablePagination.jsx";
 import { usePagination } from "../../../utils/usePagination.js";
 
@@ -40,6 +46,9 @@ export default function MembersList({ compact = false }) {
     // ── Data state ────────────────────────────────────────────────────────────
     const [members, setMembers] = useState([]);
     const [pendingUsers, setPendingUsers] = useState([]);
+    // Member Approval checkboxes: ids of the registrations ticked for a bulk action.
+    const [selectedPendingIds, setSelectedPendingIds] = useState([]);
+    const [approvalMessage, setApprovalMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -54,12 +63,18 @@ export default function MembersList({ compact = false }) {
         memberStatus: "",
     });
     const [editingMember, setEditingMember] = useState(null);
+    // The member's details in the edit form, and the field errors from saving.
+    const [editInfo, setEditInfo] = useState(null);
+    const [editInfoErrors, setEditInfoErrors] = useState({});
+    const [historyRefresh, setHistoryRefresh] = useState(0);
     const [editMemberStatus, setEditMemberStatus] = useState("");
     const [editSaving, setEditSaving] = useState(false);
     const [editError, setEditError] = useState('');
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
     const [cardGenerationMessage, setCardGenerationMessage] = useState("");
+    const [isDownloadingList, setIsDownloadingList] = useState(false);
+    const [listDownloadError, setListDownloadError] = useState("");
 
     // Email reminder state
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
@@ -172,6 +187,24 @@ export default function MembersList({ compact = false }) {
         setFilters({ years: [], section: "", payment: "", memberStatus: "" });
     }
 
+    // Same report as the event attendance download: members grouped by Year and
+    // Section, following only the Year Level and Section filters.
+    async function handleDownloadMembersList() {
+        if (isDownloadingList) return;
+        setIsDownloadingList(true);
+        setListDownloadError("");
+        try {
+            const listed = members.filter((m) =>
+                (filters.years.length === 0 || filters.years.includes(m.yearLevel)) &&
+                (!filters.section || m.section.toLowerCase().includes(filters.section.toLowerCase())));
+            await downloadMembersListPdf(listed, { years: filters.years, section: filters.section });
+        } catch {
+            setListDownloadError("Failed to generate the Members List PDF. Please try again.");
+        } finally {
+            setIsDownloadingList(false);
+        }
+    }
+
     function openCardsModal() {
         setCardGenerationMessage("")
         setIsCardsModalOpen(true)
@@ -202,6 +235,12 @@ export default function MembersList({ compact = false }) {
 
     async function openEdit(member) {
         setEditingMember(member)
+        setEditInfo({
+            firstName: member.firstName ?? "", middleName: member.middleName ?? "", lastName: member.lastName ?? "",
+            suffix: member.suffix ?? "", sex: member.sex ?? "", yearLevel: member.yearLevel ?? "",
+            section: member.section ?? "", email: member.email ?? "", studentNumber: member.studentNumber ?? "",
+        })
+        setEditInfoErrors({})
         setEditMemberStatus(member.memberStatus ?? "ACTIVE")
         setEditError('')
         setPaymentHistory([])
@@ -219,6 +258,7 @@ export default function MembersList({ compact = false }) {
 
     function closeEdit() {
         setEditingMember(null)
+        setEditInfo(null); setEditInfoErrors({})
         setEditMemberStatus(''); setEditError(''); setEditSaving(false)
         setPaymentHistory([]); setHistoryError('')
     }
@@ -227,14 +267,23 @@ export default function MembersList({ compact = false }) {
         e.preventDefault()
         if (!editingMember) return
         const statusChanged = canManageOfficers && editMemberStatus !== (editingMember.memberStatus ?? "ACTIVE")
-        if (!statusChanged) { closeEdit(); return }
+        const original = {
+            firstName: editingMember.firstName ?? "", middleName: editingMember.middleName ?? "", lastName: editingMember.lastName ?? "",
+            suffix: editingMember.suffix ?? "", sex: editingMember.sex ?? "", yearLevel: editingMember.yearLevel ?? "",
+            section: editingMember.section ?? "", email: editingMember.email ?? "", studentNumber: editingMember.studentNumber ?? "",
+        }
+        const infoChanged = canManageMemberList && editInfo && Object.keys(original).some(k => (editInfo[k] ?? "").trim() !== original[k])
+        if (!statusChanged && !infoChanged) { closeEdit(); return }
 
-        setEditSaving(true); setEditError('')
+        setEditSaving(true); setEditError(''); setEditInfoErrors({})
         try {
-            await updateMemberStatus(editingMember.memberId, editMemberStatus)
+            if (infoChanged) await updateMemberInfo(editingMember.memberId, editInfo)
+            if (statusChanged) await updateMemberStatus(editingMember.memberId, editMemberStatus)
             await fetchAll()
+            setHistoryRefresh(n => n + 1)
             closeEdit()
         } catch (err) {
+            setEditInfoErrors(err.response?.data?.errors ?? {})
             setEditError(err.response?.data?.message ?? 'Failed to update member.')
         } finally { setEditSaving(false) }
     }
@@ -329,6 +378,27 @@ export default function MembersList({ compact = false }) {
         } finally { setApprovalLoading(false); setApprovalAction(null) }
     }
 
+    // Approve or reject every ticked registration at once.
+    async function handleBulkReview(action) {
+        const ids = selectedPendingIds.filter(id => pendingUsers.some(u => u.id === id));
+        if (ids.length === 0) return;
+        setApprovalLoading(true); setApprovalError(''); setApprovalMessage(''); setApprovalAction({ id: 'bulk', type: action })
+        try {
+            const result = await bulkReviewUsers(action, ids)
+            setApprovalMessage(result.message)
+            setSelectedPendingIds([])
+            const [pd, md] = await Promise.all([getPendingUsers(), getApprovedMembers()])
+            setPendingUsers(pd?.users ?? [])
+            setMembers(md.members ?? [])
+        } catch (err) {
+            setApprovalError(err.response?.data?.message ?? `Failed to ${action} the selected registrations.`)
+        } finally { setApprovalLoading(false); setApprovalAction(null) }
+    }
+
+    function togglePendingSelection(userId) {
+        setSelectedPendingIds(ids => ids.includes(userId) ? ids.filter(id => id !== userId) : [...ids, userId])
+    }
+
     async function handleRejectMember(userId) {
         setApprovalLoading(true); setApprovalError(''); setApprovalAction({ id: userId, type: 'reject' })
         try {
@@ -407,6 +477,17 @@ export default function MembersList({ compact = false }) {
                                     <span>Download Membership Cards</span>
                                 </button>
                             )}
+                            <button
+                                type="button"
+                                className="btn btn--outline"
+                                onClick={handleDownloadMembersList}
+                                disabled={loading || isDownloadingList}
+                                aria-busy={isDownloadingList}
+                                title="Download the Members List as a PDF (follows the Year Level and Section filters)"
+                            >
+                                <DownloadIcon />
+                                <span>{isDownloadingList ? "Generating PDF..." : "Download Members List"}</span>
+                            </button>
                             {/* Sending reminder emails is a Financial-module action
                                 (the backend authorizes it purely on FINANCIAL EDIT),
                                 so it must depend only on that module's permission —
@@ -441,7 +522,7 @@ export default function MembersList({ compact = false }) {
                             <label className="member-search">
                                 <input type="search" value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
-                                    placeholder="Search name or student no." />
+                                    placeholder="Search name or student no." maxLength={LIMITS.search} />
                             </label>
                             <div className="advanced-filter-actions">
                                 <button type="button" className="btn btn--outline btn--filter"
@@ -457,6 +538,9 @@ export default function MembersList({ compact = false }) {
                     )}
                 </div>
 
+                {listDownloadError && (
+                    <p className="members-download-status members-download-status--error" role="alert">{listDownloadError}</p>
+                )}
                 {cardGenerationMessage && (
                     <p className="members-download-status">{cardGenerationMessage}</p>
                 )}
@@ -555,7 +639,50 @@ export default function MembersList({ compact = false }) {
                             </p>
                         </div>
                     </div>
+                    {canApproveMembers && pendingUsers.length > 0 && (() => {
+                        const visibleSelected = selectedPendingIds.filter(id => pendingUsers.some(u => u.id === id));
+                        const allSelected = visibleSelected.length === pendingUsers.length;
+                        const count = visibleSelected.length;
+                        return (
+                            <div className="approval-bulk-bar">
+                                <label className="approval-bulk-bar__all">
+                                    <input type="checkbox" checked={allSelected}
+                                        ref={el => { if (el) el.indeterminate = count > 0 && !allSelected; }}
+                                        onChange={() => setSelectedPendingIds(allSelected ? [] : pendingUsers.map(u => u.id))}
+                                        disabled={approvalLoading} />
+                                    <span>{count > 0 ? `${count} selected` : "Select all"}</span>
+                                </label>
+                                <div className="approval-bulk-bar__actions">
+                                    <ConfirmActionButton
+                                        className="btn btn--outline btn--sm btn--danger"
+                                        disabled={approvalLoading || count === 0}
+                                        busy={approvalAction?.id === 'bulk' && approvalAction.type === 'reject'}
+                                        onConfirm={() => handleBulkReview('reject')}
+                                        title={`Reject ${count} registration${count === 1 ? "" : "s"}?`}
+                                        message={`The selected student${count === 1 ? "" : "s"} will be notified that their registration was not approved and will not be able to sign in.`}
+                                        confirmLabel={`Reject ${count}`}
+                                        cancelLabel="Cancel"
+                                    >
+                                        Reject selected
+                                    </ConfirmActionButton>
+                                    <ConfirmActionButton
+                                        className="btn btn--primary btn--sm"
+                                        disabled={approvalLoading || count === 0}
+                                        busy={approvalAction?.id === 'bulk' && approvalAction.type === 'approve'}
+                                        onConfirm={() => handleBulkReview('approve')}
+                                        title={`Approve ${count} registration${count === 1 ? "" : "s"}?`}
+                                        message={`The selected student${count === 1 ? "" : "s"} will be notified and can sign in right away.`}
+                                        confirmLabel={`Approve ${count}`}
+                                        cancelLabel="Cancel"
+                                    >
+                                        Approve selected
+                                    </ConfirmActionButton>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     <div className="approval-list">
+                            {approvalMessage && <p className="text-sm text-green-700 px-2 pb-2" role="status">{approvalMessage}</p>}
                             {approvalError && <p className="text-sm text-red-600 px-2 pb-2">{approvalError}</p>}
                             {pendingUsers.length === 0 ? (
                                 <p className="approval-list__empty">No pending member approvals.</p>
@@ -564,6 +691,13 @@ export default function MembersList({ compact = false }) {
                                 const name = [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ')
                                 return (
                                     <div key={u.id} className="approval-item">
+                                        {canApproveMembers && (
+                                            <input type="checkbox" className="approval-item__check"
+                                                aria-label={`Select ${name || u.email}`}
+                                                checked={selectedPendingIds.includes(u.id)}
+                                                onChange={() => togglePendingSelection(u.id)}
+                                                disabled={approvalLoading} />
+                                        )}
                                         <div className="user-cell">
                                             <div>
                                                 <p className="user-cell__name">{name || u.email}</p>
@@ -627,14 +761,25 @@ export default function MembersList({ compact = false }) {
                         <form className="member-modal__form" onSubmit={handleSaveEdit}>
                             {editError && <p className="text-sm text-red-600 mb-2">{editError}</p>}
 
-                            {/* Read-only info */}
-                            <div className="dash-form__field">
-                                <span className="dash-form__label">Student Number</span>
-                                <p className="dash-form__value">{editingMember.studentNumber}</p>
-                            </div>
-                            <div className="dash-form__field">
-                                <span className="dash-form__label">Year &amp; Section</span>
-                                <p className="dash-form__value">{editingMember.yearLevel}-{editingMember.section}</p>
+                            {/* Officers with Members List edit access can fix typos in the
+                                member's details; every change is logged in the history below. */}
+                            {canManageMemberList && editInfo ? (
+                                <MemberInfoFields info={editInfo} errors={editInfoErrors}
+                                    onChange={(field, value) => setEditInfo(prev => ({ ...prev, [field]: value }))} />
+                            ) : (
+                                <>
+                                    <div className="dash-form__field">
+                                        <span className="dash-form__label">Student Number</span>
+                                        <p className="dash-form__value">{editingMember.studentNumber}</p>
+                                    </div>
+                                    <div className="dash-form__field">
+                                        <span className="dash-form__label">Year &amp; Section</span>
+                                        <p className="dash-form__value">{editingMember.yearLevel}-{editingMember.section}</p>
+                                    </div>
+                                </>
+                            )}
+                            <div className="event-form__wide">
+                                <EditHistory type="member" id={editingMember.memberId} refreshKey={historyRefresh} title={`Edit history · ${editingMember.name}`} />
                             </div>
 
                             {/* Officer management fields */}
@@ -711,9 +856,11 @@ export default function MembersList({ compact = false }) {
                                     value={announcementTitle}
                                     onChange={e => setAnnouncementTitle(e.target.value)}
                                     placeholder="e.g. Membership Fee Collection"
-                                    maxLength={120}
+                                    maxLength={LIMITS.announcementTitle}
+                                    onBlur={titleCaseOnBlur}
                                     required
                                 />
+                                <CharCount value={announcementTitle} max={LIMITS.announcementTitle} />
                             </label>
 
                             <label className="dash-form__field">
@@ -723,9 +870,10 @@ export default function MembersList({ compact = false }) {
                                     onChange={e => setAnnouncementMessage(e.target.value)}
                                     placeholder="Write the announcement details..."
                                     rows={4}
-                                    maxLength={1000}
+                                    maxLength={LIMITS.announcementMessage}
                                     required
                                 />
+                                <CharCount value={announcementMessage} max={LIMITS.announcementMessage} />
                             </label>
 
                             <label className="dash-form__field">
@@ -789,7 +937,7 @@ export default function MembersList({ compact = false }) {
                                     onToggle={v => handleFilterToggle("years", v)} />
                                 <label className="dash-form__field filter-section-field">
                                     Section
-                                    <input value={filters.section} inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 1"
+                                    <input value={filters.section} inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 1" maxLength={2}
                                         onChange={e => setFilters(f => ({ ...f, section: digitsOnly(e.target.value) }))} />
                                 </label>
                             </div>
@@ -917,4 +1065,60 @@ function CloseIcon() {
             <path d="m6.4 19-1.4-1.4 5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19Z" />
         </svg>
     )
+}
+
+// The member's details in the Edit Member form. Limits match the server
+// (officer.controller.js updateMemberInfo).
+const SUFFIX_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV"];
+const YEAR_LEVEL_OPTIONS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+function MemberInfoFields({ info, errors, onChange }) {
+    const text = (field, label, { required = true, maxLength = LIMITS.name, type = "text", isName = false, ...rest } = {}) => (
+        <label className="dash-form__field">
+            <span>{label}{required ? <RequiredMark /> : <OptionalMark />}</span>
+            <input type={type} value={info[field]} maxLength={maxLength} required={required}
+                onChange={e => onChange(field, e.target.value)} aria-invalid={Boolean(errors[field])}
+                {...(isName && { onBlur: titleCaseOnBlur, "data-name": "" })} {...rest} />
+            {isName && <CharCount value={info[field]} max={maxLength} />}
+            {errors[field] && <span className="event-form__error">{errors[field]}</span>}
+        </label>
+    );
+    return (
+        <>
+            {text("firstName", "First Name", { isName: true })}
+            {text("middleName", "Middle Name", { required: false, isName: true })}
+            {text("lastName", "Last Name", { isName: true })}
+            <label className="dash-form__field">
+                <span>Suffix<OptionalMark /></span>
+                <select value={info.suffix} onChange={e => onChange("suffix", e.target.value)}>
+                    <option value="">None</option>
+                    {SUFFIX_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                {errors.suffix && <span className="event-form__error">{errors.suffix}</span>}
+            </label>
+            <fieldset className="dash-form__field member-sex-field">
+                <legend>Sex<RequiredMark /></legend>
+                <div className="member-sex-field__options">
+                    {[["MALE", "Male"], ["FEMALE", "Female"]].map(([value, label]) => (
+                        <label key={value}>
+                            <input type="radio" name="edit-member-sex" value={value} checked={info.sex === value}
+                                onChange={() => onChange("sex", value)} required />
+                            {label}
+                        </label>
+                    ))}
+                </div>
+                {errors.sex && <span className="event-form__error">{errors.sex}</span>}
+            </fieldset>
+            <label className="dash-form__field">
+                <span>Year Level<RequiredMark /></span>
+                <select value={info.yearLevel} onChange={e => onChange("yearLevel", e.target.value)} required>
+                    <option value="" disabled>Select</option>
+                    {YEAR_LEVEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                {errors.yearLevel && <span className="event-form__error">{errors.yearLevel}</span>}
+            </label>
+            {text("section", "Section", { maxLength: 2, inputMode: "numeric" })}
+            {text("studentNumber", "Student Number", { maxLength: 13, placeholder: "2023-100-123" })}
+            {text("email", "Email", { maxLength: LIMITS.email, type: "email" })}
+        </>
+    );
 }

@@ -5,6 +5,9 @@ import { acceptAdviserInvite, lookupAdviserInvite } from '../../services/adviser
 import '../../assets/styles/auth/LoginOTP.css'
 import RequiredMark from '../../components/ui/RequiredMark.jsx'
 import { formatPersonName } from '../../utils/formInputs.js'
+import CharCount from '../../components/ui/CharCount.jsx'
+import OptionalMark from '../../components/ui/OptionalMark.jsx'
+import { LIMITS } from '../../utils/fieldLimits.js'
 
 const NAME_FIELDS = new Set(['firstName', 'lastName'])
 
@@ -89,32 +92,37 @@ export default function AcceptAdviserInvite() {
               </label>
               <label className="field">
                 <span>First name<RequiredMark /></span>
-                <input type="text" value={form.firstName} onChange={update('firstName')} required maxLength={30} autoComplete="given-name" />
+                <input type="text" value={form.firstName} onChange={update('firstName')} required maxLength={LIMITS.name} autoComplete="given-name" />
+                <CharCount value={form.firstName} max={LIMITS.name} />
               </label>
               <label className="field">
                 <span>Last name<RequiredMark /></span>
-                <input type="text" value={form.lastName} onChange={update('lastName')} required maxLength={30} autoComplete="family-name" />
+                <input type="text" value={form.lastName} onChange={update('lastName')} required maxLength={LIMITS.name} autoComplete="family-name" />
+                <CharCount value={form.lastName} max={LIMITS.name} />
               </label>
               <label className="field">
-                <span>Suffix (optional)</span>
-                <input type="text" value={form.suffix} onChange={update('suffix')} maxLength={10} placeholder="Jr., III" />
+                <span>Suffix<OptionalMark /></span>
+                <input type="text" value={form.suffix} onChange={update('suffix')} maxLength={LIMITS.suffix} placeholder="Jr., III" />
+                <CharCount value={form.suffix} max={LIMITS.suffix} />
               </label>
-              <label className="field">
-                <span>Sex<RequiredMark /></span>
-                <select value={form.sex} onChange={update('sex')} required>
-                  <option value="" disabled>Select</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                </select>
-              </label>
+              <fieldset className="field field--radios">
+                <legend>Sex<RequiredMark /></legend>
+                <div className="field__radios" role="radiogroup">
+                  {[["MALE", "Male"], ["FEMALE", "Female"]].map(([value, label]) => (
+                    <label key={value}>
+                      <input type="radio" name="sex" value={value} checked={form.sex === value} onChange={update('sex')} required />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <label className="field">
                 <span>Password<RequiredMark /></span>
-                <input type="password" value={form.password} onChange={update('password')} required autoComplete="new-password" />
+                <input type="password" value={form.password} onChange={update('password')} required maxLength={LIMITS.password} autoComplete="new-password" />
               </label>
               <label className="field">
                 <span>Confirm password<RequiredMark /></span>
-                <input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} required autoComplete="new-password" />
+                <input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} required maxLength={LIMITS.password} autoComplete="new-password" />
               </label>
               <p className="text-xs text-gray-500">
                 At least 8 characters, with an uppercase letter, a lowercase letter, a number and a special character.

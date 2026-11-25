@@ -12,6 +12,9 @@ import {
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
+import CharCount from "../../components/ui/CharCount.jsx";
+import OptionalMark from "../../components/ui/OptionalMark.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 // Certification → Academic Year → Semester → Event → certificates
 const LEVEL = { ROOT: "root", ARCHIVE: "archive", SEMESTER: "semester", EVENT: "event" };
@@ -349,7 +352,7 @@ export default function Certification() {
               <label className="certification-search documents-search">
                 <span className="sr-only">Search</span>
                 <SearchIcon />
-                <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search" />
+                <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search" maxLength={LIMITS.search} />
               </label>
             </div>
           </div>
@@ -670,7 +673,7 @@ function RevokeModal({ certificate, reason, onReasonChange, error, isSubmitting,
             the certificate will remain on record but will show as revoked whenever it is scanned or verified.
           </p>
           <label className="dash-form__field">
-            Reason (optional)
+            <span>Reason<OptionalMark /></span>
             <textarea
               value={reason}
               onChange={(event) => onReasonChange(event.target.value)}
@@ -680,6 +683,7 @@ function RevokeModal({ certificate, reason, onReasonChange, error, isSubmitting,
               autoFocus
               disabled={isSubmitting}
             />
+            <CharCount value={reason} max={300} />
           </label>
           {error && <p className="certification-upload-error" role="alert">{error}</p>}
           <div className="member-modal__actions">
