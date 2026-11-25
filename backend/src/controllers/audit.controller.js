@@ -3,6 +3,8 @@ const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
 const { notifyAuditStatusChanged } = require('../services/notification.service')
+const { RETURNS_SUMMARY_INCLUDE, summarizeReturns } = require('../services/calculations.service')
+const { withLastEdits, latestEdits } = require('../utils/lastEdit')
 
 const VALID_STATUSES = ['PENDING', 'REVIEW', 'FOR_CLARIFICATION', 'CLEARED']
 
@@ -48,7 +50,7 @@ const listAudits = async (req, res) => {
       include: INCLUDE_DETAILS,
       orderBy: { createdAt: 'desc' }
     })
-    return res.json({ audits, schoolYear: semester.schoolYear })
+    return res.json({ audits: await withLastEdits('audit', audits), schoolYear: semester.schoolYear })
   } catch (err) {
     logError('List audits', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -86,7 +88,11 @@ const reviewAudit = async (req, res) => {
     }
 
     const isBeingCleared = status === 'CLEARED'
-    const reviewRemarks = remarks === undefined ? audit.remarks : remarks?.trim() || null
+    // A clarification remark belongs to For Clarification: moving to any other
+    // status clears it (the record's history keeps what it said).
+    const leavingClarification = audit.status === 'FOR_CLARIFICATION' && status !== 'FOR_CLARIFICATION'
+    const reviewRemarks = leavingClarification ? null
+      : remarks === undefined ? audit.remarks : remarks?.trim() || null
     if (status === 'FOR_CLARIFICATION' && !reviewRemarks) {
       return res.status(400).json({ message: 'Enter remarks explaining what needs clarification.' })
     }
@@ -139,7 +145,8 @@ const reviewAudit = async (req, res) => {
       logError('Audit notification failed after save', err)
     }
 
-    return res.json({ message: `Audit record marked as ${status.replace('_', ' ').toLowerCase()}.`, audit: updated })
+    const lastEdit = (await latestEdits('audit', [id]))[id] ?? null
+    return res.json({ message: `Audit record marked as ${status.replace('_', ' ').toLowerCase()}.`, audit: { ...updated, lastEdit } })
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(409).json({ message: 'This audit record changed during your review. Refresh before trying again.' })
@@ -149,4 +156,41 @@ const reviewAudit = async (req, res) => {
   }
 }
 
-module.exports = { listAudits, reviewAudit }
+// GET /financial/audits/:id/document — the disbursement or return fund being
+// audited, shaped like the Financial lists, so the auditor can read its
+// certificate before deciding. Audit VIEW is enough: this is for reading only.
+const getAuditDocument = async (req, res) => {
+  try {
+    const audit = await prisma.audit.findUnique({
+      where: { id: Number(req.params.id) },
+      select: { disbursementId: true, returnFundId: true },
+    })
+    if (!audit) return res.status(404).json({ message: 'Audit record not found.' })
+
+    if (audit.disbursementId) {
+      const found = await prisma.disbursement.findUnique({
+        where: { id: audit.disbursementId },
+        include: { fundCategory: { select: { id: true, name: true } }, ...RETURNS_SUMMARY_INCLUDE },
+      })
+      if (!found) return res.status(404).json({ message: 'Disbursement not found.' })
+      const { returnFunds, ...disbursement } = found
+      return res.json({ kind: 'disbursement', record: { ...disbursement, ...summarizeReturns({ ...disbursement, returnFunds }) } })
+    }
+
+    const returnFund = await prisma.returnFund.findUnique({
+      where: { id: audit.returnFundId },
+      include: {
+        disbursement: {
+          select: { id: true, reference: true, name: true, purposeOfFund: true, titleOfActivities: true, fundCategory: { select: { id: true, name: true } } },
+        },
+      },
+    })
+    if (!returnFund) return res.status(404).json({ message: 'Return fund not found.' })
+    return res.json({ kind: 'returnFund', record: returnFund })
+  } catch (err) {
+    logError('Audit document', err)
+    return res.status(500).json({ message: 'Something went wrong.' })
+  }
+}
+
+module.exports = { listAudits, reviewAudit, getAuditDocument }

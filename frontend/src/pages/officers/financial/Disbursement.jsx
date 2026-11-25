@@ -3,14 +3,13 @@ import DashboardHeader from '../../../components/officers/DashboardHeader.jsx'
 import AddDisbursement from './AddEditDisbursement.jsx'
 import FinancialRecordsTable, { SearchIcon } from './FinancialRecordsTable.jsx'
 import AmountSpentDialog from './AmountSpentDialog.jsx'
-import { downloadDisbursementCertificate } from '../../../utils/downloadDisbursementCertificate.js'
+import { downloadDisbursementCertificate, viewDisbursementCertificate } from '../../../utils/downloadDisbursementCertificate.js'
 import { mapDisbursementRow, disbursementColumns } from '../../../utils/financialRecordRows.js'
 import { listDisbursements, listCategories } from '../../../services/financial.service'
 import { useRole } from '../../../utils/useRole'
 import { getSocket } from '../../../services/socket'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
 import { EditIcon } from '../../../components/icons/ActionIcons.jsx'
-import EditHistory from '../../../components/ui/EditHistory.jsx'
 import { LIMITS } from '../../../utils/fieldLimits.js'
 
 function recordMatchesSearch(record, searchTerm) {
@@ -134,19 +133,14 @@ export default function Disbursement({ showHeader = true }) {
             pageResetKey={searchTerm}
             emptyMessage="No disbursement records found."
             onDownload={downloadDisbursementCertificate}
-            renderRowActions={(row) => (
-              <>
-                {row.details.canRecordAmountSpent && (
-                  <button type="button" onClick={() => { setSavedMessage(''); setAmountSpentRow(row) }}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    aria-label={`Update amount spent for ${row.id}`}
-                    title="Update amount spent">
-                    <EditIcon className="h-4 w-4" />
-                  </button>
-                )}
-                <EditHistory type="disbursement" id={row.details._id} variant="button"
-                  refreshKey={row.amountSpent} title={`Edit history · ${row.id}`} />
-              </>
+            onView={viewDisbursementCertificate}
+            renderRowActions={(row) => row.details.canRecordAmountSpent && (
+              <button type="button" onClick={() => { setSavedMessage(''); setAmountSpentRow(row) }}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                aria-label={`Update amount spent for ${row.id}`}
+                title="Update amount spent">
+                <EditIcon className="h-4 w-4" />
+              </button>
             )}
           />
         )}

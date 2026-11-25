@@ -48,7 +48,7 @@ const listDisbursements = async (req, res) => {
           canRecordAmountSpent: d.semesterId === activeSemester.id && audit?.status !== 'CLEARED'
             && !summary.hasManualReturns && new Decimal(summary.amountSpent).gt(0),
         }
-      }))
+      }), (d) => d.id, { prefer: 'amountSpent' })
     })
   } catch (err) {
     logError('List disbursements', err)
@@ -510,6 +510,12 @@ const recordAmountSpent = async (req, res) => {
         // What came back with this update: the Activity Log adds this much.
         amount:                newReturned.minus(previousReturned).toFixed(2),
         amountSpent:           spent.toFixed(2),
+        // For the history: the disbursement's amount spent and its Return
+        // Fund's amount, before and after (released − spent = returned).
+        changes: [
+          { field: 'amountSpent', label: 'Amount spent', from: new Decimal(disbursement.amount).minus(previousReturned).toFixed(2), to: spent.toFixed(2) },
+          { field: 'amountReturned', label: 'Amount returned', from: previousReturned.toFixed(2), to: newReturned.toFixed(2) },
+        ],
         snapshot: {
           id:             autoReturn.id,
           reference:      autoReturn.reference,

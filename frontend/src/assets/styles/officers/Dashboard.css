@@ -2540,6 +2540,43 @@ button {
   text-align: center;
 }
 
+/* A file shown inside the system (components/ui/FileViewer.jsx). */
+.file-viewer__frame {
+  justify-self: stretch;
+  width: 100%;
+  height: min(75vh, 900px);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.file-viewer__image {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+}
+
+.file-viewer__loading,
+.file-viewer__error {
+  margin: 0;
+  color: #64748b;
+}
+
+.file-viewer__error {
+  color: #b91c1c;
+}
+
+/* Wide window for reading a file. */
+.member-modal__panel.file-viewer-panel {
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.file-viewer-panel .document-preview {
+  padding: 12px;
+  min-height: 0;
+}
+
 .document-preview__title {
   margin: 0;
   color: #111827;
@@ -3782,10 +3819,35 @@ button {
 
 /* "Edit Remarks" drops below the status select rather than doubling the
    Action column's width. */
+/* Audit reference with an eye button that opens its certificate. */
+.audit-reference {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audit-reference__view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.audit-reference__view:hover {
+  background: #f9fafb;
+}
+
+/* Status dropdown, with Edit Remarks directly below it. */
 .audit-table__actions {
   display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   white-space: nowrap;
 }
@@ -6211,13 +6273,42 @@ button {
   line-height: 1.6;
   white-space: nowrap;
 }
+/* Last Edited table cell: name, date, then View history. */
+.last-edited-cell {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  /* Room for "Maria Santos (Nov 25, 2026)" on one line in narrow tables. */
+  min-width: 180px;
+}
+
+.last-edited-cell .edit-history__more,
+.audit-review-details .edit-history__more {
+  white-space: nowrap;
+}
+/* In table cells the link is as small as the name and date above it. */
+.last-edited-cell .edit-history__more,
+.audit-review-details .edit-history__more {
+  font-size: 0.83em;
+  line-height: 1.6;
+}
+/* The summary stays on one line; the full text shows on hover. */
+.last-edited {
+  display: grid;
+  min-width: 0;
+}
+.last-edited__summary.last-edited__summary {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #334155;
+  font-weight: 600;
+}
+.edit-history .last-edited__summary.last-edited__summary {
+  max-width: 100%;
+}
 .last-edited--none {
   color: #9ca3af;
-}
-.edit-history__label {
-  margin: 0;
-  color: #334155;
-  font-weight: 700;
 }
 
 /* Edit history (components/ui/EditHistory.jsx): the latest edit inline,
@@ -6326,7 +6417,18 @@ button {
 }
 
 .member-sex-field__options input {
+  flex: none;
   width: 16px;
   height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   accent-color: var(--primary);
+}
+
+.member-sex-field__options input:focus {
+  box-shadow: none;
 }

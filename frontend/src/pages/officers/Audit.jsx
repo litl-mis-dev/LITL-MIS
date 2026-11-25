@@ -5,9 +5,23 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import AuditRemarksDialog from "../../components/officers/AuditRemarksDialog.jsx";
 import TablePagination from "../../components/ui/TablePagination.jsx";
 import { usePagination } from "../../utils/usePagination.js";
-import { listAudits, reviewAudit } from "../../services/financial.service.js";
+import { getAuditDocument, listAudits, reviewAudit } from "../../services/financial.service.js";
+import FileViewerModal from "../../components/ui/FileViewerModal.jsx";
+import { EyeIcon } from "../../components/icons/ActionIcons.jsx";
+import { mapDisbursementRow, mapReturnFundRow } from "../../utils/financialRecordRows.js";
+import { viewDisbursementCertificate } from "../../utils/downloadDisbursementCertificate.js";
+import { viewReturnFundCertificate } from "../../utils/downloadReturnFundCertificate.js";
+
+// The audited disbursement's or return fund's certificate, as a PDF Blob.
+async function loadAuditCertificate(auditId) {
+  const { kind, record } = await getAuditDocument(auditId);
+  return kind === "disbursement"
+    ? viewDisbursementCertificate(mapDisbursementRow(record))
+    : viewReturnFundCertificate(mapReturnFundRow(record));
+}
 import { useRole } from "../../utils/useRole.js";
 import EditHistory from "../../components/ui/EditHistory.jsx";
+import LastEdited from "../../components/ui/LastEdited.jsx";
 import { LIMITS } from "../../utils/fieldLimits.js";
 
 const STATUS_OPTIONS = ["PENDING", "REVIEW", "FOR_CLARIFICATION", "CLEARED"];
@@ -53,6 +67,12 @@ function mapAuditRecord(audit) {
 
   return {
     id: audit.id,
+    // The latest change (summary, who, when); records reviewed before history
+    // was kept show their reviewer instead.
+    lastEdit: audit.lastEdit ?? (audit.reviewedBy && audit.reviewedAt ? {
+      name: [audit.reviewedBy.member?.firstName, audit.reviewedBy.member?.lastName].filter(Boolean).join(" ") || `Officer #${audit.reviewedBy.id}`,
+      at: audit.reviewedAt,
+    } : null),
     displayId: isDisbursement ? `AUD-DIS-${source?.id}` : `AUD-RET-${source?.id}`,
     date: source?.createdAt,
     reference: source?.reference,
@@ -76,6 +96,9 @@ export default function Audit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actioningId, setActioningId] = useState(null);
+  // The audit record whose certificate is open for reading.
+  const [viewingItem, setViewingItem] = useState(null);
+  const loadViewingCertificate = useCallback(() => loadAuditCertificate(viewingItem.id), [viewingItem]);
   const [pendingClear, setPendingClear] = useState(null);
   const [pendingReview, setPendingReview] = useState(null);
   const [schoolYear, setSchoolYear] = useState(null);
@@ -302,7 +325,15 @@ export default function Audit() {
                       <td className="data-table__number">{pager.rowNumber(index)}</td>
                       <td className="data-table__nowrap">{item.displayId}</td>
                       <td className="data-table__nowrap">{formatDate(item.date)}</td>
-                      <td className="data-table__nowrap">{item.reference}</td>
+                      <td className="data-table__nowrap">
+                        <span className="audit-reference">
+                          {item.reference}
+                          <button type="button" className="audit-reference__view" onClick={() => setViewingItem(item)}
+                            aria-label={`View ${item.reference} certificate`} title="View certificate">
+                            <EyeIcon className="h-4 w-4" />
+                          </button>
+                        </span>
+                      </td>
                       <td className="audit-table__item">{item.item}</td>
                       <td>{item.category}</td>
                       <td className="data-table__money">{formatCurrency(item.amount)}</td>
@@ -313,11 +344,12 @@ export default function Audit() {
                         </span>
                       </td>
                       <td className="audit-review-details">
-                        <p>{item.remarks || "No remarks"}</p>
-                        {item.reviewedBy && <small>{[item.reviewedBy.member?.firstName, item.reviewedBy.member?.lastName].filter(Boolean).join(" ") || `Officer #${item.reviewedBy.id}`}</small>}
-                        {item.reviewedAt && <small>{formatDate(item.reviewedAt)}</small>}
-                        <EditHistory type="audit" id={item.id} variant="button"
-                          refreshKey={`${item.status}|${item.remarks}`} title={`Edit history · ${item.displayId}`} />
+                        {item.remarks && <p>{item.remarks}</p>}
+                        <LastEdited edit={item.lastEdit} empty="" />
+                        {item.lastEdit && (
+                          <EditHistory type="audit" id={item.id} variant="link"
+                            refreshKey={`${item.status}|${item.remarks}|${item.reviewedAt}`} title={`Edit history · ${item.displayId}`} />
+                        )}
                       </td>
                       {canAuditFinancials && (
                         <td>
@@ -364,6 +396,9 @@ export default function Audit() {
           {!loading && <TablePagination {...pager} onPageChange={pager.setPage} label="Audit records" />}
         </div>
       </section>
+      {viewingItem && (
+        <FileViewerModal eyebrow="Certificate" title={viewingItem.reference} load={loadViewingCertificate} onClose={() => setViewingItem(null)} />
+      )}
       {pendingReview && <AuditRemarksDialog
         item={pendingReview}
         busy={actioningId !== null}

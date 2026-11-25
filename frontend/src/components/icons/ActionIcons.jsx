@@ -125,3 +125,24 @@ export function CloseIcon({ className, ...props }) {
         </svg>
     );
 }
+
+// "View": opens a document inside the system without downloading it.
+export function EyeIcon({ className, ...props }) {
+    return (
+        <svg
+            aria-hidden="true"
+            className={className}
+            fill="none"
+            focusable="false"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            {...props}
+        >
+            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    );
+}

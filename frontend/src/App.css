@@ -211,21 +211,41 @@ button[aria-busy="true"]:has(.ui-spinner)::before {
     font-weight: 600;
 }
 
-/* "(optional)" after a label (components/ui/OptionalMark.jsx). */
-/* Live character count under a text field (components/ui/CharCount.jsx). The
-   doubled class wins over forms that style every span in a label. */
+/* Live character count (components/ui/CharCount.jsx), at the right end of
+   the field's label row: the label on the left, "12/50" on the right, the
+   field below. Works for every form, whatever wraps the field: the first
+   child is the label. The doubled class wins over each form's own layout
+   and over forms that style every span in a label. */
+:has(> .char-count.char-count) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+    align-content: start;
+}
+:has(> .char-count.char-count) > * {
+    grid-column: 1 / -1;
+}
+:has(> .char-count.char-count) > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+}
 .char-count.char-count {
-    display: block;
-    margin-top: 2px;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    margin: 0;
     text-align: right;
     font-size: 12px;
     font-weight: 400;
+    line-height: 1.5;
     color: #94a3b8;
+    white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
 .char-count.char-count--near { color: #b45309; }
 .char-count.char-count--full { color: #b91c1c; }
 
+/* "(optional)" after a label (components/ui/OptionalMark.jsx). */
 .optional-mark.optional-mark {
     color: #94a3b8;
     font-weight: 400;

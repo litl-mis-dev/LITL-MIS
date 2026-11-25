@@ -184,11 +184,17 @@ main.auth-page {
   cursor: pointer;
 }
 
-.auth-card .field__radios input {
+.auth-card .field__radios input,
+.auth-card .field__radios input:focus {
+  flex: none;
   width: 16px;
   min-height: 0;
   height: 16px;
+  margin: 0;
   padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   accent-color: #ef8315;
 }
 

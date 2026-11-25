@@ -28,7 +28,7 @@ async function approvePendingUser(userId, { actorId = null, via = 'MANUAL', wait
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, member: { select: { firstName: true, lastName: true } } },
+    select: { email: true, member: { select: { id: true, firstName: true, lastName: true } } },
   })
   const memberName = user?.member ? `${user.member.firstName} ${user.member.lastName}` : null
 
@@ -36,6 +36,7 @@ async function approvePendingUser(userId, { actorId = null, via = 'MANUAL', wait
     actorId,
     targetUserId: userId,
     action: AUDIT_ACTIONS.USER_APPROVED,
+    ...(user?.member && { entity: { type: 'member', id: user.member.id } }),
     details: via === 'MEMBERS_LIST' ? { memberName, via } : { memberName },
   })
 

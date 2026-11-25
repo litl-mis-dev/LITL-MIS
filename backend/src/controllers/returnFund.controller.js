@@ -29,7 +29,7 @@ const listReturnFunds = async (req, res) => {
       include: INCLUDE_DETAILS,
       orderBy: { createdAt: 'desc' }
     })
-    return res.json({ returnFunds: await withLastEdits('disbursement', returnFunds, (r) => r.disbursementId) })
+    return res.json({ returnFunds: await withLastEdits('disbursement', returnFunds, (r) => r.disbursementId, { prefer: 'amountReturned' }) })
   } catch (err) {
     logError('List return funds', err)
     return res.status(500).json({ message: 'Something went wrong.' })

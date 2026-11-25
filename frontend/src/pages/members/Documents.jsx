@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     fetchDocuments,
     getDocumentDownloadUrl,
-    getDocumentPreviewUrl,
+    fetchDocumentPreview,
 } from "../../services/documents.service.js";
+import FileViewer from "../../components/ui/FileViewer.jsx";
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
 import { LIMITS } from "../../utils/fieldLimits.js";
 
-const PREVIEWABLE_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg"]);
+const PREVIEWABLE_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const PREVIEWABLE_FRAME_EXT = new Set(["pdf", "txt", "csv"]);
 
 export default function Documents() {
     const [items,          setItems]          = useState([]);
@@ -251,7 +253,7 @@ export default function Documents() {
             {previewItem && (
                 <div className="member-modal" role="presentation">
                     <div
-                        className="member-modal__panel member-modal__panel--filter"
+                        className="member-modal__panel member-modal__panel--filter file-viewer-panel"
                         role="dialog"
                         aria-modal="true"
                     >
@@ -271,7 +273,7 @@ export default function Documents() {
                         </div>
 
                         <div className="document-preview">
-                            {renderPreviewBody(previewItem)}
+                            <PreviewBody item={previewItem} />
                         </div>
 
                         <div className="member-modal__footer">
@@ -292,15 +294,13 @@ export default function Documents() {
 
 // ── Preview renderer (identical to officer version) ───────────────────────────
 
-function renderPreviewBody(item) {
+// PDFs, images and text open inside the system; other types are download-only.
+function PreviewBody({ item }) {
     const extension = (item.fileType || "").toLowerCase();
-    const url = getDocumentPreviewUrl(item.id);
+    const load = useCallback(() => fetchDocumentPreview(item.id), [item.id]);
 
-    if (extension === "pdf") {
-        return <iframe className="document-preview__frame" src={url} title={item.name} />;
-    }
-    if (PREVIEWABLE_IMAGE_EXT.has(extension)) {
-        return <img className="document-preview__image" src={url} alt={item.name} />;
+    if (PREVIEWABLE_FRAME_EXT.has(extension) || PREVIEWABLE_IMAGE_EXT.has(extension)) {
+        return <FileViewer load={load} kind={PREVIEWABLE_IMAGE_EXT.has(extension) ? "image" : "frame"} title={item.name} />;
     }
     return (
         <>
