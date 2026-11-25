@@ -10,6 +10,8 @@ import { useRole } from '../../../utils/useRole'
 import { getSocket } from '../../../services/socket'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
 import { EditIcon } from '../../../components/icons/ActionIcons.jsx'
+import EditHistory from '../../../components/ui/EditHistory.jsx'
+import { LIMITS } from '../../../utils/fieldLimits.js'
 
 function recordMatchesSearch(record, searchTerm) {
   const q = searchTerm.trim().toLowerCase()
@@ -98,7 +100,7 @@ export default function Disbursement({ showHeader = true }) {
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <SearchIcon />
               </span>
-              <input type="search" value={searchTerm}
+              <input type="search" maxLength={LIMITS.search} value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 placeholder="Search records" aria-label="Search disbursement records" />
@@ -132,13 +134,19 @@ export default function Disbursement({ showHeader = true }) {
             pageResetKey={searchTerm}
             emptyMessage="No disbursement records found."
             onDownload={downloadDisbursementCertificate}
-            renderRowActions={(row) => row.details.canRecordAmountSpent && (
-              <button type="button" onClick={() => { setSavedMessage(''); setAmountSpentRow(row) }}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-                aria-label={`Update amount spent for ${row.id}`}
-                title="Update amount spent">
-                <EditIcon className="h-4 w-4" />
-              </button>
+            renderRowActions={(row) => (
+              <>
+                {row.details.canRecordAmountSpent && (
+                  <button type="button" onClick={() => { setSavedMessage(''); setAmountSpentRow(row) }}
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    aria-label={`Update amount spent for ${row.id}`}
+                    title="Update amount spent">
+                    <EditIcon className="h-4 w-4" />
+                  </button>
+                )}
+                <EditHistory type="disbursement" id={row.details._id} variant="button"
+                  refreshKey={row.amountSpent} title={`Edit history · ${row.id}`} />
+              </>
             )}
           />
         )}

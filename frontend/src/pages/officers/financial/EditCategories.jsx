@@ -5,6 +5,11 @@ import { listCategories, createCategoriesBatch, archiveCategory, updateCategorie
 import LoadingState from '../../../components/ui/LoadingState.jsx'
 import RequiredMark from '../../../components/ui/RequiredMark.jsx'
 import ModalPortal from '../../../components/ui/ModalPortal.jsx'
+import EditHistory from '../../../components/ui/EditHistory.jsx'
+import LastEdited from '../../../components/ui/LastEdited.jsx'
+import CharCount from '../../../components/ui/CharCount.jsx'
+import { LIMITS } from '../../../utils/fieldLimits.js'
+import { titleCaseOnBlur } from '../../../utils/formInputs.js'
 const initialFormData = { categories: '', percentage: '' }
 const CATEGORY_REGEX = /^[A-Za-z\s]+$/
 
@@ -63,6 +68,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
         .map(cat => ({
           uid: crypto.randomUUID(),
           dbId: cat.id,
+          lastEdit: cat.lastEdit ?? null,
           categories: cat.name,
           percentage: String(parseFloat(cat.percentage))
         }))
@@ -253,7 +259,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
 
   const hasExisting = originalSnapshot.length > 0
   const modalTitle = hasExisting || editOnly ? 'Edit Categories' : 'Add Categories'
-  const rowGridClass = 'grid-cols-[minmax(0,1fr)_120px_52px]'
+  const rowGridClass = 'grid-cols-[minmax(0,1fr)_120px_112px]'
 
   return (
     <>
@@ -293,9 +299,10 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="categories">New Category</label>
                     <input id="categories" name="categories" type="text" value={formData.categories}
-                      onChange={handleTopFormChange} maxLength={50}
+                      onChange={handleTopFormChange} onBlur={titleCaseOnBlur} maxLength={LIMITS.fundCategory}
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                       placeholder="Enter category name" />
+                    <CharCount value={formData.categories} max={LIMITS.fundCategory} />
                   </div>
 
                   <div>
@@ -328,13 +335,17 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                     </div>
                     {categories.map(cat => (
                       <div key={cat.uid} className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0`}>
+                        <div className="min-w-0">
                         <input
                           type="text"
                           value={cat.categories}
-                          maxLength={50}
+                          maxLength={LIMITS.fundCategory}
+                          onBlur={titleCaseOnBlur}
                           onChange={(e) => handleRowChange(cat.uid, 'categories', e.target.value)}
                           className="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
                         />
+                        {cat.dbId && cat.lastEdit && <LastEdited edit={cat.lastEdit} />}
+                        </div>
                         <div className="flex items-center gap-1">
                           <input
                             type="text"
@@ -346,12 +357,19 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                           />
                           <span className="text-gray-400">%</span>
                         </div>
-                        {/* Saved categories can't be removed once finalized; new rows can. */}
-                        {editOnly && cat.dbId ? <span /> : (
-                          <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
-                            className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                            aria-label={`Remove ${cat.categories}`}>&times;</button>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Who renamed or re-weighted a saved category, and when. */}
+                          {cat.dbId && (
+                            <EditHistory type="fundCategory" id={cat.dbId} variant="button"
+                              refreshKey={JSON.stringify(originalSnapshot.find(o => o.dbId === cat.dbId))} title={`Edit history · ${cat.categories}`} />
+                          )}
+                          {/* Saved categories can't be removed once finalized; new rows can. */}
+                          {!(editOnly && cat.dbId) && (
+                            <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
+                              className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                              aria-label={`Remove ${cat.categories}`}>&times;</button>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <div className={`grid ${rowGridClass} gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800`}>

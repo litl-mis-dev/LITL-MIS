@@ -26,6 +26,7 @@ export function mapDisbursementRow(d) {
     amount: formatCurrency(d.amount),
     amountSpent: formatCurrency(amountSpent),
     sourceOfFund: d.fundCategory?.name ?? '',
+    lastEdit: d.lastEdit ?? null,
     details: {
       _id: d.id,
       name: d.name,
@@ -60,6 +61,7 @@ export const disbursementColumns = [
   { key: 'amount', label: 'Amount' },
   { key: 'amountSpent', label: 'Amount Spent' },
   { key: 'sourceOfFund', label: 'Source of Fund' },
+  { key: 'lastEdited', label: 'Last Edited' },
   { key: 'actions', label: 'Action' },
 ]
 
@@ -75,6 +77,7 @@ export function mapReturnFundRow(rf) {
     titleOfActivities: rf.disbursement?.titleOfActivities ?? '',
     amount:           nothingReturnedYet ? 'Nothing returned yet' : formatCurrency(rf.amount),
     sourceOfFund:     rf.disbursement?.fundCategory?.name ?? '',
+    lastEdit:         rf.lastEdit ?? null,
     details: {
       _id:            rf.id,
       disbursementId: rf.disbursementId,
@@ -106,6 +109,7 @@ export const returnFundColumns = [
   { key: 'titleOfActivities', label: 'Title of Activities' },
   { key: 'amount',           label: 'Amount'              },
   { key: 'sourceOfFund',     label: 'Source of Fund'      },
+  { key: 'lastEdited',       label: 'Last Edited'         },
   { key: 'actions',          label: 'Action'              },
 ]
 

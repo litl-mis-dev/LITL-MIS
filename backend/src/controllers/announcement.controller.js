@@ -8,7 +8,7 @@ const { positionLabel } = require('../utils/roles')
 const RECIPIENT_VALUES = ['MEMBERS', 'OFFICERS', 'BOTH']
 const PRIORITY_VALUES = ['NORMAL', 'IMPORTANT']
 // Same limits as the Create Announcement form (MembersList.jsx).
-const MAX_TITLE_LENGTH = 120
+const MAX_TITLE_LENGTH = 50
 const MAX_MESSAGE_LENGTH = 1000
 
 // Every Important announcement stays pinned for exactly this long.

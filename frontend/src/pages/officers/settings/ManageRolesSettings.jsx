@@ -11,6 +11,7 @@ import LoadingState from "../../../components/ui/LoadingState.jsx";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
 import TablePagination from "../../../components/ui/TablePagination.jsx";
 import { usePagination } from "../../../utils/usePagination.js";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -182,7 +183,7 @@ export default function ManageRolesSettings() {
             <div className="manage-roles-toolbar">
                 <label className="member-search manage-roles-search">
                     <input
-                        type="search"
+                        type="search" maxLength={LIMITS.search}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search name, email, student no., or role"

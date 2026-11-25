@@ -34,16 +34,22 @@ const writeLedgerAuditLog = async (data) => {
   return log
 }
 
+// `entity` ({ type, id }) names the record the entry is about, for that
+// record's edit history (controllers/history.controller.js). Edits also put
+// `changes: [{ field, label, from, to }]` in details so the history can show
+// exactly what changed.
 const writeAuditLog = async ({
   actorId = null,
   targetUserId = null,
   action,
-  details = null
+  details = null,
+  entity = null
 }) => {
   const data = {
     actorId,
     targetUserId,
     action,
+    ...(entity && { entityType: entity.type, entityId: entity.id }),
     details: details
       ? (typeof details === 'string' ? details : JSON.stringify(details))
       : null

@@ -1,4 +1,5 @@
-// Generates the "Event Attendance Report" PDF for a single event, client-side.
+// Generates the "Event Attendance Report" PDF for a single event, and the
+// "Members List Report" with the same layout, client-side.
 //
 // The page header, report title and meta row reuse the same drawing code as the
 // Disbursement document (utils/certificatePdf.js), so the logos, fonts, spacing
@@ -26,13 +27,23 @@ const ROW_HEIGHT = 9 * PX_PER_MM;
 const HEADER_ROW_HEIGHT = 10 * PX_PER_MM;
 
 // Same column widths (mm) as the original attendance layout — 182 mm in total.
-const COLUMNS = [
+const ATTENDANCE_COLUMNS = [
     { key: "no", label: "No.", weight: 12 },
     { key: "name", label: "Name", weight: 62 },
     { key: "studentNumber", label: "Student No.", weight: 32 },
     { key: "yearLevel", label: "Year", weight: 22 },
     { key: "section", label: "Section", weight: 20 },
     { key: "checkedInAt", label: "Time Checked-in", weight: 34 },
+];
+
+// The Members List report: the attendance columns without the check-in time,
+// with the freed width given to the name.
+const MEMBERS_LIST_COLUMNS = [
+    { key: "no", label: "No.", weight: 12 },
+    { key: "name", label: "Name", weight: 96 },
+    { key: "studentNumber", label: "Student No.", weight: 32 },
+    { key: "yearLevel", label: "Year", weight: 22 },
+    { key: "section", label: "Section", weight: 20 },
 ];
 
 function mm(value) {
@@ -118,8 +129,8 @@ function fitText(ctx, text, maxWidth) {
 
 // First page of a group: official header + report details (same layout as the
 // Disbursement document: title y=350, name y=395, meta row y=455).
-function createFirstPage(assets, { eventTitle, generatedAt, totalAttendees, group }) {
-    const { canvas, context } = createCertificateCanvas(assets, { title: "EVENT ATTENDANCE REPORT" });
+function createFirstPage(assets, { reportTitle, heading, generatedAt, totalLabel, total, group }) {
+    const { canvas, context } = createCertificateCanvas(assets, { title: reportTitle });
     const { contentWidth } = getCertificateContentLayout(context);
     const sideEdges = { left: SIDE_MARGIN, right: CANVAS_WIDTH - SIDE_MARGIN };
 
@@ -128,18 +139,18 @@ function createFirstPage(assets, { eventTitle, generatedAt, totalAttendees, grou
     context.font = "700 24px Arial";
     context.textAlign = "center";
     context.fillText(
-        fitText(context, eventTitle || "Untitled Event", contentWidth),
+        fitText(context, heading, contentWidth),
         CANVAS_WIDTH / 2,
         395
     );
 
-    // Row 1: Date Generated (left) / Total Attendees (right)
+    // Row 1: Date Generated (left) / Total Attendees or Members (right)
     drawDocumentMetaFields(context, {
         ...sideEdges,
         leftLabel: "Date Generated:",
         leftValue: generatedAt,
-        rightLabel: "Total Attendees:",
-        rightValue: String(totalAttendees),
+        rightLabel: totalLabel,
+        rightValue: String(total),
     });
 
     // Row 2: Year Level (left, under Date Generated) / Section (right, under Total Attendees)
@@ -172,15 +183,15 @@ function createContinuationPage() {
     return { canvas, context, startY: PAGE_MARGIN };
 }
 
-function getTableMetrics() {
+function getTableMetrics(columnSpec) {
     const left = SIDE_MARGIN;
     const width = CANVAS_WIDTH - SIDE_MARGIN * 2;
-    const totalWeight = COLUMNS.reduce((sum, c) => sum + c.weight, 0);
-    return { left, width, columns: COLUMNS.map((c) => ({ ...c, width: (c.weight / totalWeight) * width })) };
+    const totalWeight = columnSpec.reduce((sum, c) => sum + c.weight, 0);
+    return { left, width, columns: columnSpec.map((c) => ({ ...c, width: (c.weight / totalWeight) * width })) };
 }
 
-function drawTableHeaderRow(ctx, y) {
-    const { left, width, columns } = getTableMetrics();
+function drawTableHeaderRow(ctx, y, columnSpec) {
+    const { left, width, columns } = getTableMetrics(columnSpec);
     ctx.textAlign = "left";
     ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(left, y, width, HEADER_ROW_HEIGHT);
@@ -198,8 +209,8 @@ function drawTableHeaderRow(ctx, y) {
     return y + HEADER_ROW_HEIGHT;
 }
 
-function drawRow(ctx, y, row, isEvenRow) {
-    const { left, width, columns } = getTableMetrics();
+function drawRow(ctx, y, row, isEvenRow, columnSpec) {
+    const { left, width, columns } = getTableMetrics(columnSpec);
 
     if (isEvenRow) {
         ctx.fillStyle = "#fafafa";
@@ -320,7 +331,65 @@ function createPdfFromCanvases(canvases) {
     return new Blob(chunks, { type: "application/pdf" });
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
+// ── Shared renderer ──────────────────────────────────────────────────────────
+//
+// records: [{ member: { name, studentNumber, yearLevel, section } | null, ... }]
+// Sorted by Year, Section and Name, one group per Year + Section, each group
+// starting on its own page; "No." restarts at 1 in every group.
+function renderGroupedReport(assets, { reportTitle, heading, totalLabel, columns, records, toRow, emptyText }) {
+    const generatedAt = formatGeneratedAt();
+    const groups = groupByYearAndSection(sortAttendanceRecords(records));
+    const canvases = [];
+
+    if (groups.length === 0) {
+        const { canvas, context, startY } = createFirstPage(assets, { reportTitle, heading, generatedAt, totalLabel, total: 0 });
+        context.fillStyle = "#6b7280";
+        context.font = `${Math.round(mm(3.6))}px Arial`;
+        context.textAlign = "left";
+        context.textBaseline = "middle";
+        context.fillText(emptyText, SIDE_MARGIN, startY + ROW_HEIGHT);
+        canvases.push(canvas);
+    }
+
+    for (const group of groups) {
+        const rows = group.records.map((record, index) => ({ no: index + 1, ...toRow(record) }));
+
+        let rowIndex = 0;
+        let isFirstPage = true;
+
+        // Each group always starts on a fresh A4 page.
+        do {
+            const page = isFirstPage
+                ? createFirstPage(assets, { reportTitle, heading, generatedAt, totalLabel, total: rows.length, group })
+                : createContinuationPage();
+
+            let y = drawTableHeaderRow(page.context, page.startY, columns);
+            const bottomLimit = CANVAS_HEIGHT - PAGE_MARGIN;
+            let rowsOnThisPage = 0;
+
+            while (rowIndex < rows.length && y + ROW_HEIGHT <= bottomLimit) {
+                drawRow(page.context, y, rows[rowIndex], rowsOnThisPage % 2 === 1, columns);
+                y += ROW_HEIGHT;
+                rowIndex += 1;
+                rowsOnThisPage += 1;
+            }
+
+            canvases.push(page.canvas);
+            isFirstPage = false;
+        } while (rowIndex < rows.length);
+    }
+
+    return canvases;
+}
+
+function filterSuffixFor(yearFilter, sectionFilter) {
+    return [
+        yearFilter ? sanitizeFilename(yearFilter) : null,
+        sectionFilter ? `Section_${sanitizeFilename(sectionFilter)}` : null,
+    ].filter(Boolean).join("_");
+}
+
+// ── Public entry points ───────────────────────────────────────────────────────
 //
 // event: { title, ... }
 // records: attendance records, already filtered by the caller —
@@ -333,72 +402,53 @@ export async function downloadAttendancePdf(event, records, filters = {}) {
     const isFiltered = Boolean(yearFilter || sectionFilter);
 
     const assets = await loadActiveDocumentAssets(); // same logos / template as the Disbursement document
-    const generatedAt = formatGeneratedAt();
-    const groups = groupByYearAndSection(sortAttendanceRecords(records));
-    const canvases = [];
-
-    if (groups.length === 0) {
-        const { canvas, context, startY } = createFirstPage(assets, {
-            eventTitle: event.title,
-            generatedAt,
-            totalAttendees: 0,
-        });
-        context.fillStyle = "#6b7280";
-        context.font = `${Math.round(mm(3.6))}px Arial`;
-        context.textAlign = "left";
-        context.textBaseline = "middle";
-        context.fillText(
-            isFiltered ? "No attendees match the selected filters." : "No attendees recorded for this event.",
-            SIDE_MARGIN,
-            startY + ROW_HEIGHT
-        );
-        canvases.push(canvas);
-    }
-
-    for (const group of groups) {
-        const rows = group.records.map((record, index) => ({
-            no: index + 1,
+    const canvases = renderGroupedReport(assets, {
+        reportTitle: "EVENT ATTENDANCE REPORT",
+        heading: event.title || "Untitled Event",
+        totalLabel: "Total Attendees:",
+        columns: ATTENDANCE_COLUMNS,
+        records,
+        toRow: (record) => ({
             name: record.member?.name ?? record.code,
             studentNumber: record.member?.studentNumber ?? "—",
             yearLevel: record.member?.yearLevel ?? "—",
             section: record.member?.section ?? "—",
             checkedInAt: record.checkedInAt ?? "",
-        }));
+        }),
+        emptyText: isFiltered ? "No attendees match the selected filters." : "No attendees recorded for this event.",
+    });
 
-        let rowIndex = 0;
-        let isFirstPage = true;
+    const filterSuffix = filterSuffixFor(yearFilter, sectionFilter);
+    downloadBlob(createPdfFromCanvases(canvases), `${sanitizeFilename(event.title)}_attendance${filterSuffix ? `_${filterSuffix}` : ""}.pdf`);
+}
 
-        // Each group always starts on a fresh A4 page.
-        do {
-            const page = isFirstPage
-                ? createFirstPage(assets, {
-                      eventTitle: event.title,
-                      generatedAt,
-                      totalAttendees: rows.length,
-                      group,
-                  })
-                : createContinuationPage();
+// members: the Members List rows, already filtered by the caller —
+//          [{ name, studentNumber, yearLevel, section }]
+// filters (optional): { years: [..], section } — only used to name the file
+//          and word the empty-state message.
+export async function downloadMembersListPdf(members, filters = {}) {
+    const yearFilter = (filters.years ?? []).join(" ");
+    const sectionFilter = (filters.section ?? "").trim();
+    const isFiltered = Boolean(yearFilter || sectionFilter);
 
-            let y = drawTableHeaderRow(page.context, page.startY);
-            const bottomLimit = CANVAS_HEIGHT - PAGE_MARGIN;
-            let rowsOnThisPage = 0;
+    const assets = await loadActiveDocumentAssets();
+    const canvases = renderGroupedReport(assets, {
+        reportTitle: "MEMBERS LIST REPORT",
+        heading: "League of Information Technology Leaders",
+        totalLabel: "Total Members:",
+        columns: MEMBERS_LIST_COLUMNS,
+        // Same shape as attendance records, so the same sorting and grouping apply.
+        records: members.map((m) => ({ member: { name: m.name, studentNumber: m.studentNumber, yearLevel: m.yearLevel, section: m.section } })),
+        toRow: (record) => ({
+            name: record.member.name || "—",
+            studentNumber: record.member.studentNumber || "—",
+            yearLevel: record.member.yearLevel || "—",
+            section: record.member.section || "—",
+        }),
+        emptyText: isFiltered ? "No members match the selected filters." : "There are no members yet.",
+    });
 
-            while (rowIndex < rows.length && y + ROW_HEIGHT <= bottomLimit) {
-                drawRow(page.context, y, rows[rowIndex], rowsOnThisPage % 2 === 1);
-                y += ROW_HEIGHT;
-                rowIndex += 1;
-                rowsOnThisPage += 1;
-            }
-
-            canvases.push(page.canvas);
-            isFirstPage = false;
-        } while (rowIndex < rows.length);
-    }
-
-    const blob = createPdfFromCanvases(canvases);
-    const filterSuffix = [
-        yearFilter ? sanitizeFilename(yearFilter) : null,
-        sectionFilter ? `Section_${sanitizeFilename(sectionFilter)}` : null,
-    ].filter(Boolean).join("_");
-    downloadBlob(blob, `${sanitizeFilename(event.title)}_attendance${filterSuffix ? `_${filterSuffix}` : ""}.pdf`);
+    const date = new Date().toISOString().slice(0, 10);
+    const filterSuffix = filterSuffixFor(yearFilter, sectionFilter);
+    downloadBlob(createPdfFromCanvases(canvases), `Members_List_${date}${filterSuffix ? `_${filterSuffix}` : ""}.pdf`);
 }

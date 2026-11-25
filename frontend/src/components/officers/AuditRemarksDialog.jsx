@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import RequiredMark from "../ui/RequiredMark.jsx";
+import CharCount from "../ui/CharCount.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 export default function AuditRemarksDialog({ item, busy, error, onCancel, onSave }) {
   const dialogRef = useRef(null);
@@ -21,7 +23,8 @@ export default function AuditRemarksDialog({ item, busy, error, onCancel, onSave
         <label className="audit-remarks-field">
           <span>Remarks<RequiredMark /></span>
           <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)}
-            placeholder="What needs to be clarified?" rows={4} required disabled={busy} autoFocus />
+            placeholder="What needs to be clarified?" rows={4} maxLength={LIMITS.remarks} required disabled={busy} autoFocus />
+          <CharCount value={remarks} max={LIMITS.remarks} />
         </label>
         <div className="audit-remarks-actions">
           <button type="button" className="btn btn--outline" disabled={busy} onClick={onCancel}>Cancel</button>

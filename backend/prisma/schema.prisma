@@ -93,7 +93,6 @@ enum OtpPurpose {
 enum Sex {
   MALE
   FEMALE
-  PREFER_NOT_TO_SAY
 }
 
 enum SemesterType {
@@ -333,6 +332,11 @@ model AuditLog {
   hash         String?  @db.Char(64)
   previousHash String?  @db.Char(64)
 
+  // The record an entry is about (e.g. "event" 12), so a record's edit
+  // history loads without searching every entry. Not part of the hash.
+  entityType   String?  @db.VarChar(40)
+  entityId     Int?
+
   actor      User? @relation("AuditActor",  fields: [actorId],      references: [id])
   targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id])
 
@@ -340,6 +344,7 @@ model AuditLog {
   @@index([targetUserId])
   @@index([action])
   @@index([createdAt])
+  @@index([entityType, entityId])
 }
 
 // ─── FINANCIAL MODELS ─────────────────────────────────────────────────────────

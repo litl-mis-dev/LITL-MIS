@@ -141,6 +141,14 @@ function formatDate(date) {
   return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date))
 }
 
+// "Nov 25, 2026, 10:42 AM" in Philippine time.
+function formatDateTime(date) {
+  if (!date) return null
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila',
+  }).format(new Date(date))
+}
+
 function formatFileSize(bytes) {
   if (bytes == null) return undefined
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -161,6 +169,8 @@ function formatDocument(doc, { currentOfficerIds, viewerUser }) {
     owner: formatMemberName(doc.owner),
     ownerId: doc.ownerId,
     updatedAt: formatDate(doc.updatedAt),
+    // Who uploaded the file (or created the folder), and when.
+    createdAt: formatDateTime(doc.createdAt),
     ...(doc.type === 'FILE' ? { size: formatFileSize(doc.size), fileType: doc.fileType } : {}),
     ...(doc.isTrashed ? { trashedAt: formatDate(doc.trashedAt) } : {}),
     access: {

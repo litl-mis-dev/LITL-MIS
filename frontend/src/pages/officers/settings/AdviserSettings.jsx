@@ -7,6 +7,9 @@ import {
 } from "../../../services/adviser.service.js";
 import RequiredMark from "../../../components/ui/RequiredMark.jsx";
 import { formatPersonName } from "../../../utils/formInputs.js";
+import CharCount from "../../../components/ui/CharCount.jsx";
+import OptionalMark from "../../../components/ui/OptionalMark.jsx";
+import { LIMITS } from "../../../utils/fieldLimits.js";
 
 // Settings ▸ Advisers — President only. Advisers and the Department Chair
 // join by email invitation; both titles have the same access. Seat limits,
@@ -119,22 +122,25 @@ export default function AdviserSettings() {
                 <fieldset disabled={sending} className="mt-3 grid gap-3 sm:grid-cols-2 disabled:opacity-60">
                     <label>
                         <span className="mb-1 block text-sm font-medium text-gray-700">First name<RequiredMark /></span>
-                        <input className={inputClass} value={form.firstName} required maxLength={30}
+                        <input className={inputClass} value={form.firstName} required maxLength={LIMITS.name}
                             onChange={(e) => setForm({ ...form, firstName: formatPersonName(e.target.value) })} />
+                        <CharCount value={form.firstName} max={LIMITS.name} />
                     </label>
                     <label>
                         <span className="mb-1 block text-sm font-medium text-gray-700">Last name<RequiredMark /></span>
-                        <input className={inputClass} value={form.lastName} required maxLength={30}
+                        <input className={inputClass} value={form.lastName} required maxLength={LIMITS.name}
                             onChange={(e) => setForm({ ...form, lastName: formatPersonName(e.target.value) })} />
+                        <CharCount value={form.lastName} max={LIMITS.name} />
                     </label>
                     <label>
-                        <span className="mb-1 block text-sm font-medium text-gray-700">Suffix (optional)</span>
-                        <input className={inputClass} value={form.suffix} maxLength={10} placeholder="Jr., III"
+                        <span className="mb-1 block text-sm font-medium text-gray-700">Suffix<OptionalMark /></span>
+                        <input className={inputClass} value={form.suffix} maxLength={LIMITS.suffix} placeholder="Jr., III"
                             onChange={(e) => setForm({ ...form, suffix: e.target.value })} />
+                        <CharCount value={form.suffix} max={LIMITS.suffix} />
                     </label>
                     <label>
                         <span className="mb-1 block text-sm font-medium text-gray-700">Email<RequiredMark /></span>
-                        <input className={inputClass} type="email" value={form.email} required
+                        <input className={inputClass} type="email" value={form.email} required maxLength={LIMITS.email}
                             onChange={(e) => setForm({ ...form, email: e.target.value })} />
                     </label>
                     <label>

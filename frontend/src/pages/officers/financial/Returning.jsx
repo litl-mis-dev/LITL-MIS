@@ -6,6 +6,8 @@ import { mapReturnFundRow, returnFundColumns } from '../../../utils/financialRec
 import { listReturnFunds } from '../../../services/financial.service'
 import { getSocket } from '../../../services/socket'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
+import EditHistory from '../../../components/ui/EditHistory.jsx'
+import { LIMITS } from '../../../utils/fieldLimits.js'
 
 function recordMatchesSearch(record, searchTerm) {
   const q = searchTerm.trim().toLowerCase()
@@ -67,7 +69,7 @@ export default function Returning({ showHeader = true }) {
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <SearchIcon />
               </span>
-              <input type="search" value={searchTerm}
+              <input type="search" maxLength={LIMITS.search} value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 placeholder="Search records" aria-label="Search return fund records" />
@@ -85,6 +87,12 @@ export default function Returning({ showHeader = true }) {
             emptyMessage="No return fund records found."
             onDownload={downloadReturnFundCertificate}
             canDownloadRow={(row) => !row.details.nothingReturnedYet}
+            // A return fund changes only through its disbursement's amount spent,
+            // so its history is that disbursement's.
+            renderRowActions={(row) => row.details.disbursementId && (
+              <EditHistory type="disbursement" id={row.details.disbursementId} variant="button"
+                refreshKey={row.amount} title={`Edit history · ${row.id}`} />
+            )}
           />
         )}
       </div>

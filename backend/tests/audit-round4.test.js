@@ -82,7 +82,7 @@ test('R3-06: every router checks each numeric parameter it uses', () => {
   // Routers load their controllers; none of them touches the database here.
   stub('src/lib/prisma.js', {})
   const routesDir = path.join(backend, 'src/routes')
-  const TEXT_PARAMS = new Set(['publicId', 'studentNumber', 'assetType'])
+  const TEXT_PARAMS = new Set(['publicId', 'studentNumber', 'assetType', 'entityType'])
   for (const file of fs.readdirSync(routesDir)) {
     const source = fs.readFileSync(path.join(routesDir, file), 'utf8')
     const used = new Set((source.match(/'\/[^']*'/g) ?? []).flatMap((p) => p.match(/:([a-zA-Z]+)/g) ?? []).map((p) => p.slice(1)))
@@ -110,7 +110,7 @@ test('R3-07: announcement title and message have length limits', async () => {
     return res
   }
   const base = { recipients: 'BOTH', priority: 'NORMAL' }
-  assert.match((await call({ ...base, title: 'x'.repeat(121), message: 'ok' })).body.message, /120 characters/)
+  assert.match((await call({ ...base, title: 'x'.repeat(51), message: 'ok' })).body.message, /50 characters/)
   assert.match((await call({ ...base, title: 'ok', message: 'x'.repeat(1001) })).body.message, /1000 characters/)
   assert.equal((await call({ ...base, title: ['a'], message: 'ok' })).statusCode, 400)
   assert.equal((await call({ ...base, title: '   ', message: 'ok' })).statusCode, 400)

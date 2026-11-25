@@ -255,6 +255,9 @@ function buildDescription(action, details, targetName) {
       return `Updated disbursement record ${d.reference ?? ''}.`
     }
 
+    case 'MEMBER_INFO_UPDATED':
+      return `Updated ${d.memberName ?? targetName ?? 'a member'}'s details: ${(d.changes ?? []).map((c) => c.label).join(', ') || 'no changes'}.`
+
     case 'EVENT_STATUS_CHANGED':
       return d.automatic
         ? `"${d.title ?? 'An event'}" changed from ${d.from ?? 'N/A'} to ${d.to ?? 'N/A'} automatically, on its schedule.`
@@ -390,4 +393,4 @@ function buildDescription(action, details, targetName) {
   }
 }
 
-module.exports = { listAuditLogs }
+module.exports = { listAuditLogs, buildDescription }

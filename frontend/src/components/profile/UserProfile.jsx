@@ -33,7 +33,6 @@ const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmNewPass
 const SEX_LABELS = {
     MALE:              "Male",
     FEMALE:            "Female",
-    PREFER_NOT_TO_SAY: "Prefer not to say",
 };
 
 // ─── Shared UI components (identical to Registration.jsx) ─────────────────────
@@ -547,7 +546,7 @@ export default function UserProfile({ variant = "member" }) {
                             <label className="dash-form__field">
                                 <span>Current Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
-                                    <input type={showCurPw ? "text" : "password"} name="currentPassword"
+                                    <input type={showCurPw ? "text" : "password"} name="currentPassword" maxLength={72}
                                         value={pwForm.currentPassword} onChange={handlePwInput}
                                         autoComplete="current-password" disabled={pwLoading}
                                         style={{ paddingRight: 40 }} />
@@ -562,7 +561,7 @@ export default function UserProfile({ variant = "member" }) {
                             <label className="dash-form__field">
                                 <span>New Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
-                                    <input type={showNewPw ? "text" : "password"} name="newPassword"
+                                    <input type={showNewPw ? "text" : "password"} name="newPassword" maxLength={72}
                                         value={pwForm.newPassword} onChange={handlePwInput}
                                         autoComplete="new-password" placeholder="Minimum 8 characters"
                                         disabled={pwLoading} style={{ paddingRight: 40 }} />
@@ -579,7 +578,7 @@ export default function UserProfile({ variant = "member" }) {
                             <label className="dash-form__field">
                                 <span>Confirm New Password<RequiredMark /></span>
                                 <div style={{ position: "relative" }}>
-                                    <input type={showConPw ? "text" : "password"} name="confirmNewPassword"
+                                    <input type={showConPw ? "text" : "password"} name="confirmNewPassword" maxLength={72}
                                         value={pwForm.confirmNewPassword} onChange={handlePwInput}
                                         autoComplete="new-password" placeholder="Re-enter your new password"
                                         disabled={pwLoading} style={{ paddingRight: 40 }} />
@@ -662,6 +661,7 @@ export default function UserProfile({ variant = "member" }) {
                                             autoComplete="email"
                                             value={newEmail}
                                             onChange={(e) => { setNewEmail(e.target.value); setEmailErr(""); }}
+                                            maxLength={254}
                                             required
                                         />
                                     </label>

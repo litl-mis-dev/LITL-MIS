@@ -156,6 +156,42 @@ main.auth-page {
   gap: 10px;
 }
 
+/* A choice shown as radio buttons (Sex): the legend acts as the label. */
+.field--radios {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field--radios legend {
+  padding: 0;
+  margin-bottom: 7px;
+}
+
+.field__radios {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 42px;
+}
+
+.field__radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.auth-card .field__radios input {
+  width: 16px;
+  min-height: 0;
+  height: 16px;
+  padding: 0;
+  accent-color: #ef8315;
+}
+
 .auth-card input,
 .auth-card select {
   width: 100%;

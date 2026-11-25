@@ -12,6 +12,16 @@ export const approveUser = (userId) => {
   return api.put(`/officer/approve/${userId}`).then(res => res.data)
 }
 
+// Officers with Members List EDIT: fix a member's details (logged).
+export const updateMemberInfo = (memberId, info) => {
+  return api.put(`/officer/members/${memberId}/info`, info).then(res => res.data)
+}
+
+// action: 'approve' | 'reject'. Resolves to { done, skipped, message }.
+export const bulkReviewUsers = (action, userIds) => {
+  return api.post('/officer/pending-users/bulk', { action, userIds }).then(res => res.data)
+}
+
 export const rejectUser = (userId) => {
   return api.put(`/officer/reject/${userId}`).then(res => res.data)
 }

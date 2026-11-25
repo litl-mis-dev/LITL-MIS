@@ -221,6 +221,7 @@ function ResetPassword() {
                 type={showNew ? 'text' : 'password'}
                 placeholder="Enter new password"
                 autoComplete="new-password"
+                maxLength={72}
                 value={newPassword}
                 onChange={(e) => { setNewPassword(e.target.value); setError('') }}
                 required
@@ -245,6 +246,7 @@ function ResetPassword() {
                 type={showConfirm ? 'text' : 'password'}
                 placeholder="Re-enter new password"
                 autoComplete="new-password"
+                maxLength={72}
                 value={confirmNewPassword}
                 onChange={(e) => { setConfirmNewPassword(e.target.value); setError('') }}
                 required

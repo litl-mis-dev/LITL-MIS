@@ -12,12 +12,15 @@ const { emitToOfficers } = require('../realtime/socket')
 
 const RESERVED_CATEGORY_NAME = 'turnover fund'
 
+const { withLastEdits } = require('../utils/lastEdit')
+
 const listCategories = async (req, res) => {
   try {
     const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
     if (!activeSemester) return res.status(400).json({ message: 'No active semester.' })
       
-    return res.json(await getFundReport(activeSemester))
+    const report = await getFundReport(activeSemester)
+    return res.json({ ...report, categories: await withLastEdits('fundCategory', report.categories) })
   } catch (err) {
     logError('List categories', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -64,8 +67,8 @@ const createCategoriesBatch = async (req, res) => {
 
     for (const [i, cat] of categories.entries()) {
       const name = cat.name || cat.categories
-      if (!name || !name.trim() || name.trim().length < 2 || name.trim().length > 100) {
-        errors.push(`Category ${i + 1}: Name must be 2–100 characters.`)
+      if (!name || !name.trim() || name.trim().length < 2 || name.trim().length > 50) {
+        errors.push(`Category ${i + 1}: Name must be 2–50 characters.`)
       } else if (name.trim().toLowerCase() === RESERVED_CATEGORY_NAME) {
         errors.push(`Category ${i + 1}: "Turnover Fund" is a reserved, system-generated name.`)
       }
@@ -211,8 +214,8 @@ const updateCategories = async (req, res) => {
 
     for (const [i, cat] of categories.entries()) {
       const name = typeof cat.name === 'string' ? cat.name.trim() : ''
-      if (name.length < 2 || name.length > 100) {
-        errors.push(`Category ${i + 1}: Name must be 2–100 characters.`)
+      if (name.length < 2 || name.length > 50) {
+        errors.push(`Category ${i + 1}: Name must be 2–50 characters.`)
       } else if (name.toLowerCase() === RESERVED_CATEGORY_NAME) {
         errors.push(`Category ${i + 1}: "Turnover Fund" is a reserved, system-generated name.`)
       } else if (seenNames.has(name.toLowerCase())) {
@@ -291,6 +294,7 @@ const updateCategories = async (req, res) => {
       await writeAuditLog({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.CATEGORY_UPDATED,
+        entity: { type: 'fundCategory', id: edit.before.id },
         details: {
           categoryId: edit.before.id,
           semesterId: edit.before.semesterId,

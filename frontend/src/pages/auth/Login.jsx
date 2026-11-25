@@ -68,6 +68,7 @@ function Login() {
                 name="identifier"
                 placeholder="Enter your email or student number"
                 autoComplete="username"
+                maxLength={254}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 required
@@ -80,6 +81,7 @@ function Login() {
                 <IconInput
                   type={visiblePassword ? 'text' : 'password'}
                   name="password"
+                  maxLength={72}
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   value={password}

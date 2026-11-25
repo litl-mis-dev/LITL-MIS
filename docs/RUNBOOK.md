@@ -77,8 +77,8 @@ once: `migrate deploy` on it fails because its tables already exist.
    (or `NODE_ENV=production npm run seed:permissions` if it doesn't panic).
    Expect `permissions: 171`.
 5. **Stop old logins from matching new accounts.** User IDs restart at 1 but
-   old login cookies stay valid for 7 days. Do one of these **before anyone
-   registers**:
+   old login cookies stay valid for up to 30 days (a session renews itself
+   while it's in use). Do one of these **before anyone registers**:
    - rotate `JWT_SECRET` (and `RESET_TOKEN_SECRET`) in hPanel, or
    - `ALTER TABLE User AUTO_INCREMENT = <old max + 1>;` (use 1000 if the old
      max was small).

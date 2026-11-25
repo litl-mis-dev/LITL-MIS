@@ -98,12 +98,11 @@ test('the server opens and closes due events, logs it as automatic and notifies'
   assert.equal(await applyScheduledStatuses(at('2026-11-09T10:01:00')), 0, 'nothing to do the next minute')
 })
 
-// ── Manual changes only move forward ─────────────────────────────────────────
+// ── Manual changes: non-final statuses can go back, final ones are locked ────
 test('allowed and refused manual status changes', () => {
-  for (const [from, to] of [['COMING_SOON', 'OPEN'], ['COMING_SOON', 'CANCELLED'], ['OPEN', 'CLOSED'], ['OPEN', 'CANCELLED'], ['OPEN', 'OPEN']]) {
+  for (const [from, to] of [['COMING_SOON', 'OPEN'], ['COMING_SOON', 'CANCELLED'], ['OPEN', 'CLOSED'], ['OPEN', 'CANCELLED'], ['OPEN', 'OPEN'], ['OPEN', 'COMING_SOON']]) {
     assert.equal(statusChangeError(from, to), null, `${from} -> ${to}`)
   }
-  assert.match(statusChangeError('OPEN', 'COMING_SOON'), /can't go back to Coming soon/)
   assert.match(statusChangeError('CLOSED', 'OPEN'), /Closed, so its status can no longer be changed/)
   assert.match(statusChangeError('CANCELLED', 'COMING_SOON'), /Cancelled/)
   assert.match(statusChangeError('COMING_SOON', 'CLOSED'), /Coming soon can't be changed to Closed\. Open it first\./)
@@ -117,12 +116,19 @@ const call = async (handler, req) => {
   return res
 }
 
-test('the API refuses to move an Open event back to Coming soon', async () => {
-  reset([seminar({ status: 'OPEN', date: '2099-01-01' })])
-  const res = await call(eventCtrl.updateEvent, { params: { id: '1' }, body: { status: 'Coming soon' } })
+test('an Open event goes back to Coming soon only with a start that is still ahead', async () => {
+  // Started already (yesterday): it would reopen within a minute, so refused.
+  reset([seminar({ status: 'OPEN', date: '2000-01-01' })])
+  let res = await call(eventCtrl.updateEvent, { params: { id: '1' }, body: { status: 'Coming soon' } })
   assert.equal(res.statusCode, 400)
-  assert.match(res.body.message, /can't go back to Coming soon/)
+  assert.match(res.body.message, /set its date or time to later than now/)
   assert.equal(events[0].status, 'OPEN')
+
+  // Rescheduled to a later date in the same save: allowed.
+  res = await call(eventCtrl.updateEvent, { params: { id: '1' }, body: { status: 'Coming soon', date: '2099-01-01' } })
+  assert.equal(res.statusCode, 200)
+  assert.equal(events[0].status, 'COMING_SOON')
+  assert.equal(events[0].date, '2099-01-01')
 })
 
 test('the API logs a manual forward change', async () => {

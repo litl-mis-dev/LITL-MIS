@@ -969,6 +969,15 @@ button {
   white-space: nowrap;
 }
 
+/* Money lines up on the right so amounts are easy to compare (entire system). */
+.data-table th.data-table__money,
+.data-table td.data-table__money,
+.money-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Column 1 is "No.", column 2 the name (with email): the name reads from
    the left, everything else is centered. */
 .member-data-table th,
@@ -1308,8 +1317,11 @@ button {
   gap: 18px;
 }
 
+/* Fields stay top-aligned: a character count under one field must not
+   stretch the field beside it (e.g. Suffix next to Last Name). */
 .dash-form__field {
   display: grid;
+  align-content: start;
   gap: 8px;
   color: #334155;
   font-size: 14px;
@@ -1979,6 +1991,48 @@ button {
 
 .approval-item .user-cell {
   min-width: 0;
+}
+
+/* Member Approval checkboxes and the bulk Approve / Reject bar. */
+.approval-item:has(> .approval-item__check) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.approval-item__check,
+.approval-bulk-bar__all input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.approval-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.approval-bulk-bar__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.approval-bulk-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .approval-item .user-cell > div {
@@ -4776,6 +4830,7 @@ button {
 .audit-review-details { min-width: 180px; max-width: 280px; white-space: normal; overflow-wrap: anywhere; }
 .audit-review-details p { margin: 0 0 6px; white-space: pre-wrap; }
 .audit-review-details small { display: block; color: #6b7280; line-height: 1.6; }
+.audit-review-details .btn { margin-top: 6px; }
 .audit-remarks-dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 48px); margin: auto; padding: 24px; border: 0; border-radius: 8px; background: #fff; color: #1f2937; overflow-y: auto; }
 .audit-remarks-dialog::backdrop { background: rgba(15, 23, 42, 0.5); }
 .audit-remarks-field { display: grid; gap: 8px; margin: 20px 0; font-size: 14px; font-weight: 600; }
@@ -6146,4 +6201,132 @@ button {
   .members-list-entries__status {
     grid-column: 1;
   }
+}
+
+/* Last editor and date (components/ui/LastEdited.jsx), styled like the
+   reviewer under Audit ▸ Review Details. */
+.last-edited small {
+  display: block;
+  color: #6b7280;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.last-edited--none {
+  color: #9ca3af;
+}
+.edit-history__label {
+  margin: 0;
+  color: #334155;
+  font-weight: 700;
+}
+
+/* Edit history (components/ui/EditHistory.jsx): the latest edit inline,
+   the full list in its own window. */
+.edit-history {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #475569;
+}
+
+.edit-history__meta {
+  margin: 0;
+  color: #334155;
+}
+
+.edit-history__muted,
+.edit-history__description {
+  margin: 0;
+  color: #64748b;
+}
+
+.edit-history__error {
+  margin: 0;
+  color: #b91c1c;
+}
+
+.edit-history__changes {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.edit-history__field {
+  font-weight: 700;
+}
+
+.edit-history__from {
+  color: #b91c1c;
+  text-decoration: line-through;
+}
+
+.edit-history__to {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.edit-history__more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #b55c08;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-history__more:hover {
+  text-decoration: underline;
+}
+
+.edit-history__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.edit-history__list > li {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.edit-history-modal {
+  z-index: calc(var(--z-dialog, 1000) + 1);
+}
+
+/* Sex as Male / Female radio buttons in the Edit Member form. */
+.member-sex-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.member-sex-field__options {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 42px;
+}
+
+.member-sex-field__options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.member-sex-field__options input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
 }

@@ -3,7 +3,9 @@ import SuccessDialog from '../../../components/officers/SuccessDialog'
 import { listCategories, createDisbursement } from '../../../services/financial.service'
 import { getSignatories } from '../../../services/officer.service'
 import RequiredMark from '../../../components/ui/RequiredMark.jsx'
-import { formatPersonName } from '../../../utils/formInputs.js'
+import { formatPersonName, titleCaseOnBlur } from '../../../utils/formInputs.js'
+import CharCount from '../../../components/ui/CharCount.jsx'
+import { LIMITS } from '../../../utils/fieldLimits.js'
 import ModalPortal from '../../../components/ui/ModalPortal.jsx'
 
 // Fields holding a person's name — capitalized as they're typed.
@@ -278,9 +280,10 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="dis-name">Name<RequiredMark /></label>
                     <input id="dis-name" name="name" type="text" value={formData.name}
-                      onChange={handleTextChange} maxLength={50}
+                      onChange={handleTextChange} onBlur={titleCaseOnBlur} data-name="" maxLength={LIMITS.disbursementField}
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                       placeholder="Enter recipient name" />
+                    <CharCount value={formData.name} max={LIMITS.disbursementField} />
                     {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                   </div>
 
@@ -314,17 +317,19 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                     <div>
                       <label className="block text-sm font-medium text-gray-700" htmlFor="dis-purpose">Purpose of Fund<RequiredMark /></label>
                       <input id="dis-purpose" name="purposeOfFund" type="text" value={formData.purposeOfFund}
-                        onChange={handleTextChange} maxLength={50}
+                        onChange={handleTextChange} onBlur={titleCaseOnBlur} maxLength={LIMITS.disbursementField}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                         placeholder="Enter purpose" />
+                      <CharCount value={formData.purposeOfFund} max={LIMITS.disbursementField} />
                       {errors.purposeOfFund && <p className="mt-1 text-sm text-red-600">{errors.purposeOfFund}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700" htmlFor="dis-title">Title of Activity<RequiredMark /></label>
                       <input id="dis-title" name="titleOfActivities" type="text" value={formData.titleOfActivities}
-                        onChange={handleTextChange} maxLength={50}
+                        onChange={handleTextChange} onBlur={titleCaseOnBlur} maxLength={LIMITS.disbursementField}
                         className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                         placeholder="Enter activity" />
+                      <CharCount value={formData.titleOfActivities} max={LIMITS.disbursementField} />
                       {errors.titleOfActivities && <p className="mt-1 text-sm text-red-600">{errors.titleOfActivities}</p>}
                     </div>
                   </div>
@@ -337,17 +342,19 @@ export default function AddDisbursement({ onSuccess, buttonLabel = 'Add Disburse
                       <div>
                         <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedBy">Received by<RequiredMark /></label>
                         <input id="dis-receivedBy" name="receivedBy" type="text" value={formData.receivedBy}
-                          onChange={handleTextChange} maxLength={50}
+                          onChange={handleTextChange} onBlur={titleCaseOnBlur} data-name="" maxLength={LIMITS.disbursementField}
                           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                           placeholder="Enter receiver name" />
+                        <CharCount value={formData.receivedBy} max={LIMITS.disbursementField} />
                         {errors.receivedBy && <p className="mt-1 text-sm text-red-600">{errors.receivedBy}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700" htmlFor="dis-receivedByPos">Received by Position<RequiredMark /></label>
                         <input id="dis-receivedByPos" name="receivedByPosition" type="text" value={formData.receivedByPosition}
-                          onChange={handleTextChange} maxLength={50}
+                          onChange={handleTextChange} onBlur={titleCaseOnBlur} maxLength={LIMITS.disbursementField}
                           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                           placeholder="Enter receiver position" />
+                        <CharCount value={formData.receivedByPosition} max={LIMITS.disbursementField} />
                         {errors.receivedByPosition && <p className="mt-1 text-sm text-red-600">{errors.receivedByPosition}</p>}
                       </div>
                     </div>

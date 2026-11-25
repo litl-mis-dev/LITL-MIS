@@ -11,7 +11,17 @@ const {
 const { emitToAll, emitToOfficers } = require('../realtime/socket')
 const { validateScheduleDate, validateScheduleTime } = require('../utils/schedule')
 const { RETURNS_SUMMARY_INCLUDE, summarizeReturns } = require('../services/calculations.service')
-const { statusChangeError, applyScheduledStatuses } = require('../services/eventStatus.service')
+const { statusChangeError, applyScheduledStatuses, startsLater } = require('../services/eventStatus.service')
+const { diffChanges } = require('../utils/changes')
+
+// What an event edit changed, for its edit history (status changes are logged
+// on their own; a new linked disbursement shows as the budget change).
+const formatAccess = (v) => { try { return JSON.parse(v).join(', ') } catch { return v } }
+const EVENT_FIELDS = {
+  title: 'Title', date: 'Date', time: 'Time', location: 'Location', proponent: 'Proponent',
+  description: 'Description', access: { label: 'Access', format: formatAccess },
+  googleFormUrl: 'Google Form', budget: { label: 'Budget', format: (v) => (v == null ? v : Number(v).toFixed(2)) },
+}
 const { buildMemberQrText, parseMemberQrText, INVALID_MEMBER_QR_MESSAGE } = require('../utils/memberQr')
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,6 +116,19 @@ async function disbursementUnavailableReason(disbursementId, eventId = null) {
 
 // A funded event's title is also its disbursement's Title of Activity, so it
 // follows the same length rule as on the disbursement form.
+// Longest text each event field takes (as on the event form).
+const EVENT_TEXT_LIMITS = [
+  ['title', 'Event title', 50], ['proponent', 'Proponent', 50], ['location', 'Location', 100],
+  ['description', 'Description', 2000], ['googleFormUrl', 'Google Form URL', 191],
+]
+function eventTextError(fields) {
+  for (const [key, label, max] of EVENT_TEXT_LIMITS) {
+    const value = fields[key]
+    if (typeof value === 'string' && value.trim().length > max) return `${label} must not exceed ${max} characters.`
+  }
+  return null
+}
+
 function linkedTitleError(title) {
   const length = title.trim().length
   if (length < 2) return 'Event title must be at least 2 characters.'
@@ -125,6 +148,7 @@ async function syncDisbursementTitle(event, actorId) {
   await writeAuditLog({
     actorId,
     action: AUDIT_ACTIONS.DISBURSEMENT_TITLE_UPDATED,
+    entity: { type: 'disbursement', id: disbursement.id },
     details: {
       disbursementId: disbursement.id,
       reference: disbursement.reference,
@@ -242,6 +266,8 @@ const createEvent = async (req, res) => {
     if (!title?.trim() || !date || !time || !location?.trim() || !proponent?.trim() || !description?.trim()) {
       return res.status(400).json({ message: 'All required fields must be filled.' })
     }
+    const textError = eventTextError({ title, proponent, location, description, googleFormUrl })
+    if (textError) return res.status(400).json({ message: textError })
 
     const scheduleError = validateScheduleDate(date) || validateScheduleTime(time)
     if (scheduleError) return res.status(400).json({ message: scheduleError })
@@ -294,6 +320,7 @@ const createEvent = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.EVENT_CREATED,
+      entity: { type: 'event', id: event.id },
       details: { eventId: event.id, title: event.title }
     })
 
@@ -336,8 +363,10 @@ const updateEvent = async (req, res) => {
     if (Array.isArray(access) && access.length === 0) {
       return res.status(400).json({ message: 'At least one access group must be selected.' })
     }
+    const textError = eventTextError({ title, proponent, location, description, googleFormUrl })
+    if (textError) return res.status(400).json({ message: textError })
 
-    // Status only moves forward (services/eventStatus.service.js).
+    // Final statuses can't change; the rest can go back (services/eventStatus.service.js).
     let nextStatus = existing.status
     if (status !== undefined && status !== null && status !== '') {
       nextStatus = LABEL_TO_STATUS[status]
@@ -347,10 +376,15 @@ const updateEvent = async (req, res) => {
     }
 
     // The schedule decides when an event opens and closes, so it can only be
-    // changed before the event opens.
+    // changed while the event is (or goes back to) Coming soon.
     const reschedules = (date && date !== existing.date) || (time && time !== existing.time)
-    if (reschedules && existing.status !== 'COMING_SOON') {
+    if (reschedules && existing.status !== 'COMING_SOON' && nextStatus !== 'COMING_SOON') {
       return res.status(400).json({ message: 'The date and time can only be changed while the event is Coming soon.' })
+    }
+    // Back to Coming soon only with a start that is still ahead; otherwise the
+    // schedule would open it again within a minute.
+    if (existing.status === 'OPEN' && nextStatus === 'COMING_SOON' && !startsLater(date || existing.date, time || existing.time)) {
+      return res.status(400).json({ message: 'To move this event back to Coming soon, set its date or time to later than now.' })
     }
 
     // Only a changed date/time is checked, so an event whose date has passed
@@ -408,13 +442,15 @@ const updateEvent = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.EVENT_UPDATED,
-      details: { eventId: id, title: updated.title }
+      entity: { type: 'event', id },
+      details: { eventId: id, title: updated.title, changes: diffChanges(existing, updated, EVENT_FIELDS) }
     })
 
     if (existing.status !== updated.status) {
       await writeAuditLog({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.EVENT_STATUS_CHANGED,
+        entity: { type: 'event', id },
         details: {
           eventId: id, title: updated.title, automatic: false,
           from: STATUS_TO_LABEL[existing.status], to: STATUS_TO_LABEL[updated.status],

@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt')
 const { generateOtp, hashOtp, compareOtp } = require('../utils/otp')
 const { generateVerificationToken } = require('../utils/token')
 const { sendOtpEmail } = require('../utils/email')
-const { signAuthToken, verifyAuthToken, signResetToken, verifyResetToken } = require('../utils/jwt')
+const { verifyAuthToken, signResetToken, verifyResetToken, authCookieOptions, setAuthCookie, AUTH_COOKIE_NAME } = require('../utils/jwt')
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')  
@@ -60,14 +60,6 @@ const INVALID_LOGIN_MESSAGE = `Invalid credentials. After ${LOGIN_PAIR_LOCK_THRE
 // reveal which accounts exist. A hash of a throwaway string, same cost (12).
 const TIMING_EQUALISER_HASH = '$2b$12$DULfmApJMTnLmgNzURwk/.tgZo8TzIxAwrJ6XjHlY5fdFhvqaRDDm'
 
-// The website (litltrece.me) and the API (api.litltrece.me) are the same
-// site, so Lax still sends the cookie with the app's own requests while
-// keeping it off requests started by other sites.
-const authCookieOptions = () => ({
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
-})
 
 // In-memory, like the route rate limiters: resets on restart and is per
 // process. The account-wide lock in the database is the durable backstop.
@@ -156,7 +148,7 @@ async function issueResetOtp(user) {
 // Identifies the caller from the auth cookie without failing — used where
 // authMiddleware can't run (logout must clear even a stale cookie).
 async function getUserFromAuthCookie(req) {
-  const token = req.cookies?.['LITL-MIS']
+  const token = req.cookies?.[AUTH_COOKIE_NAME]
   if (!token) return null
   try {
     const decoded = verifyAuthToken(token)
@@ -859,12 +851,7 @@ const login = async (req, res) => {
       return res.status(403).json({ message: 'This account cannot sign in yet.' })
     }
 
-    const token = signAuthToken(user)
-
-    res.cookie('LITL-MIS', token, {
-      ...authCookieOptions(),
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+    setAuthCookie(res, user)
 
     if (user.role !== 'MEMBER') {
       await writeAuditLog({
@@ -906,7 +893,7 @@ const logout = async (req, res) => {
       await writeAuditLog({ actorId: actor.id, action: AUDIT_ACTIONS.LOGOUT })
     }
   }
-  res.clearCookie('LITL-MIS', authCookieOptions())
+  res.clearCookie(AUTH_COOKIE_NAME, authCookieOptions())
   return res.json({ message: 'Logged out successfully' })
 }
 

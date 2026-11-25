@@ -72,6 +72,7 @@ function ForgotPassword() {
               type="email"
               placeholder="Enter your registered email"
               autoComplete="email"
+              maxLength={254}
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError('') }}
               required

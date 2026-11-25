@@ -3,6 +3,7 @@ import { listEvents } from "../../services/event.service.js";
 import { getSocket } from "../../services/socket.js";
 import "../../assets/styles/members/MemberDashboard.css";
 import LoadingState from "../../components/ui/LoadingState.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const TAG_CLASS = {
   open: "open",
@@ -68,7 +69,7 @@ export default function Events() {
           <label className="member-search">
             <span className="sr-only">Search events</span>
             <input
-              type="search"
+              type="search" maxLength={LIMITS.search}
               placeholder="Search events..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}

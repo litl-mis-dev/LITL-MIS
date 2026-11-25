@@ -263,8 +263,6 @@
 .landing-hero-mark {
   width: min(100%, 520px);
   height: auto;
-  border-radius: 8px;
-  background: #ffffff;
   filter: drop-shadow(0 22px 36px rgba(0, 0, 0, 0.24));
 }
 

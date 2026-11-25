@@ -340,7 +340,8 @@ const renameItem = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DOCUMENT_RENAMED,
-      details: { documentId: id, from: doc.name, to: updated.name },
+      entity: { type: 'document', id },
+      details: { documentId: id, from: doc.name, to: updated.name, changes: [{ field: 'name', label: 'Name', from: doc.name, to: updated.name }] },
     })
 
     const currentOfficerIds = await getCurrentOfficerIds()
@@ -391,6 +392,7 @@ const updateAccess = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DOCUMENT_ACCESS_UPDATED,
+      entity: { type: 'document', id },
       details: { documentId: id, name: doc.name, groups: groupEnums, officerCount: Object.keys(officerPermissions).length },
     })
 
@@ -437,6 +439,7 @@ const trashItem = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DOCUMENT_TRASHED,
+      entity: { type: 'document', id },
       details: { documentId: id, name: doc.name, affectedCount: allIds.length },
     })
 
@@ -492,6 +495,7 @@ const restoreItem = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DOCUMENT_RESTORED,
+      entity: { type: 'document', id },
       details: { documentId: id, name: doc.name, affectedCount: allIds.length },
     })
 

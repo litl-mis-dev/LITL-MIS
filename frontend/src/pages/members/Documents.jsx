@@ -6,6 +6,7 @@ import {
 } from "../../services/documents.service.js";
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const PREVIEWABLE_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg"]);
 
@@ -131,7 +132,7 @@ export default function Documents() {
                             <label className="member-search documents-search">
                                 <span className="sr-only">Search documents</span>
                                 <input
-                                    type="search"
+                                    type="search" maxLength={LIMITS.search}
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                     placeholder="Search in this folder"
@@ -156,6 +157,9 @@ export default function Documents() {
                                     <span className="document-tile__name">{item.name}</span>
                                     <span className="document-tile__meta">
                                         {item.type === "folder" ? "Folder" : item.fileType} | {item.updatedAt}
+                                    </span>
+                                    <span className="document-tile__meta document-tile__meta--by">
+                                        {item.type === "folder" ? "Created" : "Uploaded"} by {item.owner} · {item.createdAt}
                                     </span>
                                 </article>
                             ))}
@@ -190,8 +194,12 @@ export default function Documents() {
 
                             <dl className="documents-meta-list">
                                 <div>
-                                    <dt>Owner</dt>
+                                    <dt>{selectedItem.type === "folder" ? "Created by" : "Uploaded by"}</dt>
                                     <dd>{selectedItem.owner}</dd>
+                                </div>
+                                <div>
+                                    <dt>{selectedItem.type === "folder" ? "Created on" : "Uploaded on"}</dt>
+                                    <dd>{selectedItem.createdAt}</dd>
                                 </div>
                                 <div>
                                     <dt>Updated</dt>

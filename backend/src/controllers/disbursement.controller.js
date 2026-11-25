@@ -21,6 +21,8 @@ const INCLUDE_LIST_DETAILS = {
   event: { select: { id: true, title: true } },
 }
 
+const { withLastEdits } = require('../utils/lastEdit')
+
 const listDisbursements = async (req, res) => {
   try {
     const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
@@ -35,7 +37,7 @@ const listDisbursements = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     })
     return res.json({
-      disbursements: disbursements.map(({ returnFunds, audit, ...d }) => {
+      disbursements: await withLastEdits('disbursement', disbursements.map(({ returnFunds, audit, ...d }) => {
         const summary = summarizeReturns({ ...d, returnFunds })
         return {
           ...d,
@@ -46,7 +48,7 @@ const listDisbursements = async (req, res) => {
           canRecordAmountSpent: d.semesterId === activeSemester.id && audit?.status !== 'CLEARED'
             && !summary.hasManualReturns && new Decimal(summary.amountSpent).gt(0),
         }
-      })
+      }))
     })
   } catch (err) {
     logError('List disbursements', err)
@@ -248,6 +250,7 @@ const createDisbursement = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DISBURSEMENT_CREATED,
+      entity: { type: 'disbursement', id: disbursement.id },
       details: {
         reference:         disbursement.reference,
         categoryName:      disbursement.fundCategory?.name ?? '',
@@ -496,6 +499,8 @@ const recordAmountSpent = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.RETURN_FUND_UPDATED,
+      // Shown in the disbursement's edit history (and on Returns, through it).
+      entity: { type: 'disbursement', id },
       details: {
         reference:             autoReturn.reference,
         disbursementReference: disbursement.reference,

@@ -6,7 +6,10 @@ import logo from "../assets/images/LogoAndText.png";
 import heroImage from "../assets/images/LogoAndText.png";
 import "../assets/styles/LandingPage.css";
 import RequiredMark from "../components/ui/RequiredMark.jsx";
-import { formatPersonName } from "../utils/formInputs.js";
+import { formatPersonName, titleCaseOnBlur } from "../utils/formInputs.js";
+import CharCount from "../components/ui/CharCount.jsx";
+import OptionalMark from "../components/ui/OptionalMark.jsx";
+import { LIMITS } from "../utils/fieldLimits.js";
 
 const NAV_LINKS = [
   { label: "Home", id: "home" },
@@ -48,9 +51,9 @@ const OFFICER_PLACEHOLDERS = Array.from({ length: 4 }, (_, index) => ({
 }));
 
 const AFFILIATION_OPTIONS = [
-  { id: "member", label: "LITL Member", sublabel: "Student", placeholder: "e.g. 202310123 / BSIT 3-1", labelText: "Student Number / Section (Optional)" },
-  { id: "faculty", label: "Faculty / Instructor", sublabel: "CvSU Faculty", placeholder: "e.g. Department of Information Technology", labelText: "Department / College (Optional)" },
-  { id: "inside_org", label: "Inside Organization", sublabel: "CvSU Org / Council", placeholder: "e.g. CSG, YMG, ISIP, LYHR,, etc.", labelText: "Organization / Council Name" },
+  { id: "member", label: "LITL Member", sublabel: "Student", placeholder: "e.g. 202310123 / BSIT 3-1", labelText: "Student Number / Section" },
+  { id: "faculty", label: "Faculty / Instructor", sublabel: "CvSU Faculty", placeholder: "e.g. Department of Information Technology", labelText: "Department / College" },
+  { id: "inside_org", label: "Inside Organization", sublabel: "CvSU Org / Council", placeholder: "e.g. CSG, YMG, ISIP, LYHR, etc.", labelText: "Organization / Council Name" },
   { id: "outside_org", label: "Outside Organization", sublabel: "External Partner", placeholder: "e.g. Company, Sponsor, Partner Org", labelText: "Company / Organization Name" },
 ];
 
@@ -342,37 +345,43 @@ export default function LandingPage() {
 
               <label>
                 <span>Name<RequiredMark /></span>
-                <input name="name" value={formData.name} onChange={handleFormChange} placeholder="Your full name" required />
+                <input name="name" value={formData.name} onChange={handleFormChange} placeholder="Your full name" maxLength={LIMITS.contactName} required />
+                <CharCount value={formData.name} max={LIMITS.contactName} />
               </label>
 
               <label>
                 <span>Email<RequiredMark /></span>
-                <input type="email" name="email" value={formData.email} onChange={handleFormChange} placeholder="your.email@example.com" required />
+                <input type="email" name="email" value={formData.email} onChange={handleFormChange} placeholder="your.email@example.com" maxLength={LIMITS.email} required />
               </label>
 
               {(() => {
                 const currentOpt = AFFILIATION_OPTIONS.find((opt) => opt.id === formData.affiliation) || AFFILIATION_OPTIONS[0];
                 return (
                   <label>
-                    <span>{currentOpt.labelText}</span>
+                    <span>{currentOpt.labelText}<OptionalMark /></span>
                     <input
                       name="organization"
                       value={formData.organization}
                       onChange={handleFormChange}
+                      onBlur={formData.affiliation === "member" ? undefined : titleCaseOnBlur}
                       placeholder={currentOpt.placeholder}
+                      maxLength={LIMITS.contactOrganization}
                     />
+                    <CharCount value={formData.organization} max={LIMITS.contactOrganization} />
                   </label>
                 );
               })()}
 
               <label>
                 <span>Subject<RequiredMark /></span>
-                <input name="subject" value={formData.subject} onChange={handleFormChange} placeholder="What can we help with?" required />
+                <input name="subject" value={formData.subject} onChange={handleFormChange} placeholder="What can we help with?" maxLength={LIMITS.contactSubject} required />
+                <CharCount value={formData.subject} max={LIMITS.contactSubject} />
               </label>
 
               <label>
                 <span>Message<RequiredMark /></span>
-                <textarea name="message" value={formData.message} onChange={handleFormChange} placeholder="Write your message here..." required />
+                <textarea name="message" value={formData.message} onChange={handleFormChange} placeholder="Write your message here..." maxLength={LIMITS.contactMessage} required />
+                <CharCount value={formData.message} max={LIMITS.contactMessage} />
               </label>
 
               {formStatus.error && <p className="landing-form-alert landing-form-error">{formStatus.error}</p>}

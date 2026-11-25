@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import AuthHeader from '../../components/AuthHeader'
 import { registerUser, getPendingRegistration } from '../../services/auth.service'
 import { formatPersonName } from "../../utils/formInputs.js";
+import CharCount from "../../components/ui/CharCount.jsx";
+import OptionalMark from "../../components/ui/OptionalMark.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const NAME_REGEX = /^[A-Za-z\s'-]+$/
 
@@ -29,7 +32,7 @@ function Field({ label, required, hint, error, children }) {
     <div className="mb-4">
       <label className="block text-xs font-semibold text-gray-700 mb-1">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required ? <span className="text-red-500 ml-0.5">*</span> : <OptionalMark />}
       </label>
       {children}
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -229,7 +232,7 @@ function Step1({ data, setData, onNext }) {
             className={errors.firstName ? inputError : inputNormal}
             placeholder="First name"
             value={data.firstName}
-            maxLength={30}
+            maxLength={LIMITS.name}
             onChange={(e) => {
               const value = e.target.value
               if (/^[A-Za-z\s'-]*$/.test(value)) {
@@ -238,13 +241,14 @@ function Step1({ data, setData, onNext }) {
               }
             }}
           />
+          <CharCount value={data.firstName} max={LIMITS.name} />
         </Field>
         <Field label="Last Name" required error={errors.lastName}>
           <input
             className={errors.lastName ? inputError : inputNormal}
             placeholder="Last name"
             value={data.lastName}
-            maxLength={30}
+            maxLength={LIMITS.name}
             onChange={(e) => {
               const value = e.target.value
               if (/^[A-Za-z\s'-]*$/.test(value)) {
@@ -253,6 +257,7 @@ function Step1({ data, setData, onNext }) {
               }
             }}
           />
+          <CharCount value={data.lastName} max={LIMITS.name} />
         </Field>
       </div>
 
@@ -261,7 +266,7 @@ function Step1({ data, setData, onNext }) {
           className={inputNormal}
           placeholder="Middle name"
           value={data.middleName}
-          maxLength={30}
+          maxLength={LIMITS.name}
           onChange={(e) => {
             const value = e.target.value
 
@@ -270,6 +275,7 @@ function Step1({ data, setData, onNext }) {
             }
           }}
         />
+        <CharCount value={data.middleName} max={LIMITS.name} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -284,16 +290,21 @@ function Step1({ data, setData, onNext }) {
           </select>
         </Field>
         <Field label="Sex" required error={errors.sex}>
-          <select
-            className={errors.sex ? selectError : selectNormal}
-            value={data.sex}
-            onChange={(e) => { setData({ ...data, sex: e.target.value }); setErrors({ ...errors, sex: "" }); }}
-          >
-            <option value="" disabled selected>Select</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-            <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-          </select>
+          <div role="radiogroup" aria-label="Sex" className="flex h-11 items-center gap-6">
+            {[["MALE", "Male"], ["FEMALE", "Female"]].map(([value, label]) => (
+              <label key={value} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="sex"
+                  value={value}
+                  checked={data.sex === value}
+                  onChange={() => { setData({ ...data, sex: value }); setErrors({ ...errors, sex: "" }); }}
+                  className="h-4 w-4 accent-orange-500"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
         </Field>
       </div>
 

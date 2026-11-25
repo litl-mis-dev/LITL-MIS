@@ -12,16 +12,17 @@ const { notifyEventStatusChanged } = require('./notification.service')
 // The server applies this every minute (utils/eventStatusJob.js) and whenever
 // events are read, so it happens even when nobody has the site open.
 //
-// Officers can also move an event forward by hand, never back:
+// Officers can also change it by hand. Statuses that aren't final can go
+// back; final ones are locked:
 //   Coming soon -> Open or Cancelled
-//   Open        -> Closed or Cancelled
+//   Open        -> Coming soon (rescheduled to a later start), Closed or Cancelled
 //   Closed and Cancelled are final.
 
 const STATUS_LABELS = { COMING_SOON: 'Coming soon', OPEN: 'Open', CLOSED: 'Closed', CANCELLED: 'Cancelled' }
 
 const ALLOWED_STATUS_CHANGES = {
   COMING_SOON: ['OPEN', 'CANCELLED'],
-  OPEN: ['CLOSED', 'CANCELLED'],
+  OPEN: ['COMING_SOON', 'CLOSED', 'CANCELLED'],
   CLOSED: [],
   CANCELLED: [],
 }
@@ -36,10 +37,13 @@ function statusChangeError(from, to) {
   if (from === 'CLOSED' || from === 'CANCELLED') {
     return `This event is ${statusLabel(from)}, so its status can no longer be changed.`
   }
-  if (from === 'OPEN' && to === 'COMING_SOON') {
-    return 'An event that is Open can\'t go back to Coming soon.'
-  }
   return `An event that is ${statusLabel(from)} can't be changed to ${statusLabel(to)}. Open it first.`
+}
+
+// True when the event's date and start time are still ahead (Philippine time).
+function startsLater(date, time, now = new Date()) {
+  const today = todayInOrgTimezone(now)
+  return date > today || (date === today && time > timeInOrgTimezone(now))
 }
 
 // The status the schedule calls for, or null when the event should stay as it is.
@@ -77,6 +81,7 @@ async function applyScheduledStatuses(now = new Date()) {
     await writeAuditLog({
       actorId: null,
       action: AUDIT_ACTIONS.EVENT_STATUS_CHANGED,
+      entity: { type: 'event', id: event.id },
       details: { eventId: event.id, title: event.title, from, to, automatic: true },
     })
     notifyEventStatusChanged({ ...event, status: next }, from, to)
@@ -88,5 +93,5 @@ async function applyScheduledStatuses(now = new Date()) {
 
 module.exports = {
   STATUS_LABELS, ALLOWED_STATUS_CHANGES, CLOSING_TIME,
-  statusLabel, statusChangeError, scheduledStatus, applyScheduledStatuses,
+  statusLabel, statusChangeError, scheduledStatus, applyScheduledStatuses, startsLater,
 }

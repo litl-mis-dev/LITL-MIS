@@ -7,6 +7,8 @@ import TablePagination from "../../components/ui/TablePagination.jsx";
 import { usePagination } from "../../utils/usePagination.js";
 import { listAudits, reviewAudit } from "../../services/financial.service.js";
 import { useRole } from "../../utils/useRole.js";
+import EditHistory from "../../components/ui/EditHistory.jsx";
+import { LIMITS } from "../../utils/fieldLimits.js";
 
 const STATUS_OPTIONS = ["PENDING", "REVIEW", "FOR_CLARIFICATION", "CLEARED"];
 const FILTERS = ["All", ...STATUS_OPTIONS];
@@ -244,7 +246,7 @@ export default function Audit() {
               <label className="member-search">
                 <span className="sr-only">Search audit records</span>
                 <input
-                  type="search"
+                  type="search" maxLength={LIMITS.search}
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder="Search records"
@@ -279,7 +281,7 @@ export default function Audit() {
                   <th>Reference</th>
                   <th>Item</th>
                   <th>Source</th>
-                  <th>Amount</th>
+                  <th className="data-table__money">Amount</th>
                   <th>Prepared By</th>
                   <th>Status</th>
                   <th>Review Details</th>
@@ -303,7 +305,7 @@ export default function Audit() {
                       <td className="data-table__nowrap">{item.reference}</td>
                       <td className="audit-table__item">{item.item}</td>
                       <td>{item.category}</td>
-                      <td className="data-table__nowrap">{formatCurrency(item.amount)}</td>
+                      <td className="data-table__money">{formatCurrency(item.amount)}</td>
                       <td>{item.preparedBy}</td>
                       <td>
                         <span className={`audit-status audit-status--${statusClass(item.status)}`}>
@@ -314,6 +316,8 @@ export default function Audit() {
                         <p>{item.remarks || "No remarks"}</p>
                         {item.reviewedBy && <small>{[item.reviewedBy.member?.firstName, item.reviewedBy.member?.lastName].filter(Boolean).join(" ") || `Officer #${item.reviewedBy.id}`}</small>}
                         {item.reviewedAt && <small>{formatDate(item.reviewedAt)}</small>}
+                        <EditHistory type="audit" id={item.id} variant="button"
+                          refreshKey={`${item.status}|${item.remarks}`} title={`Edit history · ${item.displayId}`} />
                       </td>
                       {canAuditFinancials && (
                         <td>

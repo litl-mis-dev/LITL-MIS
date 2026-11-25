@@ -14,6 +14,8 @@ const INCLUDE_DETAILS = {
   }
 }
 
+const { withLastEdits } = require('../utils/lastEdit')
+
 const listReturnFunds = async (req, res) => {
   try {
     const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } })
@@ -27,7 +29,7 @@ const listReturnFunds = async (req, res) => {
       include: INCLUDE_DETAILS,
       orderBy: { createdAt: 'desc' }
     })
-    return res.json({ returnFunds })
+    return res.json({ returnFunds: await withLastEdits('disbursement', returnFunds, (r) => r.disbursementId) })
   } catch (err) {
     logError('List return funds', err)
     return res.status(500).json({ message: 'Something went wrong.' })
