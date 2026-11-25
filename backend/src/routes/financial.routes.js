@@ -63,5 +63,6 @@ router.get('/archive/return-funds',  requireModule('FINANCIAL', 'VIEW'), archive
 // the separate AUDIT module (Senator for Audit's home turf), not FINANCIAL.
 router.get('/audits',       requireModule('AUDIT', 'VIEW'), auditCtrl.listAudits)
 router.patch('/audits/:id', requireModule('AUDIT', 'EDIT'), auditCtrl.reviewAudit)
+router.get('/audits/:id/document', requireModule('AUDIT', 'VIEW'), auditCtrl.getAuditDocument)
 
 module.exports = router

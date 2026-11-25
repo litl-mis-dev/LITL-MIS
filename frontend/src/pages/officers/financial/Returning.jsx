@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import DashboardHeader from '../../../components/officers/DashboardHeader.jsx'
 import FinancialRecordsTable, { SearchIcon } from './FinancialRecordsTable.jsx'
-import { downloadReturnFundCertificate } from '../../../utils/downloadReturnFundCertificate.js'
+import { downloadReturnFundCertificate, viewReturnFundCertificate } from '../../../utils/downloadReturnFundCertificate.js'
 import { mapReturnFundRow, returnFundColumns } from '../../../utils/financialRecordRows.js'
 import { listReturnFunds } from '../../../services/financial.service'
 import { getSocket } from '../../../services/socket'
 import LoadingState from '../../../components/ui/LoadingState.jsx'
-import EditHistory from '../../../components/ui/EditHistory.jsx'
 import { LIMITS } from '../../../utils/fieldLimits.js'
 
 function recordMatchesSearch(record, searchTerm) {
@@ -86,13 +85,8 @@ export default function Returning({ showHeader = true }) {
             pageResetKey={searchTerm}
             emptyMessage="No return fund records found."
             onDownload={downloadReturnFundCertificate}
+            onView={viewReturnFundCertificate}
             canDownloadRow={(row) => !row.details.nothingReturnedYet}
-            // A return fund changes only through its disbursement's amount spent,
-            // so its history is that disbursement's.
-            renderRowActions={(row) => row.details.disbursementId && (
-              <EditHistory type="disbursement" id={row.details.disbursementId} variant="button"
-                refreshKey={row.amount} title={`Edit history · ${row.id}`} />
-            )}
           />
         )}
       </div>

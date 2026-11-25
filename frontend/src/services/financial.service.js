@@ -60,6 +60,8 @@ export const getMyPaymentHistory = () => api.get('/auth/my-payment-history').the
 
 // Audit — automated review queue for Disbursements & Return Funds.
 export const listAudits = () => api.get('/financial/audits').then(r => r.data)
+// The disbursement or return fund an audit record is about (for its certificate).
+export const getAuditDocument = (id) => api.get(`/financial/audits/${id}/document`).then(r => r.data)
 
 export const reviewAudit = (id, status, remarks) => api.patch(`/financial/audits/${id}`, { status, remarks }).then(r => r.data)
 

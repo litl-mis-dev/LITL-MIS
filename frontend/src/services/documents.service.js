@@ -38,4 +38,6 @@ export const permanentlyDeleteDocument = (id) =>
     api.delete(`/documents/${id}`).then((res) => res.data)
 
 export const getDocumentDownloadUrl = (id) => `${api.defaults.baseURL}/documents/${id}/download`
-export const getDocumentPreviewUrl = (id) => `${api.defaults.baseURL}/documents/${id}/preview`
+// The file itself, for showing it inside the system (PDF, images, text).
+export const fetchDocumentPreview = (id) =>
+    api.get(`/documents/${id}/preview`, { responseType: 'blob' }).then((res) => res.data)

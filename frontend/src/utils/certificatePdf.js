@@ -444,12 +444,16 @@ function downloadBlob(blob, filename) {
     URL.revokeObjectURL(url);
 }
 
-export function downloadCanvasAsPdf(canvas, filename = "committee-finance-receipt.pdf", options = {}) {
+// The drawn certificate as a PDF Blob — shown inside the system (View) or saved (Download).
+export function canvasToPdfBlob(canvas, options = {}) {
     const jpegBytes = dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.95));
-    const pdfBlob   = createPdfFromJpeg(jpegBytes, {
+    return createPdfFromJpeg(jpegBytes, {
         ...options,
         imageWidth:  canvas.width,
         imageHeight: canvas.height,
     });
-    downloadBlob(pdfBlob, filename);
+}
+
+export function downloadCanvasAsPdf(canvas, filename = "committee-finance-receipt.pdf", options = {}) {
+    downloadBlob(canvasToPdfBlob(canvas, options), filename);
 }

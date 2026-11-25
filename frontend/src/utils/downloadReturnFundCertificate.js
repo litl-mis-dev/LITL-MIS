@@ -3,6 +3,7 @@ import {
     createCertificateCanvas,
     drawCertificateBody,
     downloadCanvasAsPdf,
+    canvasToPdfBlob,
     drawCenteredText,
     drawDocumentMeta,
     drawSignatureBlock,
@@ -87,4 +88,10 @@ export async function downloadReturnFundCertificate(record) {
     const assets = await loadActiveDocumentAssets();
 
     downloadCanvasAsPdf(renderCertificateCanvas(record, assets), filename);
+}
+
+// The same certificate as a PDF Blob, to read inside the system (View).
+export async function viewReturnFundCertificate(record) {
+    const assets = await loadActiveDocumentAssets();
+    return canvasToPdfBlob(renderCertificateCanvas(record, assets));
 }

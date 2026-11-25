@@ -213,6 +213,7 @@ const createFolder = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.DOCUMENT_FOLDER_CREATED,
+      entity: { type: 'document', id: folder.id },
       details: { documentId: folder.id, name: folder.name, parentId },
     })
 
@@ -585,6 +586,16 @@ const downloadItem = async (req, res) => {
 
 // ── Preview (inline) ─────────────────────────────────────────────────────────────
 
+// Types a browser can show by itself, by the type recorded at upload (a
+// rename can't change it). The file is sent from here, not a redirect to
+// storage, so it opens inside the system on every browser and the storage
+// link stays private. CSV is shown as plain text.
+const PREVIEW_CONTENT_TYPES = {
+  'application/pdf': 'application/pdf',
+  'image/jpeg': 'image/jpeg', 'image/png': 'image/png', 'image/gif': 'image/gif', 'image/webp': 'image/webp',
+  'text/plain': 'text/plain; charset=utf-8', 'text/csv': 'text/plain; charset=utf-8',
+}
+
 const previewItem = async (req, res) => {
   try {
     const id  = Number(req.params.id)
@@ -597,9 +608,20 @@ const previewItem = async (req, res) => {
     if (!doc.storagePath)
       return res.status(404).json({ message: 'File is missing from storage.' })
 
-    // No download option → browser renders inline
-    const signedUrl = await storageService.getSignedUrl(doc.storagePath, 300)
-    return res.redirect(signedUrl)
+    const contentType = PREVIEW_CONTENT_TYPES[String(doc.mimeType ?? '').split(';')[0].trim().toLowerCase()]
+    if (!contentType) {
+      return res.status(415).json({ message: "Preview isn't available for this file type — download it to view." })
+    }
+
+    const bytes = await storageService.downloadFile(doc.storagePath)
+    res.set({
+      'Content-Type': contentType,
+      'Content-Length': bytes.length,
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(doc.name)}`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    })
+    return res.send(bytes)
   } catch (err) {
     logError('Preview document', err)
     return res.status(500).json({ message: 'Something went wrong.' })

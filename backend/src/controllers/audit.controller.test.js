@@ -28,6 +28,8 @@ function setup({ status = 'REVIEW', failNotification = false, activeYear = '2025
     '../utils/logger': { logError() {} },
     '../utils/auditLog': { writeAuditLog: async (log) => logs.push(log) },
     '../utils/auditActions': { AUDIT_ACTIONS: { AUDIT_CLEARED: 'CLEARED', AUDIT_STATUS_UPDATED: 'UPDATED' } },
+    '../services/calculations.service': { RETURNS_SUMMARY_INCLUDE: {}, summarizeReturns: () => ({}) },
+    '../utils/lastEdit': { withLastEdits: async (type, rows) => rows, latestEdits: async () => ({}) },
     '../services/notification.service': { notifyAuditStatusChanged: async () => {
       if (failNotification) throw new Error('Notification unavailable')
     } },
@@ -91,6 +93,18 @@ test('clarification validates, saves and logs remarks and review time', async ()
   assert.ok(res.body.audit.reviewedAt)
   assert.equal(res.body.audit.reviewedById, 9)
   assert.equal(state.logs[0].details.remarks, 'Missing receipt')
+})
+
+test('leaving For Clarification clears its remark; the history keeps what it said', async () => {
+  for (const next of ['REVIEW', 'PENDING', 'CLEARED']) {
+    const state = setup({ status: 'FOR_CLARIFICATION' })
+    const res = state.response()
+    await state.reviewAudit(state.request(next, 'should be ignored'), res)
+    assert.equal(res.statusCode, 200, next)
+    assert.equal(res.body.audit.remarks, null, next)
+    const remarkChange = state.logs[0].details.changes.find((c) => c.field === 'remarks')
+    assert.deepEqual([remarkChange.from, remarkChange.to], ['Existing remarks', null], next)
+  }
 })
 
 test('invalid statuses and malformed remarks do not write records', async () => {

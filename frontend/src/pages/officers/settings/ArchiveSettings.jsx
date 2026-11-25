@@ -7,8 +7,8 @@ import {
     mapDisbursementRow, mapReturnFundRow, disbursementColumns, returnFundColumns,
     fundReportColumns, buildFundReportRows,
 } from "../../../utils/financialRecordRows.js";
-import { downloadDisbursementCertificate } from "../../../utils/downloadDisbursementCertificate.js";
-import { downloadReturnFundCertificate } from "../../../utils/downloadReturnFundCertificate.js";
+import { downloadDisbursementCertificate, viewDisbursementCertificate } from "../../../utils/downloadDisbursementCertificate.js";
+import { downloadReturnFundCertificate, viewReturnFundCertificate } from "../../../utils/downloadReturnFundCertificate.js";
 import {
     listSemesters, getArchiveSummary, getArchiveFundReport, listArchiveDisbursements, listArchiveReturnFunds,
 } from "../../../services/financial.service";
@@ -226,10 +226,10 @@ export default function ArchiveSettings() {
                 ) : <p className="archive-footer">No fund categories for this semester.</p>
             ), (rows) => Math.max(rows.length - 1, 0))}
             {data && showDisbursements && renderSection("Disbursement Records", records.disbursements, (n) => `${n} records`, (rows) => (
-                <FinancialRecordsTable columns={disbursementColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No disbursement records for this semester." onDownload={downloadDisbursementCertificate} />
+                <FinancialRecordsTable columns={disbursementColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No disbursement records for this semester." onDownload={downloadDisbursementCertificate} onView={viewDisbursementCertificate} />
             ))}
             {data && showReturns && renderSection("Return Fund Records", records.returnFunds, (n) => `${n} records`, (rows) => (
-                <FinancialRecordsTable columns={returnFundColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} canDownloadRow={(row) => !row.details.nothingReturnedYet} />
+                <FinancialRecordsTable columns={returnFundColumns} rows={rows} pageResetKey={archiveKey} emptyMessage="No return fund records for this semester." onDownload={downloadReturnFundCertificate} onView={viewReturnFundCertificate} canDownloadRow={(row) => !row.details.nothingReturnedYet} />
             ))}
             <p className="archive-footer" role="status">{footer}</p>
         </div>

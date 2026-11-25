@@ -12,7 +12,7 @@ const { emitToOfficers } = require('../realtime/socket')
 
 const RESERVED_CATEGORY_NAME = 'turnover fund'
 
-const { withLastEdits } = require('../utils/lastEdit')
+const { latestEdits } = require('../utils/lastEdit')
 
 const listCategories = async (req, res) => {
   try {
@@ -20,7 +20,15 @@ const listCategories = async (req, res) => {
     if (!activeSemester) return res.status(400).json({ message: 'No active semester.' })
       
     const report = await getFundReport(activeSemester)
-    return res.json({ ...report, categories: await withLastEdits('fundCategory', report.categories) })
+    // The school year's categories share one history, kept under the semester
+    // they were added in (see the entity on each category log entry).
+    const first = await prisma.fundCategory.findFirst({
+      where: { id: { in: report.categories.filter((c) => !c.isTurnoverFund).map((c) => c.id) } },
+      select: { semesterId: true },
+    })
+    const historyId = first?.semesterId ?? null
+    const lastEdit = historyId ? (await latestEdits('fundCategories', [historyId]))[historyId] ?? null : null
+    return res.json({ ...report, history: { id: historyId, lastEdit } })
   } catch (err) {
     logError('List categories', err)
     return res.status(500).json({ message: 'Something went wrong.' })
@@ -117,6 +125,7 @@ const createCategoriesBatch = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.CATEGORY_CREATED,
+      entity: { type: 'fundCategories', id: activeSemester.id },
       details: {
         names: created.map(c => c.name),
         percentages: created.map(c => parseFloat(c.percentage))
@@ -153,6 +162,7 @@ const archiveCategory = async (req, res) => {
     await writeAuditLog({
       actorId: req.user.id,
       action: AUDIT_ACTIONS.CATEGORY_ARCHIVED,
+      entity: { type: 'fundCategories', id: category.semesterId },
       details: { categoryId: id, name: category.name }
     })
 
@@ -294,7 +304,7 @@ const updateCategories = async (req, res) => {
       await writeAuditLog({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.CATEGORY_UPDATED,
-        entity: { type: 'fundCategory', id: edit.before.id },
+        entity: { type: 'fundCategories', id: edit.before.semesterId },
         details: {
           categoryId: edit.before.id,
           semesterId: edit.before.semesterId,
@@ -311,6 +321,7 @@ const updateCategories = async (req, res) => {
       await writeAuditLog({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.CATEGORY_CREATED,
+        entity: { type: 'fundCategories', id: categorySemesterId },
         details: {
           names: added.map(e => e.name),
           percentages: added.map(e => parseFloat(e.percentage)),

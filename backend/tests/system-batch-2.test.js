@@ -212,17 +212,21 @@ test('history: who changed the record, when, and what — automatic changes say 
   assert.deepEqual(body.entries[0].changes, [{ field: 'status', label: 'Status', from: 'COMING_SOON', to: 'OPEN' }])
   assert.equal(body.entries[1].actorName, 'Maria Santos')
   assert.equal(body.entries[1].changes[0].to, 'Gym')
-  assert.deepEqual(body.lastEdit, { name: 'System (automatic)', at: body.entries[0].createdAt, entryId: 7 }, 'the latest edit')
+  assert.deepEqual(body.lastEdit, {
+    name: 'System (automatic)', at: body.entries[0].createdAt,
+    summary: 'Status: Coming soon → Open', summaryFull: 'Status: Coming soon → Open',
+  }, 'the latest entry, summarized')
 })
 
-test('history: creating a record is not its latest edit', async () => {
+test('history: a new record shows its creator as the last edit', async () => {
   reset()
   auditRows = [
-    { id: 9, entityType: 'event', entityId: 5, action: 'EVENT_CREATED', createdAt: new Date('2026-11-25T03:00:00Z'), actor: null, details: '{}' },
+    { id: 9, entityType: 'event', entityId: 5, action: 'EVENT_CREATED', createdAt: new Date('2026-11-25T03:00:00Z'),
+      actor: { role: 'PRESIDENT_ADMIN', member: { firstName: 'Juan', lastName: 'Dela Cruz' } }, details: '{}' },
   ]
   const { body } = await call(getHistory, { params: { entityType: 'event', entityId: '5' } })
   assert.equal(body.entries.length, 1)
-  assert.equal(body.lastEdit, null)
+  assert.deepEqual(body.lastEdit, { name: 'Juan Dela Cruz', at: body.entries[0].createdAt, summary: 'Created', summaryFull: 'Created' })
 })
 
 // ── Sliding session ──────────────────────────────────────────────────────────

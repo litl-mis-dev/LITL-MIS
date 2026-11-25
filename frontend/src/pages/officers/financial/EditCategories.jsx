@@ -6,7 +6,6 @@ import LoadingState from '../../../components/ui/LoadingState.jsx'
 import RequiredMark from '../../../components/ui/RequiredMark.jsx'
 import ModalPortal from '../../../components/ui/ModalPortal.jsx'
 import EditHistory from '../../../components/ui/EditHistory.jsx'
-import LastEdited from '../../../components/ui/LastEdited.jsx'
 import CharCount from '../../../components/ui/CharCount.jsx'
 import { LIMITS } from '../../../utils/fieldLimits.js'
 import { titleCaseOnBlur } from '../../../utils/formInputs.js'
@@ -48,6 +47,9 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
   const isExceeded = formData.percentage.trim() && savedTotal + currentPct > 100
 
   const [isSecondSemester, setIsSecondSemester] = useState(false)
+  // The category set's history (kept under the semester its categories belong to).
+  const [historyId, setHistoryId] = useState(null)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
 
   useEffect(() => {
     listCategories()
@@ -63,12 +65,13 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
     setFormLevelError('')
     try {
       const data = await listCategories()
+      setHistoryId(data.history?.id ?? null)
+      setHistoryRefresh(n => n + 1)
       const existing = (data.categories || [])
         .filter(cat => !cat.isTurnoverFund) // system-managed, not editable here
         .map(cat => ({
           uid: crypto.randomUUID(),
           dbId: cat.id,
-          lastEdit: cat.lastEdit ?? null,
           categories: cat.name,
           percentage: String(parseFloat(cat.percentage))
         }))
@@ -259,7 +262,7 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
 
   const hasExisting = originalSnapshot.length > 0
   const modalTitle = hasExisting || editOnly ? 'Edit Categories' : 'Add Categories'
-  const rowGridClass = 'grid-cols-[minmax(0,1fr)_120px_112px]'
+  const rowGridClass = 'grid-cols-[minmax(0,1fr)_120px_52px]'
 
   return (
     <>
@@ -293,6 +296,10 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                 {serverError && <p className="text-sm text-red-600">{serverError}</p>}
                 {formLevelError && <p className="text-sm text-red-600">{formLevelError}</p>}
                 {isLoadingExisting && <LoadingState inline label="Loading existing categories…" />}
+                {/* One history for the whole set: added, renamed, re-weighted, archived. */}
+                {!isLoadingExisting && historyId && (
+                  <EditHistory type="fundCategories" id={historyId} refreshKey={historyRefresh} title="Edit history · Fund categories" />
+                )}
 
                 {/* Add new row */}
                 <div className="grid gap-4 md:grid-cols-2">
@@ -335,7 +342,6 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                     </div>
                     {categories.map(cat => (
                       <div key={cat.uid} className={`grid ${rowGridClass} items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0`}>
-                        <div className="min-w-0">
                         <input
                           type="text"
                           value={cat.categories}
@@ -344,8 +350,6 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                           onChange={(e) => handleRowChange(cat.uid, 'categories', e.target.value)}
                           className="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
                         />
-                        {cat.dbId && cat.lastEdit && <LastEdited edit={cat.lastEdit} />}
-                        </div>
                         <div className="flex items-center gap-1">
                           <input
                             type="text"
@@ -357,19 +361,12 @@ export default function EditCategories({ onSuccess, buttonLabel = 'Add Category'
                           />
                           <span className="text-gray-400">%</span>
                         </div>
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Who renamed or re-weighted a saved category, and when. */}
-                          {cat.dbId && (
-                            <EditHistory type="fundCategory" id={cat.dbId} variant="button"
-                              refreshKey={JSON.stringify(originalSnapshot.find(o => o.dbId === cat.dbId))} title={`Edit history · ${cat.categories}`} />
-                          )}
-                          {/* Saved categories can't be removed once finalized; new rows can. */}
-                          {!(editOnly && cat.dbId) && (
-                            <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
-                              className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
-                              aria-label={`Remove ${cat.categories}`}>&times;</button>
-                          )}
-                        </div>
+                        {/* Saved categories can't be removed once finalized; new rows can. */}
+                        {editOnly && cat.dbId ? <span /> : (
+                          <button type="button" onClick={() => handleDeleteCategory(cat.uid)}
+                            className="mx-auto flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold leading-none text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200"
+                            aria-label={`Remove ${cat.categories}`}>&times;</button>
+                        )}
                       </div>
                     ))}
                     <div className={`grid ${rowGridClass} gap-2 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800`}>

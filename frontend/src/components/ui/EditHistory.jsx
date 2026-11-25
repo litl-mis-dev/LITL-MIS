@@ -4,10 +4,10 @@ import Spinner from "./Spinner.jsx";
 import { getEditHistory } from "../../services/history.service.js";
 import LastEdited from "./LastEdited.jsx";
 
-// Who edited a record, when, and what changed — without opening the
-// Activity Log. Shows the latest edit with a "View history" button for the
-// full list (variant "inline", used inside modals), or just a "History"
-// button (variant "button", used in table rows).
+// Who changed a record, when, and what — without opening the Activity Log.
+// variant "inline" (record details): a summary of the latest change, the name
+// and date, then a "View history" link. variant "link" (table cells, under the name and date
+// the table already shows): just the link. The link opens the full history.
 // `refreshKey`: change it after saving the record to reload the history.
 
 const dateTime = (iso) => new Date(iso).toLocaleString("en-PH", {
@@ -57,9 +57,8 @@ export default function EditHistory({ type, id, refreshKey = 0, variant = "inlin
     if (!id) return null;
     const loading = shouldLoad && state.key !== key;
     const entries = state.key === key ? state.entries ?? [] : [];
-    // The latest edit (creating the record doesn't count) and what it changed.
+    // The latest entry (creating the record counts), as shown in lists.
     const lastEdit = state.key === key ? state.lastEdit : null;
-    const latest = lastEdit ? entries.find((entry) => entry.id === lastEdit.entryId) : null;
 
     const modal = isOpen && (
         <ModalPortal>
@@ -95,13 +94,12 @@ export default function EditHistory({ type, id, refreshKey = 0, variant = "inlin
         </ModalPortal>
     );
 
-    if (variant === "button") {
-        return (
-            <>
-                <button type="button" className="btn btn--outline btn--sm" onClick={() => setIsOpen(true)}>History</button>
-                {modal}
-            </>
-        );
+    const viewLink = (
+        <button type="button" className="edit-history__more" onClick={() => setIsOpen(true)}>View history</button>
+    );
+
+    if (variant === "link") {
+        return <>{viewLink}{modal}</>;
     }
 
     return (
@@ -110,15 +108,9 @@ export default function EditHistory({ type, id, refreshKey = 0, variant = "inlin
             {!loading && !lastEdit && <p className="edit-history__muted">{state.error || "No edits yet."}</p>}
             {!loading && lastEdit && (
                 <>
-                    <p className="edit-history__label">Last edited</p>
                     <LastEdited edit={lastEdit} />
-                    {latest && <ChangeList entry={latest} />}
+                    {viewLink}
                 </>
-            )}
-            {!loading && entries.length > 0 && (
-                <button type="button" className="edit-history__more" onClick={() => setIsOpen(true)}>
-                    View history{entries.length > 1 ? ` (${entries.length})` : ""}
-                </button>
             )}
             {modal}
         </section>

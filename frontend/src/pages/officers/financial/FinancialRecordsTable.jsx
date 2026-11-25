@@ -1,8 +1,27 @@
-import { useRef, useState } from 'react'
-import { FileDownloadIcon } from '../../../components/icons/ActionIcons.jsx'
+import { useCallback, useRef, useState } from 'react'
+import { EyeIcon, FileDownloadIcon } from '../../../components/icons/ActionIcons.jsx'
+import FileViewerModal from '../../../components/ui/FileViewerModal.jsx'
 import { useRole } from '../../../utils/useRole'
 import Spinner from '../../../components/ui/Spinner.jsx'
 import LastEdited from '../../../components/ui/LastEdited.jsx'
+import EditHistory from '../../../components/ui/EditHistory.jsx'
+
+// Every row's history is its disbursement's: a Return Fund only changes
+// through its disbursement's amount spent.
+const historyIdOf = (row) => ('disbursementId' in row.details ? row.details.disbursementId : row.details._id)
+
+function LastEditedCell({ row }) {
+  const historyId = historyIdOf(row)
+  return (
+    <div className="last-edited-cell">
+      <LastEdited edit={row.lastEdit} />
+      {row.lastEdit && historyId && (
+        <EditHistory type="disbursement" id={historyId} variant="link"
+          refreshKey={row.lastEdit.at} title={`Edit history · ${row.id}`} />
+      )}
+    </div>
+  )
+}
 import TablePagination from '../../../components/ui/TablePagination.jsx'
 import { usePagination } from '../../../utils/usePagination.js'
 
@@ -27,11 +46,13 @@ const cellClass = (key) => [NOWRAP_COLUMNS.has(key) && 'data-table__nowrap', MON
 // here (the single shared table used by both Disbursement and Returning) so
 // every caller is covered, rather than relying on each page to remember to
 // hide the button itself.
+// `onView(row)` (optional) returns the certificate as a PDF Blob, opened inside
+// the system by a View button next to Download.
 // `renderRowActions(row)` adds buttons before a row's download button, and
 // `canDownloadRow(row)` hides the download for rows with nothing to download.
 // 10 rows per page, numbered on across pages; `pageResetKey` (e.g. the search text)
 // sends the table back to page 1 when it changes.
-export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload, renderRowActions, canDownloadRow = () => true, pageResetKey = rows.length }) {
+export default function FinancialRecordsTable({ columns, rows, emptyMessage, onDownload, onView, renderRowActions, canDownloadRow = () => true, pageResetKey = rows.length }) {
   const { canManageFinancials } = useRole()
   const pager = usePagination(rows, { resetKey: pageResetKey })
   const showActionsColumn = columns.some(col => col.key === 'actions') && canManageFinancials
@@ -42,6 +63,8 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
   const [downloadingId, setDownloadingId] = useState(null)
   const [downloadError, setDownloadError] = useState('')
   const isDownloadingRef = useRef(false)
+  const [viewingRow, setViewingRow] = useState(null)
+  const loadViewingRow = useCallback(() => onView(viewingRow), [onView, viewingRow])
 
   async function handleDownload(row) {
     if (isDownloadingRef.current) return
@@ -90,6 +113,14 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                       <td key={col.key}>
                         <div className="flex items-center gap-2">
                           {renderRowActions?.(row)}
+                          {onView && canDownloadRow(row) && (
+                            <button type="button" onClick={() => setViewingRow(row)}
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                              aria-label={`View ${row.id} certificate`}
+                              title="View certificate">
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           {canDownloadRow(row) && (
                             <button type="button" onClick={() => handleDownload(row)}
                               className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
@@ -106,7 +137,7 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
                   }
                   return (
                     <td key={col.key} className={cellClass(col.key)}>
-                      {col.key === 'lastEdited' ? <LastEdited edit={row.lastEdit} /> : row[col.key]}
+                      {col.key === 'lastEdited' ? <LastEditedCell row={row} /> : row[col.key]}
                     </td>
                   )
                 })}
@@ -116,6 +147,9 @@ export default function FinancialRecordsTable({ columns, rows, emptyMessage, onD
         </tbody>
       </table>
       <TablePagination {...pager} onPageChange={pager.setPage} label="Records" />
+      {viewingRow && (
+        <FileViewerModal eyebrow="Certificate" title={viewingRow.id} load={loadViewingRow} onClose={() => setViewingRow(null)} />
+      )}
     </div>
   )
 }

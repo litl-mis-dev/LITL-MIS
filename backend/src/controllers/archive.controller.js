@@ -342,7 +342,7 @@ const listArchiveDisbursements = async (req, res) => {
       hasAccess(req.user.role, 'FINANCIAL', 'EDIT')
     ])
 
-    const withSummary = await withLastEdits('disbursement', records.map(({ returnFunds, ...r }) => ({ ...r, ...summarizeReturns({ ...r, returnFunds }) })))
+    const withSummary = await withLastEdits('disbursement', records.map(({ returnFunds, ...r }) => ({ ...r, ...summarizeReturns({ ...r, returnFunds }) })), (r) => r.id, { prefer: 'amountSpent' })
     return res.json({
       canDownload,
       disbursements: canDownload ? withSummary : withSummary.map((r) => withoutFields(r, DISBURSEMENT_SIGNATORY_FIELDS))
@@ -370,7 +370,7 @@ const listArchiveReturnFunds = async (req, res) => {
 
     return res.json({
       canDownload,
-      returnFunds: await withLastEdits('disbursement', canDownload ? records : records.map((r) => withoutFields(r, RETURN_FUND_SIGNATORY_FIELDS)), (r) => r.disbursementId)
+      returnFunds: await withLastEdits('disbursement', canDownload ? records : records.map((r) => withoutFields(r, RETURN_FUND_SIGNATORY_FIELDS)), (r) => r.disbursementId, { prefer: 'amountReturned' })
     })
   } catch (err) {
     logError('Archive return funds', err)
