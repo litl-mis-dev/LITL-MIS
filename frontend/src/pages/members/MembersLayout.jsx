@@ -100,7 +100,7 @@ export default function MembersLayout() {
       const next = !prev;
       try {
         localStorage.setItem("litl_sidebar_collapsed", String(next));
-      } catch {}
+      } catch { /* storage blocked (private mode): the toggle still works this visit */ }
       return next;
     });
   };

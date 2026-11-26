@@ -30,8 +30,6 @@ export default function DocumentSettings() {
     const [asset,   setAsset]   = useState(null)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => { loadAsset() }, [])
-
     async function loadAsset() {
         setLoading(true)
         try {
@@ -43,6 +41,8 @@ export default function DocumentSettings() {
             setLoading(false)
         }
     }
+
+    useEffect(() => { loadAsset() }, [])
 
     if (loading) {
         return <LoadingState inline label="Loading template…" />

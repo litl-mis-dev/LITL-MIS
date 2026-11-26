@@ -191,7 +191,7 @@ export default function Events() {
             socket.off('event:changed', handleEventChange);
             socket.off('attendance:changed', handleAttendanceChange);
         };
-    }, [selectedEventId, scanningEventId]);
+    }, [selectedEventId, scanningEventId, fetchEvents]);
 
     // ── Scanner lifecycle ─────────────────────────────────────────────────────
     useEffect(() => {
@@ -234,6 +234,9 @@ export default function Events() {
             window.clearTimeout(startDelay);
             stopScannerInstance(scanner);
         };
+    // Starts once per scanner session; restarting the camera whenever these
+    // handlers are re-created would interrupt scanning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isScannerOpen, scannerSessionKey]);
 
     // ── Event CRUD ────────────────────────────────────────────────────────────
@@ -370,7 +373,7 @@ export default function Events() {
                 scannedAt:  new Date(a.checkedInAt).getTime(),
             }));
             setAttendanceRecords(prev => ({ ...prev, [eventId]: records }));
-        } catch { }
+        } catch { /* keep the attendance already shown; the next update reloads it */ }
     }
 
     function handleQrScan(decodedText) {
@@ -438,7 +441,7 @@ export default function Events() {
     }
 
     function stopScannerInstance(scanner) {
-        const clear = () => { try { const r = scanner.clear(); r?.catch?.(() => {}); } catch {} };
+        const clear = () => { try { const r = scanner.clear(); r?.catch?.(() => {}); } catch { /* already cleared */ } };
         if (scanner.isScanning) { Promise.resolve(scanner.stop()).then(clear).catch(clear); return; }
         clear();
     }

@@ -6,6 +6,15 @@ import { TABLE_PAGE_SIZE } from "../../utils/usePagination.js";
 import { LIMITS } from "../../utils/fieldLimits.js";
 
 const MODULES = ['Authentication', 'Registration', 'Members', 'Financial']
+
+// Text search reads every entry in range, and the log is never trimmed (the
+// hash chain needs it), so a search with no dates looks at the last 90 days.
+const DEFAULT_SEARCH_DAYS = 90
+function defaultSearchFrom() {
+    const from = new Date();
+    from.setDate(from.getDate() - DEFAULT_SEARCH_DAYS);
+    return `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-${String(from.getDate()).padStart(2, "0")}`;
+}
 const ROLE_BADGE_STYLE = {
     marginLeft: 8, fontSize: 11, fontWeight: 600,
     padding: "2px 8px", borderRadius: 9999,
@@ -44,6 +53,9 @@ export default function ActivityLogs() {
     }, [searchTerm])
 
     // ── Fetch from API ────────────────────────────────────────────────────────
+    // Searching without dates: the last 90 days (shown under the title).
+    const usesDefaultSearchRange = Boolean(debouncedSearch.trim()) && !filters.dateFrom && !filters.dateTo;
+
     const fetchLogs = useCallback(async (overridePage = 1) => {
         setLoading(true);
         setError('');
@@ -51,7 +63,7 @@ export default function ActivityLogs() {
             const data = await listAuditLogs({
                 q:        debouncedSearch,
                 module:   filters.modules.join(','),
-                dateFrom: filters.dateFrom,
+                dateFrom: usesDefaultSearchRange ? defaultSearchFrom() : filters.dateFrom,
                 dateTo:   filters.dateTo,
                 page:     overridePage,
                 limit:    pagination.limit,
@@ -63,7 +75,7 @@ export default function ActivityLogs() {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, filters, pagination.limit]);
+    }, [debouncedSearch, filters, pagination.limit, usesDefaultSearchRange]);
 
     // Re-fetch whenever search or filters change (reset to page 1)
     useEffect(() => { fetchLogs(1); }, [fetchLogs]);
@@ -109,6 +121,9 @@ export default function ActivityLogs() {
                                     : `${pagination.total.toLocaleString()} recorded action${pagination.total !== 1 ? "s" : ""}`
                             }
                         </p>
+                        {usesDefaultSearchRange && (
+                            <p className="card__sub">Searching the last {DEFAULT_SEARCH_DAYS} days. To search further back, set dates in Advanced Filter.</p>
+                        )}
                     </div>
                     <div className="member-list-actions activity-logs__actions">
                         <label className="member-search activity-logs__search">

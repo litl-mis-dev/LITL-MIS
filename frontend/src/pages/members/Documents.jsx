@@ -2,15 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     fetchDocuments,
     getDocumentDownloadUrl,
-    fetchDocumentPreview,
 } from "../../services/documents.service.js";
-import FileViewer from "../../components/ui/FileViewer.jsx";
+import DocumentPreviewBody from "../../components/documents/DocumentPreviewBody.jsx";
+import { CloseIcon, FileIcon, FolderIcon } from "../../components/documents/DocumentIcons.jsx";
 import { getSocket } from "../../services/socket.js";
 import LoadingState from "../../components/ui/LoadingState.jsx";
 import { LIMITS } from "../../utils/fieldLimits.js";
 
-const PREVIEWABLE_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
-const PREVIEWABLE_FRAME_EXT = new Set(["pdf", "txt", "csv"]);
 
 export default function Documents() {
     const [items,          setItems]          = useState([]);
@@ -273,7 +271,7 @@ export default function Documents() {
                         </div>
 
                         <div className="document-preview">
-                            <PreviewBody item={previewItem} />
+                            <DocumentPreviewBody item={previewItem} />
                         </div>
 
                         <div className="member-modal__footer">
@@ -294,49 +292,5 @@ export default function Documents() {
 
 // ── Preview renderer (identical to officer version) ───────────────────────────
 
-// PDFs, images and text open inside the system; other types are download-only.
-function PreviewBody({ item }) {
-    const extension = (item.fileType || "").toLowerCase();
-    const load = useCallback(() => fetchDocumentPreview(item.id), [item.id]);
-
-    if (PREVIEWABLE_FRAME_EXT.has(extension) || PREVIEWABLE_IMAGE_EXT.has(extension)) {
-        return <FileViewer load={load} kind={PREVIEWABLE_IMAGE_EXT.has(extension) ? "image" : "frame"} title={item.name} />;
-    }
-    return (
-        <>
-            <div className="documents-details__icon documents-details__icon--file">
-                <FileIcon />
-            </div>
-            <p className="document-preview__title">{item.fileType} file</p>
-            <p className="card__sub">
-                Preview isn't available for this file type — download it to view.
-            </p>
-        </>
-    );
-}
 
 // ── Icons (identical to officer version) ─────────────────────────────────────
-
-function FolderIcon() {
-    return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M3 19V5c0-.6.2-1 .6-1.4C4 3.2 4.4 3 5 3h5l2 2h7c.6 0 1 .2 1.4.6.4.4.6.8.6 1.4v12c0 .6-.2 1-.6 1.4-.4.4-.8.6-1.4.6H5c-.6 0-1-.2-1.4-.6C3.2 20 3 19.6 3 19Z" />
-        </svg>
-    );
-}
-
-function FileIcon() {
-    return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 22c-.6 0-1-.2-1.4-.6C4.2 21 4 20.6 4 20V4c0-.6.2-1 .6-1.4C5 2.2 5.4 2 6 2h8l6 6v12c0 .6-.2 1-.6 1.4-.4.4-.8.6-1.4.6H6Zm7-13h5l-5-5v5Zm-5 8h8v-2H8v2Zm0-4h8v-2H8v2Z" />
-        </svg>
-    );
-}
-
-function CloseIcon() {
-    return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m6.4 19-1.4-1.4 5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19Z" />
-        </svg>
-    );
-}

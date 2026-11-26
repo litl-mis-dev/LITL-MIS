@@ -104,7 +104,7 @@ async function stampLedgerHash(auditLogId, action, auditLogRow) {
 
 const CHECKS = {
 
-  async PAYMENT_RECORDED(details) {
+  async PAYMENT_RECORDED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.id) return { ok: true, skipped: true }
 
@@ -151,12 +151,7 @@ const CHECKS = {
     // If it's now archived AND there's no matching PAYMENT_ARCHIVED audit log,
     // it was silently soft-deleted in the database.
     if (record.isArchived && !snap.isArchived) {
-      const hasArchiveLog = await prisma.auditLog.findFirst({
-        where: {
-          action:  'PAYMENT_ARCHIVED',
-          details: { contains: `"paymentId":${snap.id}` },
-        }
-      })
+      const hasArchiveLog = lookup.find('PAYMENT_ARCHIVED', `"paymentId":${snap.id}`)
       if (!hasArchiveLog) {
         reasons.push(`Payment for ${memberName} (${semLabel}) was archived directly in the database without a corresponding audit log entry.`)
       }
@@ -189,7 +184,7 @@ const CHECKS = {
     return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 
-  async DISBURSEMENT_CREATED(details) {
+  async DISBURSEMENT_CREATED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.reference) return { ok: true, skipped: true }
 
@@ -223,10 +218,7 @@ const CHECKS = {
 
     // A title renamed to match its event is checked by that rename's own
     // entry (DISBURSEMENT_TITLE_UPDATED) instead.
-    const renamed = await prisma.auditLog.findFirst({
-      where:  { action: 'DISBURSEMENT_TITLE_UPDATED', details: { contains: `"disbursementId":${record.id},` } },
-      select: { id: true }
-    })
+    const renamed = lookup.find('DISBURSEMENT_TITLE_UPDATED', `"disbursementId":${record.id},`)
     if (!renamed && snap.titleOfActivities && snap.titleOfActivities !== record.titleOfActivities) {
       reasons.push(`Disbursement ${snap.reference} title was changed from "${snap.titleOfActivities}" to "${record.titleOfActivities}" directly in the database.`)
     }
@@ -249,12 +241,7 @@ const CHECKS = {
 
     // Disbursement is archived but no DISBURSEMENT_ARCHIVED log exists
     if (record.isArchived && !snap.isArchived) {
-      const hasArchiveLog = await prisma.auditLog.findFirst({
-        where: {
-          action:  'DISBURSEMENT_ARCHIVED',
-          details: { contains: `"reference":"${snap.reference}"` },
-        }
-      })
+      const hasArchiveLog = lookup.find('DISBURSEMENT_ARCHIVED', `"reference":"${snap.reference}"`)
       if (!hasArchiveLog) {
         reasons.push(`Disbursement ${snap.reference} was archived directly in the database without a corresponding audit log entry.`)
       }
@@ -284,7 +271,7 @@ const CHECKS = {
     return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 
-  async RETURN_FUND_CREATED(details) {
+  async RETURN_FUND_CREATED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.reference) return { ok: true, skipped: true }
 
@@ -301,13 +288,7 @@ const CHECKS = {
 
     // Recording the amount spent changes an automatic Return Fund's amount
     // through the app; its newest RETURN_FUND_UPDATED entry checks it then.
-    const updatedLater = await prisma.auditLog.findFirst({
-      where: {
-        action:  'RETURN_FUND_UPDATED',
-        details: { contains: `"returnFundId":${record.id},` },
-      },
-      select: { id: true }
-    })
+    const updatedLater = lookup.find('RETURN_FUND_UPDATED', `"returnFundId":${record.id},`)
 
     const loggedAmt  = parseFloat(snap.amount)
     const currentAmt = parseFloat(record.amount.toString())
@@ -324,12 +305,7 @@ const CHECKS = {
     }
 
     if (record.isArchived && !snap.isArchived) {
-      const hasArchiveLog = await prisma.auditLog.findFirst({
-        where: {
-          action:  'RETURN_FUND_ARCHIVED',
-          details: { contains: `"reference":"${snap.reference}"` },
-        }
-      })
+      const hasArchiveLog = lookup.find('RETURN_FUND_ARCHIVED', `"reference":"${snap.reference}"`)
       if (!hasArchiveLog) {
         reasons.push(`Return Fund ${snap.reference} was archived directly in the database without a corresponding audit log entry.`)
       }
@@ -338,7 +314,7 @@ const CHECKS = {
     return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 
-  async RETURN_FUND_UPDATED(details, log) {
+  async RETURN_FUND_UPDATED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.id) return { ok: true, skipped: true }
 
@@ -354,14 +330,7 @@ const CHECKS = {
     }
 
     // Only the newest update of a Return Fund says what it should be now.
-    const laterUpdate = await prisma.auditLog.findFirst({
-      where: {
-        action:  'RETURN_FUND_UPDATED',
-        id:      { gt: log.id },
-        details: { contains: `"returnFundId":${snap.id},` },
-      },
-      select: { id: true }
-    })
+    const laterUpdate = lookup.find('RETURN_FUND_UPDATED', `"returnFundId":${snap.id},`, { afterId: log.id })
     if (laterUpdate) return { ok: true }
 
     const reasons = []
@@ -399,7 +368,7 @@ const CHECKS = {
     return reasons.length ? { ok: false, reasons } : { ok: true }
   },
 
-  async CATEGORY_CREATED(details) {
+  async CATEGORY_CREATED(details, log, lookup) {
     if (!details?.names?.length) return { ok: true, skipped: true }
 
     const found = await prisma.fundCategory.findMany({
@@ -416,13 +385,7 @@ const CHECKS = {
     const missingNames = []
     for (const name of details.names) {
       if (foundNames.has(name)) continue
-      const renamed = await prisma.auditLog.findFirst({
-        where: {
-          action:  'CATEGORY_UPDATED',
-          details: { contains: `"previousName":${JSON.stringify(name)},` },
-        },
-        select: { id: true }
-      })
+      const renamed = lookup.find('CATEGORY_UPDATED', `"previousName":${JSON.stringify(name)},`)
       if (!renamed) missingNames.push(name)
     }
 
@@ -436,7 +399,7 @@ const CHECKS = {
     return { ok: true }
   },
 
-  async DISBURSEMENT_TITLE_UPDATED(details, log) {
+  async DISBURSEMENT_TITLE_UPDATED(details, log, lookup) {
     if (!details?.disbursementId) return { ok: true, skipped: true }
 
     // A deleted disbursement is reported by its DISBURSEMENT_CREATED entry.
@@ -444,14 +407,7 @@ const CHECKS = {
     if (!record) return { ok: true, skipped: true }
 
     // Only the newest rename says what the title should be now.
-    const laterRename = await prisma.auditLog.findFirst({
-      where: {
-        action:  'DISBURSEMENT_TITLE_UPDATED',
-        id:      { gt: log.id },
-        details: { contains: `"disbursementId":${details.disbursementId},` },
-      },
-      select: { id: true }
-    })
+    const laterRename = lookup.find('DISBURSEMENT_TITLE_UPDATED', `"disbursementId":${details.disbursementId},`, { afterId: log.id })
     if (laterRename) return { ok: true }
 
     if (record.titleOfActivities !== details.to) {
@@ -463,7 +419,7 @@ const CHECKS = {
     return { ok: true }
   },
 
-  async CATEGORY_UPDATED(details, log) {
+  async CATEGORY_UPDATED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.id) return { ok: true, skipped: true }
 
@@ -476,14 +432,7 @@ const CHECKS = {
     }
 
     // Only the newest edit of a category says what it should look like now.
-    const laterEdit = await prisma.auditLog.findFirst({
-      where: {
-        action:  'CATEGORY_UPDATED',
-        id:      { gt: log.id },
-        details: { contains: `"categoryId":${snap.id},` },
-      },
-      select: { id: true }
-    })
+    const laterEdit = lookup.find('CATEGORY_UPDATED', `"categoryId":${snap.id},`, { afterId: log.id })
     if (laterEdit) return { ok: true }
 
     const reasons = []
@@ -517,7 +466,7 @@ const CHECKS = {
     return { ok: true }
   },
 
-  async CERTIFICATE_ISSUED(details) {
+  async CERTIFICATE_ISSUED(details, log, lookup) {
     const snap = details?.snapshot
     if (!snap?.publicId) return { ok: true, skipped: true }
 
@@ -546,12 +495,7 @@ const CHECKS = {
     }
 
     if (record.status === 'REVOKED') {
-      const hasRevokeLog = await prisma.auditLog.findFirst({
-        where: {
-          action:  'CERTIFICATE_REVOKED',
-          details: { contains: `"publicId":"${snap.publicId}"` },
-        }
-      })
+      const hasRevokeLog = lookup.find('CERTIFICATE_REVOKED', `"publicId":"${snap.publicId}"`)
       if (!hasRevokeLog) {
         reasons.push(`Certificate ${label} was marked REVOKED directly in the database without a corresponding audit log entry.`)
       }
@@ -617,7 +561,33 @@ const CHECKS = {
 
 // ─── Main verify function ─────────────────────────────────────────────────────
 
+// Cross-checks ask "is there an entry for this record?" (an archive, a later
+// update, a rename). Those entries are loaded once here and searched in
+// memory, instead of one full-table text search per chain link, so verifying
+// stays fast as the Activity Log grows. Matching is case-insensitive, like
+// the database's text search was.
+const LOOKUP_ACTIONS = ['CATEGORY_UPDATED', 'CERTIFICATE_REVOKED', 'DISBURSEMENT_ARCHIVED', 'DISBURSEMENT_TITLE_UPDATED', 'PAYMENT_ARCHIVED', 'RETURN_FUND_ARCHIVED', 'RETURN_FUND_UPDATED']
+
+async function buildLogLookup() {
+  const rows = await prisma.auditLog.findMany({
+    where:   { action: { in: LOOKUP_ACTIONS } },
+    select:  { id: true, action: true, details: true },
+    orderBy: { id: 'asc' },
+  })
+  const byAction = new Map(LOOKUP_ACTIONS.map((action) => [action, []]))
+  for (const row of rows) byAction.get(row.action).push({ id: row.id, text: (row.details ?? '').toLowerCase() })
+  return {
+    // The first entry of `action` whose details contain `needle` (and that
+    // comes after entry `afterId`, when given), or null.
+    find(action, needle, { afterId } = {}) {
+      const wanted = needle.toLowerCase()
+      return (byAction.get(action) ?? []).find((row) => (afterId == null || row.id > afterId) && row.text.includes(wanted)) ?? null
+    },
+  }
+}
+
 async function verifyLedger() {
+  const lookup = await buildLogLookup()
   const financialLogs = await prisma.auditLog.findMany({
     where: {
       action: { in: [...FINANCIAL_LEDGER_ACTIONS] },
@@ -653,7 +623,7 @@ async function verifyLedger() {
     const checkFn       = CHECKS[log.action]
     let crossRefResult  = { ok: true, skipped: false }
     if (checkFn) {
-      try { crossRefResult = await checkFn(details, log) } catch (e) {
+      try { crossRefResult = await checkFn(details, log, lookup) } catch (e) {
         logError(`Cross-ref check failed for ${log.action} #${log.id}`, e)
       }
     }
@@ -711,6 +681,7 @@ async function verifyLedger() {
 module.exports = {
   stampLedgerHash,
   verifyLedger,
+  buildLogLookup,
   FINANCIAL_LEDGER_ACTIONS,
   GENESIS,
   buildPayload,

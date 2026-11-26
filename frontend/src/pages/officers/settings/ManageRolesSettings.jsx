@@ -46,10 +46,6 @@ export default function ManageRolesSettings() {
     const [message,    setMessage]    = useState("");
     const [error,      setError]      = useState("");
 
-    useEffect(() => {
-        loadMembers();
-    }, []);
-
     const editingMember = useMemo(
         () => members.find((member) => member.memberId === editingId) ?? null,
         [editingId, members]
@@ -106,6 +102,10 @@ export default function ManageRolesSettings() {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        loadMembers();
+    }, []);
 
     async function handleSaveRole(member) {
         const nextRole    = draftRoles[member.memberId] ?? "";

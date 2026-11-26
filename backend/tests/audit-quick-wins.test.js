@@ -11,6 +11,18 @@ const express = require('express')
 const cookieParser = require('cookie-parser')
 
 const backend = path.resolve(__dirname, '..')
+// The hash-chain lookups read the Activity Log through this fake.
+let lookupQueries = 0
+const lookupRows = [
+  { id: 5, action: 'RETURN_FUND_UPDATED', details: '{"returnFundId":7,"newAmount":"100.00"}' },
+  { id: 9, action: 'RETURN_FUND_UPDATED', details: '{"returnFundId":7,"newAmount":"50.00"}' },
+  { id: 12, action: 'DISBURSEMENT_ARCHIVED', details: '{"reference":"DIS-001"}' },
+  { id: 14, action: 'CATEGORY_UPDATED', details: '{"previousName":"Events","name":"Events Fund"}' },
+]
+require.cache[require.resolve(path.join(backend, 'src/lib/prisma.js'))] = {
+  exports: { auditLog: { findMany: async ({ where }) => { lookupQueries++; return lookupRows.filter((r) => where.action.in.includes(r.action)) } } },
+}
+const { buildLogLookup } = require(path.join(backend, 'src/utils/ledger'))
 delete process.env.DOCUMENTS_MAX_FILE_SIZE_MB
 delete process.env.CERTIFICATE_MAX_FILE_SIZE_MB
 const limits = require(path.join(backend, 'src/middleware/rateLimit.middleware'))
@@ -88,6 +100,23 @@ test('readiness: migrations shipped with the code but not applied are reported',
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('hash chain: related entries are loaded once and matched in memory', async () => {
+  lookupQueries = 0
+  const lookup = await buildLogLookup()
+  assert.equal(lookupQueries, 1, 'one query, however many links are checked')
+
+  assert.equal(lookup.find('DISBURSEMENT_ARCHIVED', '"reference":"DIS-001"').id, 12)
+  assert.equal(lookup.find('DISBURSEMENT_ARCHIVED', '"reference":"DIS-002"'), null)
+  // Case-insensitive, like the database's text search.
+  assert.equal(lookup.find('CATEGORY_UPDATED', '"previousName":"EVENTS",').id, 14)
+  // "A later update of this record": only entries after the given one.
+  assert.equal(lookup.find('RETURN_FUND_UPDATED', '"returnFundId":7,', { afterId: 5 }).id, 9)
+  assert.equal(lookup.find('RETURN_FUND_UPDATED', '"returnFundId":7,', { afterId: 9 }), null)
+  // Only the named action is searched.
+  assert.equal(lookup.find('RETURN_FUND_ARCHIVED', '"returnFundId":7,'), null)
+  assert.equal(lookupQueries, 1)
 })
 
 test('readiness: the real migrations folder is found', () => {

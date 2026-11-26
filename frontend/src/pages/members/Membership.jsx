@@ -26,8 +26,10 @@ export default function Membership() {
   const isDownloadingRef = useRef(false);
   const [downloadError, setDownloadError] = useState("");
 
+  // Reloads when the signed-in user changes; loadHistory only reads `user`.
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   function loadHistory() {
@@ -63,6 +65,7 @@ export default function Membership() {
     const handler = () => loadHistory();
     socket.on('payment:self-changed', handler);
     return () => socket.off('payment:self-changed', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-subscribes per user, as above
   }, [user]);
 
   const canDownload        = r => r.rawStatus !== "UNPAID" && Boolean(r.certificate)

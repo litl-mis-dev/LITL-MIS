@@ -75,6 +75,8 @@ export default function Certification() {
     };
     socket.on('certificate:changed', handler);
     return () => socket.off('certificate:changed', handler);
+    // Re-subscribes when the open folder changes, which is all refreshEventFolder reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTree, activeEventFolder]);
 
   async function openEventFolder(eventFolderSummary) {

@@ -103,8 +103,11 @@ export default function MembersList({ compact = false }) {
 
     // ── Load data ────────────────────────────────────────────────────────────
 
+    // Load once, and subscribe once below: fetchAll only calls the API and
+    // sets state, so the first copy of it is as good as any later one.
     useEffect(() => {
         fetchAll();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Real-time refresh ───────────────────────────────────────────────────
@@ -122,6 +125,7 @@ export default function MembersList({ compact = false }) {
             socket.off('officerRole:changed', handleChange);
             socket.off('payment:changed', handleChange);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribe once (see above)
     }, []);
 
     async function fetchAll() {
