@@ -40,9 +40,11 @@ const DOCUMENT_CONTENT_TYPES = {
 const documentContentType = (originalName) =>
   DOCUMENT_CONTENT_TYPES[getExt(originalName)] ?? 'application/octet-stream'
 
-const MAX_DOCUMENT_SIZE_MB    = Number(process.env.DOCUMENTS_MAX_FILE_SIZE_MB) || 25
+// An upload is held in memory while it's stored, so the worst case per
+// request is files × size: 5 × 20 MB keeps it to about 100 MB.
+const MAX_DOCUMENT_SIZE_MB    = Number(process.env.DOCUMENTS_MAX_FILE_SIZE_MB) || 20
 const MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
-const MAX_FILES_PER_UPLOAD    = 10
+const MAX_FILES_PER_UPLOAD    = 5
 
 function getExt(originalName) {
   return path.extname(originalName).toLowerCase().replace(/^\./, '')
@@ -103,7 +105,9 @@ const uploadDocumentAsset = (req, res, next) => {
 const CERTIFICATE_MIME_TYPES = new Set([
   'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf',
 ])
-const MAX_CERTIFICATE_SIZE_MB    = Number(process.env.CERTIFICATE_MAX_FILE_SIZE_MB) || 20
+// Certificate images or PDFs are rarely over a few MB; 30 × 5 MB keeps one
+// upload to about 150 MB of memory.
+const MAX_CERTIFICATE_SIZE_MB    = Number(process.env.CERTIFICATE_MAX_FILE_SIZE_MB) || 5
 const MAX_CERTIFICATE_SIZE_BYTES = MAX_CERTIFICATE_SIZE_MB * 1024 * 1024
 
 const MAX_CERTIFICATE_FILES = Number(process.env.CERTIFICATE_MAX_FILES) || 30

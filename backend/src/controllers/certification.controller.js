@@ -462,7 +462,9 @@ const downloadEventCertificatesZip = async (req, res) => {
 // Builds the zip entirely in memory and resolves with the finished Buffer.
 async function buildCertificatesZipBuffer(certificates) {
   return new Promise((resolve, reject) => {
-    const archive = archiver('zip', { zlib: { level: 9 } })
+    // Certificates (PNG/PDF) are already compressed; compressing again only
+    // costs CPU, so the files are stored as they are.
+    const archive = archiver('zip', { store: true })
     const chunks = []
 
     archive.on('data', (chunk) => chunks.push(chunk))

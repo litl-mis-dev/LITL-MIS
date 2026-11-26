@@ -407,6 +407,18 @@ async function notifyPaymentReminder(userId, semesterLabel) {
   })
 }
 
+// The officer who sent payment reminders, once every email has been tried.
+async function notifyPaymentRemindersDone(userId, { sentCount, failedCount, semesterLabel }) {
+  return createNotification({
+    userId,
+    type: 'PAYMENT_REMINDER',
+    title: 'Payment reminders sent',
+    message: `${sentCount} member${sentCount === 1 ? '' : 's'} reminded about the ${semesterLabel} membership fee.`
+      + (failedCount ? ` ${failedCount} email${failedCount === 1 ? '' : 's'} could not be sent.` : ''),
+    link: '/officers/members-list',
+  })
+}
+
 // ── Event reminders ─────────────────────────────────────────────────────────
 // The day before an event that is still Coming soon or Open, everyone who
 // would get its other notifications is reminded once: officers always,
@@ -502,5 +514,6 @@ module.exports = {
   notifyAuditStatusChanged,
   syncMemberApprovalNotifications,
   notifyAnnouncement,
+  notifyPaymentRemindersDone,
   notifyPaymentReminder,
 }

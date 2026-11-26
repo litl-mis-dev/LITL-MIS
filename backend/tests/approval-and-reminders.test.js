@@ -99,6 +99,7 @@ stub('src/utils/email.js', {
 stub('src/services/notification.service.js', {
   notifyRegistrationApproved: async (userId) => { approvalNotices.push(userId) },
   notifyPaymentReminder: async (userId) => { reminderNotices.push(userId) },
+  notifyPaymentRemindersDone: async (userId, summary) => { reminderNotices.push({ officer: userId, ...summary }) },
   notifyAnnouncement: async () => {},
   syncMemberApprovalNotifications: async () => {},
 })
@@ -272,15 +273,32 @@ test('payment reminders go only to the selected, eligible members', async () => 
   assert.equal((await call(paymentCtrl.sendBulkPaymentReminders, { body: {} })).statusCode, 400)
   assert.equal((await call(paymentCtrl.sendBulkPaymentReminders, { body: { memberIds: ['x'] } })).statusCode, 400)
 
-  const res = await call(paymentCtrl.sendBulkPaymentReminders, {
-    body: { memberIds: [memberOf(a).id, memberOf(b).id, memberOf(paid).id] },
-  })
-  assert.equal(res.statusCode, 200, res.body.message)
-  assert.equal(res.body.sentCount, 2)
+  const selection = { body: { memberIds: [memberOf(a).id, memberOf(b).id, memberOf(paid).id] } }
+  const res = await call(paymentCtrl.sendBulkPaymentReminders, selection)
+  // Answered right away; the emails go out after.
+  assert.equal(res.statusCode, 202, res.body.message)
+  assert.equal(res.body.queuedCount, 2)
   assert.equal(res.body.skippedCount, 1)
+  assert.match(res.body.message, /Sending payment reminders to 2 members\. You'll get a notification when they're done\. 1 skipped/)
+
+  // A second send while the first is still going is refused (no double emails).
+  const again = await call(paymentCtrl.sendBulkPaymentReminders, selection)
+  assert.equal(again.statusCode, 409)
+
+  await paymentCtrl.paymentRemindersInProgress()
   assert.deepEqual(emails.map((e) => e.to).sort(), [a.email, b.email].sort())
-  assert.deepEqual(reminderNotices.sort(), [a.id, b.id].sort())
+  const memberNotices = reminderNotices.filter((n) => typeof n === 'number')
+  assert.deepEqual(memberNotices.sort(), [a.id, b.id].sort())
   assert.equal(emails.some((e) => e.to === notSelected.email || e.to === paid.email), false)
+  // The officer hears when it's done, and the Activity Log has the run.
+  const done = reminderNotices.find((n) => n.officer !== undefined)
+  assert.equal(done.sentCount, 2)
+  assert.equal(done.failedCount, 0)
+  assert.equal(auditLogs.find((l) => l.action === 'PAYMENT_REMINDER_SENT').details.recipientCount, 2)
+
+  // Once finished, reminders can be sent again.
+  assert.equal((await call(paymentCtrl.sendBulkPaymentReminders, selection)).statusCode, 202)
+  await paymentCtrl.paymentRemindersInProgress()
 })
 
 test('a payment reminder is pinned with Important Announcements for 7 days', async () => {

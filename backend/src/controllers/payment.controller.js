@@ -12,7 +12,7 @@ const {
   PAYMENT_UNIT, PaymentValidationError, getUnpaidSemesters, buildAllocation, assertNotAdviser
 } = require('../services/membershipPayment.service')
 const { NON_MEMBER_ROLES, MEMBERSHIP_USER_FILTER } = require('../utils/roles')
-const { notifyPaymentReminder } = require('../services/notification.service')
+const { notifyPaymentReminder, notifyPaymentRemindersDone } = require('../services/notification.service')
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
 
@@ -519,6 +519,58 @@ const getMyPaymentHistory = async (req, res) => {
 // fee for the current active semester. Anyone else in the selection (paid,
 // inactive, no email address) is skipped and counted, never emailed.
 const MAX_REMINDER_SELECTION = 2000
+const EMAIL_BATCH_SIZE = 5
+const EMAIL_BATCH_PAUSE_MS = 1200
+
+// Hundreds of emails take minutes, so they're sent after the officer gets an
+// answer, and the officer is notified when they're done. One run at a time:
+// a second click while emails are still going out would remind the same
+// members twice.
+let reminderRun = null
+
+async function deliverPaymentReminders({ actorId, unpaidMembers, activeSemester, semesterLabel }) {
+  const results = []
+  for (let i = 0; i < unpaidMembers.length; i += EMAIL_BATCH_SIZE) {
+    const batch = unpaidMembers.slice(i, i + EMAIL_BATCH_SIZE)
+    const settled = await Promise.allSettled(
+      batch.map(member => {
+        const memberName = [member.firstName, member.middleName, member.lastName, member.suffix].filter(Boolean).join(' ')
+        return sendPaymentReminderEmail(member.user.email, memberName, semesterLabel)
+      })
+    )
+    results.push(...settled)
+    if (i + EMAIL_BATCH_SIZE < unpaidMembers.length) {
+      await new Promise((resolve) => setTimeout(resolve, EMAIL_BATCH_PAUSE_MS))
+    }
+  }
+
+  const sent = unpaidMembers.filter((_, i) => results[i].status === 'fulfilled')
+  const failed = unpaidMembers.filter((_, i) => results[i].status === 'rejected')
+
+  // Members whose email went out also get the reminder in their notifications.
+  await Promise.all(sent.map((member) =>
+    notifyPaymentReminder(member.user.id, semesterLabel).catch((err) => logError('Notify payment reminder', err))
+  ))
+
+  if (sent.length > 0) {
+    await writeAuditLog({
+      actorId,
+      action: AUDIT_ACTIONS.PAYMENT_REMINDER_SENT,
+      details: {
+        semesterLabel,
+        activeSemesterId: activeSemester.id,
+        recipientCount: sent.length,
+        failedCount: failed.length,
+        memberIds: sent.map(m => m.id),
+      }
+    })
+  }
+  await notifyPaymentRemindersDone(actorId, { sentCount: sent.length, failedCount: failed.length, semesterLabel })
+    .catch((err) => logError('Notify payment reminders done', err))
+}
+
+// The reminders still being sent, if any (tests wait on this).
+const paymentRemindersInProgress = () => reminderRun ?? Promise.resolve()
 
 const sendBulkPaymentReminders = async (req, res) => {
   try {
@@ -557,52 +609,20 @@ const sendBulkPaymentReminders = async (req, res) => {
       return res.status(400).json({ message: 'None of the selected members can be reminded — they have already paid, are inactive, or have no email address.', sentCount: 0, skippedCount })
     }
 
+    if (reminderRun) {
+      return res.status(409).json({ message: "Payment reminders are already being sent. You'll get a notification when they're done." })
+    }
+
     const semesterLabel = `${activeSemester.schoolYear} ${SEMESTER_LABELS_REMINDER[activeSemester.semester]}`
-    const EMAIL_BATCH_SIZE = 5
-    const EMAIL_BATCH_PAUSE_MS = 1200
-    const results = []
-    for (let i = 0; i < unpaidMembers.length; i += EMAIL_BATCH_SIZE) {
-      const batch = unpaidMembers.slice(i, i + EMAIL_BATCH_SIZE)
-      const settled = await Promise.allSettled(
-        batch.map(member => {
-          const memberName = [member.firstName, member.middleName, member.lastName, member.suffix].filter(Boolean).join(' ')
-          return sendPaymentReminderEmail(member.user.email, memberName, semesterLabel)
-        })
-      )
-      results.push(...settled)
-      if (i + EMAIL_BATCH_SIZE < unpaidMembers.length) {
-        await new Promise((resolve) => setTimeout(resolve, EMAIL_BATCH_PAUSE_MS))
-      }
-    }
+    reminderRun = deliverPaymentReminders({ actorId: req.user.id, unpaidMembers, activeSemester, semesterLabel })
+      .catch((err) => logError('Send bulk payment reminders (background)', err))
+      .finally(() => { reminderRun = null })
 
-    const sent = unpaidMembers.filter((_, i) => results[i].status === 'fulfilled')
-    const failed = unpaidMembers.filter((_, i) => results[i].status === 'rejected')
-
-    // Members whose email went out also get the reminder in their notifications.
-    await Promise.all(sent.map((member) =>
-      notifyPaymentReminder(member.user.id, semesterLabel).catch((err) => logError('Notify payment reminder', err))
-    ))
-
-    if (sent.length > 0) {
-      await writeAuditLog({
-        actorId: req.user.id,
-        action: AUDIT_ACTIONS.PAYMENT_REMINDER_SENT,
-        details: {
-          semesterLabel,
-          activeSemesterId: activeSemester.id,
-          recipientCount: sent.length,
-          failedCount: failed.length,
-          memberIds: sent.map(m => m.id),
-        }
-      })
-    }
-
-    return res.json({
-      message: `Payment reminder sent to ${sent.length} member${sent.length !== 1 ? 's' : ''}.`
-        + `${failed.length ? ` ${failed.length} failed to send.` : ''}`
+    const count = unpaidMembers.length
+    return res.status(202).json({
+      message: `Sending payment reminders to ${count} member${count !== 1 ? 's' : ''}. You'll get a notification when they're done.`
         + `${skippedCount ? ` ${skippedCount} skipped (already paid, inactive or no email).` : ''}`,
-      sentCount: sent.length,
-      failedCount: failed.length,
+      queuedCount: count,
       skippedCount,
     })
   } catch (err) {
@@ -613,5 +633,5 @@ const sendBulkPaymentReminders = async (req, res) => {
 
 module.exports = {
   listPayments, recordPayment, previewPayment, getMemberPaymentHistory, getMyPaymentHistory,
-  sendBulkPaymentReminders
+  sendBulkPaymentReminders, paymentRemindersInProgress,
 }

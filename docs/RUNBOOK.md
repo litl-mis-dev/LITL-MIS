@@ -49,6 +49,17 @@ history -c
 exit
 ```
 
+## Deploy checklist
+
+1. Merge the pull request; wait for the API and website builds to finish.
+2. If the release adds a folder under `backend/prisma/migrations`, apply it
+   (next section) right away.
+3. Open `https://api.litltrece.me/api/health/ready`. It must say
+   `{"status":"ready"}`. `"reason":"database migrations pending"` means
+   step 2 is still needed; plain `unavailable` means the database can't be
+   reached. The uptime monitor watches this same address.
+4. Open the site and sign in once to check it loads.
+
 ## Apply new migrations (keeps all data)
 
 After deploying code that adds a migration:

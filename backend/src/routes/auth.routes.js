@@ -24,12 +24,19 @@ const {
 const authMiddleware = require('../middleware/auth.middleware')
 const {
   authLimiter,
+  authIpLimiter,
   registerLimiter,
+  registerIpLimiter,
   loginLimiter,
+  loginIpLimiter,
   otpResendLimiter,
+  otpResendIpLimiter,
   verifyOtpLimiter,
+  verifyOtpIpLimiter,
   verifyResetOtpLimiter,
+  verifyResetOtpIpLimiter,
   forgotPasswordLimiter,
+  forgotPasswordIpLimiter,
   changePasswordLimiter,
   emailChangeLimiter,
   verifyEmailChangeLimiter,
@@ -37,13 +44,15 @@ const {
 
 const { getMyPaymentHistory } = require('../controllers/payment.controller')
 
-router.post('/register', registerLimiter, register)
-router.post('/verify-email-otp', verifyOtpLimiter, verifyEmailOtp)
-router.post('/resend-otp', otpResendLimiter, resendOtp)
+// Each limit is per person, with a looser per-network cap first
+// (middleware/rateLimit.middleware.js).
+router.post('/register', registerIpLimiter, registerLimiter, register)
+router.post('/verify-email-otp', verifyOtpIpLimiter, verifyOtpLimiter, verifyEmailOtp)
+router.post('/resend-otp', otpResendIpLimiter, otpResendLimiter, resendOtp)
 
 router.get('/pending-registration', getPendingRegistration)
 
-router.post('/login', loginLimiter, login)
+router.post('/login', loginIpLimiter, loginLimiter, login)
 router.post('/logout', logout)
 router.get('/me', authMiddleware, getMe)
 router.put('/avatar', authMiddleware, uploadAvatar)
@@ -55,9 +64,9 @@ router.post('/verify-email-change',     authMiddleware, verifyEmailChangeLimiter
 
 router.post('/change-password', authMiddleware, changePasswordLimiter, changePassword)
 
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword)
-router.post('/verify-reset-otp', verifyResetOtpLimiter, verifyResetOtp)
-router.post('/reset-password', authLimiter, resetPassword) // optional fallback
+router.post('/forgot-password', forgotPasswordIpLimiter, forgotPasswordLimiter, forgotPassword)
+router.post('/verify-reset-otp', verifyResetOtpIpLimiter, verifyResetOtpLimiter, verifyResetOtp)
+router.post('/reset-password', authIpLimiter, authLimiter, resetPassword) // optional fallback
 
 router.get('/my-payment-history', authMiddleware, getMyPaymentHistory)
 

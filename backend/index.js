@@ -34,6 +34,8 @@ const http = require('http')
 const { initSocket } = require('./src/realtime/socket')
 const prisma = require('./src/lib/prisma')
 const { defaultEmptyBody, jsonNotFound } = require('./src/middleware/request.middleware')
+const { pendingMigrations } = require('./src/utils/migrationStatus')
+const { logError } = require('./src/utils/logger')
 
 const app = express()
 
@@ -104,9 +106,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
+// Ready = the database answers and has every migration this code ships with
+// (they're applied by hand after a deploy — docs/RUNBOOK.md).
 app.get('/api/health/ready', async (req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`
+    const pending = await pendingMigrations(prisma)
+    if (pending.length) return res.status(503).json({ status: 'unavailable', reason: 'database migrations pending' })
     res.json({ status: 'ready' })
   } catch (err) {
     res.status(503).json({ status: 'unavailable' })
@@ -134,6 +139,11 @@ server.listen(PORT, () => {
   startCleanupJob()
   startEventReminderJob()
   startEventStatusJob()
+  pendingMigrations(prisma)
+    .then((pending) => {
+      if (pending.length) logError('Database migrations pending', new Error(pending.join(', ')))
+    })
+    .catch((err) => logError('Could not check database migrations', err))
 })  
 
 process.on('unhandledRejection', (reason) => {
