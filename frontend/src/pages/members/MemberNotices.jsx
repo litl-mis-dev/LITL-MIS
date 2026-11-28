@@ -94,9 +94,10 @@ export default function MemberNotices({ semesterLabel, isFeeUnpaid, events }) {
 }
 
 // An announcement or payment-reminder notification that is already pinned
-// above would otherwise be listed twice.
+// above would otherwise be listed twice. Only the member's own reminder
+// (linking to Membership) is pinned — not an officer's "reminders sent" notice.
 function isPinnedAgain(notification, pinnedAnnouncementIds, hasPinnedPaymentReminder) {
-  if (notification.type === "PAYMENT_REMINDER") return hasPinnedPaymentReminder;
+  if (notification.type === "PAYMENT_REMINDER") return hasPinnedPaymentReminder && notification.link === "/members/membership";
   if (notification.type !== "ANNOUNCEMENT") return false;
   const id = typeof notification.link === "string"
     ? new URLSearchParams(notification.link.split("?")[1] ?? "").get("announcement")

@@ -396,14 +396,18 @@ async function notifyAuditStatusChanged(subjectLabel, previousStatus, newStatus,
 }
 
 // ── Membership payment reminders ────────────────────────────────────────────
-// Sent alongside the reminder email, to that member's own account only.
+// Sent alongside the reminder email, to that member's own account only. Its
+// link is what marks it as the member's own reminder (pinned with the
+// Important Announcements — announcement.controller.js); the officer's
+// "Payment reminders sent" notice below has the same type but another link.
+const MEMBER_PAYMENT_REMINDER_LINK = '/members/membership'
 async function notifyPaymentReminder(userId, semesterLabel) {
   return createNotification({
     userId,
     type: 'PAYMENT_REMINDER',
     title: 'Membership Fee Not Yet Paid',
     message: `Your membership fee for the ${semesterLabel} is still unpaid. Please pay it to an LITL officer to keep your membership active.`,
-    link: '/members/membership',
+    link: MEMBER_PAYMENT_REMINDER_LINK,
   })
 }
 
@@ -515,5 +519,6 @@ module.exports = {
   syncMemberApprovalNotifications,
   notifyAnnouncement,
   notifyPaymentRemindersDone,
+  MEMBER_PAYMENT_REMINDER_LINK,
   notifyPaymentReminder,
 }

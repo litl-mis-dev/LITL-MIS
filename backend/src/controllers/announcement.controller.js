@@ -2,7 +2,7 @@ const prisma = require('../lib/prisma')
 const { logError } = require('../utils/logger')
 const { writeAuditLog } = require('../utils/auditLog')
 const { AUDIT_ACTIONS } = require('../utils/auditActions')
-const { notifyAnnouncement } = require('../services/notification.service')
+const { notifyAnnouncement, MEMBER_PAYMENT_REMINDER_LINK } = require('../services/notification.service')
 const { positionLabel } = require('../utils/roles')
 
 const RECIPIENT_VALUES = ['MEMBERS', 'OFFICERS', 'BOTH']
@@ -130,7 +130,8 @@ async function hasPaidActiveSemester(userId) {
 async function listPinnedPaymentReminders(userId) {
   const since = new Date(Date.now() - IMPORTANT_ANNOUNCEMENT_DAYS * DAY_MS)
   const reminders = await prisma.notification.findMany({
-    where: { userId, type: 'PAYMENT_REMINDER', createdAt: { gt: since } },
+    // The member's own reminder only — not an officer's "reminders sent" notice.
+    where: { userId, type: 'PAYMENT_REMINDER', link: MEMBER_PAYMENT_REMINDER_LINK, createdAt: { gt: since } },
     orderBy: { createdAt: 'desc' },
     take: 1, // only the latest reminder matters
   })

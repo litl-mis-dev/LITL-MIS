@@ -18,6 +18,8 @@ import { LIMITS } from "../../utils/fieldLimits.js";
 
 // Certification → Academic Year → Semester → Event → certificates
 const LEVEL = { ROOT: "root", ARCHIVE: "archive", SEMESTER: "semester", EVENT: "event" };
+// Certificates per upload request (the server's CERTIFICATE_MAX_FILES).
+const CERTIFICATE_BATCH_SIZE = 10;
 
 export default function Certification() {
   const { can } = useRole();
@@ -139,22 +141,37 @@ export default function Certification() {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadError("");
+    // The server takes up to 10 certificates per upload (it holds them in
+    // memory while it stamps them), so more are sent 10 at a time; the
+    // progress bar covers all of them.
+    const batches = [];
+    for (let i = 0; i < files.length; i += CERTIFICATE_BATCH_SIZE) batches.push(files.slice(i, i + CERTIFICATE_BATCH_SIZE));
+    const failed = [];
+    let sentCount = 0;
     try {
-      const result = await issueCertificate(activeEventFolder.event.id, files, (progressEvent) => {
-        if (progressEvent.total) {
-          setUploadProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
-        }
-      });
-      if (result?.failed?.length > 0) {
+      for (const [index, batch] of batches.entries()) {
+        const result = await issueCertificate(activeEventFolder.event.id, batch, (progressEvent) => {
+          if (progressEvent.total) {
+            setUploadProgress(Math.round(((index + progressEvent.loaded / progressEvent.total) / batches.length) * 100));
+          }
+        });
+        failed.push(...(result?.failed ?? []));
+        sentCount += batch.length;
+      }
+      if (failed.length > 0) {
         setUploadError(
-          `${result.failed.length} of ${files.length} file(s) could not be issued: ${result.failed.map((f) => (f.message ? `${f.fileName} — ${f.message}` : f.fileName)).join(" | ")}`
+          `${failed.length} of ${files.length} file(s) could not be issued: ${failed.map((f) => (f.message ? `${f.fileName} — ${f.message}` : f.fileName)).join(" | ")}`
         );
       }
-      await refreshEventFolder();
-      await loadTree();
     } catch (err) {
-      setUploadError(err?.response?.data?.message || "Failed to issue the certificate(s). Please try again.");
+      const message = err?.response?.data?.message || "Failed to issue the certificate(s). Please try again.";
+      setUploadError(sentCount ? `${message} (The first ${sentCount} of ${files.length} files were sent.)` : message);
     } finally {
+      // Whatever was issued (even before an error) shows in the folder.
+      if (sentCount || failed.length) {
+        await refreshEventFolder();
+        await loadTree();
+      }
       setIsUploading(false);
       setUploadProgress(0);
     }

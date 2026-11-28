@@ -24,6 +24,9 @@ import CharCount from "../../components/ui/CharCount.jsx";
 import { LIMITS } from "../../utils/fieldLimits.js";
 
 const groupAccessOptions = ["Members", "Officers", "Adviser/Dept. Chair"];
+// The server takes up to 5 files per upload (it holds them in memory while it
+// stores them — middleware/upload.middleware.js), so more are sent 5 at a time.
+const UPLOAD_BATCH_SIZE = 5;
 
 
 function createAccess({ groups = [], officerPermissions = {}, officerKeys = [] } = {}) {
@@ -227,14 +230,21 @@ export default function Documents() {
 
         setActionError("");
         setIsUploading(true);
+        const uploaded = [];
         try {
-            const data = await uploadDocumentsRequest(files, currentFolderId);
-            setItems((current) => [...current, ...data.items]);
-            setSelectedItemId(data.items[0]?.id ?? null);
-            setIsTrashOpen(false);
+            for (let i = 0; i < files.length; i += UPLOAD_BATCH_SIZE) {
+                const data = await uploadDocumentsRequest(files.slice(i, i + UPLOAD_BATCH_SIZE), currentFolderId);
+                uploaded.push(...data.items);
+                setItems((current) => [...current, ...data.items]);
+            }
         } catch (err) {
-            setActionError(err.response?.data?.message || "Upload failed. Please try again.");
+            const message = err.response?.data?.message || "Upload failed. Please try again.";
+            setActionError(uploaded.length ? `${message} (${uploaded.length} of ${files.length} files were uploaded.)` : message);
         } finally {
+            if (uploaded.length) {
+                setSelectedItemId(uploaded[0].id);
+                setIsTrashOpen(false);
+            }
             setIsUploading(false);
             event.target.value = "";
         }

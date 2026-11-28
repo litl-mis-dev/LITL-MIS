@@ -43,7 +43,8 @@ const otpResendLimiter = limiter({
   windowMs: 5 * 60 * 1000, max: 5, message: 'Too many resend requests. Please wait a few minutes.',
   keyGenerator: ipAnd((req) => getPendingRegToken(req) ?? req.body?.email),
 })
-const otpResendIpLimiter = limiter({ windowMs: 5 * 60 * 1000, max: 60, message: 'Too many resend requests. Please wait a few minutes.' })
+// Sends an email: a tighter per-network cap, so one machine can't email many accounts.
+const otpResendIpLimiter = limiter({ windowMs: 5 * 60 * 1000, max: 20, message: 'Too many resend requests. Please wait a few minutes.' })
 
 // VERIFY EMAIL OTP — per pending registration.
 const verifyOtpLimiter = limiter({ max: 5, message: 'Too many OTP verification attempts. Please try again later.', keyGenerator: ipAnd(getPendingRegToken) })
@@ -53,7 +54,8 @@ const verifyOtpIpLimiter = limiter({ max: 100, message: 'Too many OTP verificati
 const verifyResetOtpLimiter = limiter({ max: 5, message: 'Too many reset OTP attempts. Please request a new code.', keyGenerator: ipAnd(bodyField('email')) })
 const verifyResetOtpIpLimiter = limiter({ max: 100, message: 'Too many reset OTP attempts. Please request a new code.' })
 const forgotPasswordLimiter = limiter({ max: 5, message: 'Too many password reset requests. Please try again later.', keyGenerator: ipAnd(bodyField('email')) })
-const forgotPasswordIpLimiter = limiter({ max: 100, message: 'Too many password reset requests. Please try again later.' })
+// Sends an email: a tighter per-network cap, as for resending a code.
+const forgotPasswordIpLimiter = limiter({ max: 20, message: 'Too many password reset requests. Please try again later.' })
 
 // Signed-in actions count per account (these run after authMiddleware).
 // EMAIL CHANGE — request + resend (strict: sends real emails)

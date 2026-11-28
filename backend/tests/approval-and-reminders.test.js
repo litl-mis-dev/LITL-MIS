@@ -100,6 +100,7 @@ stub('src/services/notification.service.js', {
   notifyRegistrationApproved: async (userId) => { approvalNotices.push(userId) },
   notifyPaymentReminder: async (userId) => { reminderNotices.push(userId) },
   notifyPaymentRemindersDone: async (userId, summary) => { reminderNotices.push({ officer: userId, ...summary }) },
+  MEMBER_PAYMENT_REMINDER_LINK: '/members/membership',
   notifyAnnouncement: async () => {},
   syncMemberApprovalNotifications: async () => {},
 })
@@ -305,9 +306,12 @@ test('a payment reminder is pinned with Important Announcements for 7 days', asy
   reset()
   const DAY = 24 * 60 * 60 * 1000
   db.notifications.push(
-    { id: 1, userId: 5, type: 'PAYMENT_REMINDER', title: 'Membership Payment Reminder', message: 'Pay', createdAt: new Date(Date.now() - 2 * DAY) },
-    { id: 2, userId: 5, type: 'PAYMENT_REMINDER', title: 'Old', message: 'Old', createdAt: new Date(Date.now() - 8 * DAY) },
-    { id: 3, userId: 6, type: 'PAYMENT_REMINDER', title: 'Someone else', message: 'x', createdAt: new Date() },
+    { id: 1, userId: 5, type: 'PAYMENT_REMINDER', link: '/members/membership', title: 'Membership Payment Reminder', message: 'Pay', createdAt: new Date(Date.now() - 2 * DAY) },
+    { id: 2, userId: 5, type: 'PAYMENT_REMINDER', link: '/members/membership', title: 'Old', message: 'Old', createdAt: new Date(Date.now() - 8 * DAY) },
+    { id: 3, userId: 6, type: 'PAYMENT_REMINDER', link: '/members/membership', title: 'Someone else', message: 'x', createdAt: new Date() },
+    // This user is also an officer who just sent reminders: that notice is newer,
+    // but it isn't their own reminder, so it's neither pinned nor hides it.
+    { id: 4, userId: 5, type: 'PAYMENT_REMINDER', link: '/officers/members-list', title: 'Payment reminders sent', message: '12 members reminded', createdAt: new Date() },
   )
   const res = await call(announcementCtrl.listImportantAnnouncements, { user: { id: 5, role: 'MEMBER', effectiveRole: 'MEMBER' } })
   assert.equal(res.body.announcements.length, 1)
@@ -321,7 +325,7 @@ test('the pinned payment reminder disappears once the member has paid', async ()
   reset()
   db.semesters.push({ id: 1, schoolYear: '2026-2027', semester: 'FIRST', isActive: true })
   const member = addUser({ studentNumber: '2023-100-1', lastName: 'A', status: 'APPROVED' })
-  db.notifications.push({ id: 1, userId: member.id, type: 'PAYMENT_REMINDER', title: 'Reminder', message: 'Pay', createdAt: new Date() })
+  db.notifications.push({ id: 1, userId: member.id, type: 'PAYMENT_REMINDER', link: '/members/membership', title: 'Reminder', message: 'Pay', createdAt: new Date() })
   const asMember = { user: { id: member.id, role: 'MEMBER', effectiveRole: 'MEMBER' } }
 
   assert.equal((await call(announcementCtrl.listImportantAnnouncements, asMember)).body.announcements.length, 1)

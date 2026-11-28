@@ -36,6 +36,7 @@ app.use(cookieParser())
 app.post('/login', limits.loginIpLimiter, limits.loginLimiter, (req, res) =>
   (req.body.password === 'right' ? res.json({ ok: true }) : res.status(401).json({ message: 'Invalid credentials' })))
 app.post('/register', limits.registerIpLimiter, limits.registerLimiter, (req, res) => res.status(201).json({ ok: true }))
+app.post('/forgot-password', limits.forgotPasswordIpLimiter, limits.forgotPasswordLimiter, (req, res) => res.json({ ok: true }))
 
 let base
 let server
@@ -79,10 +80,17 @@ test('register: a class can register from one network; one email is capped at 5 
   assert.equal((await post('/register', { email: 'repeat@cvsu.edu.ph' })).status, 429)
 })
 
-test('uploads: defaults keep one request within about 100–150 MB of memory', () => {
+test('forgot password (sends email): one network can reach at most 20 accounts per 15 minutes', async () => {
+  for (let i = 0; i < 20; i++) {
+    assert.equal((await post('/forgot-password', { email: `reset${i}@cvsu.edu.ph` })).status, 200, `account ${i}`)
+  }
+  assert.equal((await post('/forgot-password', { email: 'one-more@cvsu.edu.ph' })).status, 429)
+})
+
+test('uploads: defaults keep one request within about 100 MB of memory', () => {
   assert.equal(upload.MAX_DOCUMENT_SIZE_MB, 20)
-  assert.equal(upload.MAX_CERTIFICATE_SIZE_MB, 5)
-  assert.equal(upload.MAX_CERTIFICATE_FILES, 30)
+  assert.equal(upload.MAX_CERTIFICATE_SIZE_MB, 10)
+  assert.equal(upload.MAX_CERTIFICATE_FILES, 10)
   const source = fs.readFileSync(path.join(backend, 'src/middleware/upload.middleware.js'), 'utf8')
   assert.match(source, /const MAX_FILES_PER_UPLOAD\s+= 5\b/)
 })

@@ -105,12 +105,13 @@ const uploadDocumentAsset = (req, res, next) => {
 const CERTIFICATE_MIME_TYPES = new Set([
   'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf',
 ])
-// Certificate images or PDFs are rarely over a few MB; 30 × 5 MB keeps one
-// upload to about 150 MB of memory.
-const MAX_CERTIFICATE_SIZE_MB    = Number(process.env.CERTIFICATE_MAX_FILE_SIZE_MB) || 5
+// Print-quality certificate PNGs can be several MB. 10 files × 10 MB keeps
+// one upload to about 100 MB of memory; the Certification page sends larger
+// selections 10 at a time.
+const MAX_CERTIFICATE_SIZE_MB    = Number(process.env.CERTIFICATE_MAX_FILE_SIZE_MB) || 10
 const MAX_CERTIFICATE_SIZE_BYTES = MAX_CERTIFICATE_SIZE_MB * 1024 * 1024
 
-const MAX_CERTIFICATE_FILES = Number(process.env.CERTIFICATE_MAX_FILES) || 30
+const MAX_CERTIFICATE_FILES = Number(process.env.CERTIFICATE_MAX_FILES) || 10
 
 const multerCertificate = multer({
   storage: multer.memoryStorage(),
